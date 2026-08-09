@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { formatarMoeda } from './formatadores.js';
 import LeitorNotaCamera from './LeitorNotaCamera.jsx';
+import { supabaseClient } from './supabase.js';
 
 export const Estoque = ({
   produtos,
@@ -75,7 +76,7 @@ export const Estoque = ({
     }
   };
 
-  const handleSalvar = () => {
+  const handleSalvar = async () => {
     if (!novoProdNome.trim()) {
       dispararMensagem('Erro', 'O nome do produto é obrigatório!');
       return;
@@ -87,8 +88,7 @@ export const Estoque = ({
     const fatorFinal = parseFloat(fatorConversao) || 1;
 
     if (idProdutoSelecionadoEdicao) {
-      setProdutos(prev => prev.map(p => p.id === idProdutoSelecionadoEdicao ? {
-        ...p,
+      const prodAtualizado = {
         nome: novoProdNome,
         category: novoProdCategoria,
         precoCusto: custoFinal,
@@ -97,7 +97,17 @@ export const Estoque = ({
         imagem: novoProdImagem,
         fatorConversao: fatorFinal,
         apelidos: apelidos
-      } : p));
+      };
+      setProdutos(prev => prev.map(p => p.id === idProdutoSelecionadoEdicao ? { ...p, ...prodAtualizado } : p));
+      try {
+        await supabaseClient?.from('produtos').upsert({
+          id: idProdutoSelecionadoEdicao, nome: prodAtualizado.nome, category: prodAtualizado.category,
+          preco: prodAtualizado.preco, preco_custo: prodAtualizado.precoCusto,
+          estoque: (produtos.find(p => p.id === idProdutoSelecionadoEdicao)?.estoque || 0),
+          estoque_minimo: prodAtualizado.estoqueMinimo, imagem: prodAtualizado.imagem,
+          fator_conversao: prodAtualizado.fatorConversao, apelidos: prodAtualizado.apelidos
+        });
+      } catch (err) { console.warn('Nuvem offline:', err); }
       dispararMensagem('Sucesso', 'Produto atualizado com sucesso!');
     } else {
       const novoProduto = {
@@ -115,11 +125,20 @@ export const Estoque = ({
       };
       setProdutos(prev => [...prev, novoProduto]);
       setIdProdutoSelecionadoEdicao(novoProduto.id);
+      try {
+        await supabaseClient?.from('produtos').upsert({
+          id: novoProduto.id, nome: novoProduto.nome, category: novoProduto.category,
+          preco: novoProduto.preco, preco_custo: novoProduto.precoCusto,
+          estoque: novoProduto.estoque, estoque_minimo: novoProduto.estoqueMinimo,
+          imagem: novoProduto.imagem, fator_conversao: novoProduto.fatorConversao,
+          apelidos: novoProduto.apelidos, data_ultima_compra: novoProduto.dataUltimaCompra
+        });
+      } catch (err) { console.warn('Nuvem offline:', err); }
       dispararMensagem('Sucesso', 'Novo produto cadastrado!');
     }
   };
 
-  const handleAddEstoque = () => {
+  const handleAddEstoque = async () => {
     if (!idProdutoSelecionadoEdicao) {
       dispararMensagem('Aviso', 'Salve o produto primeiro antes de dar entrada no estoque.');
       return;
@@ -136,9 +155,16 @@ export const Estoque = ({
       qtdFinalAdicionar = qtdEntrada;
     }
 
+    const prodAtual = produtos.find(p => p.id === idProdutoSelecionadoEdicao);
+    const novoEstoque = (prodAtual?.estoque || 0) + qtdFinalAdicionar;
+
     setProdutos(prev => prev.map(p => p.id === idProdutoSelecionadoEdicao ? {
-      ...p, estoque: p.estoque + qtdFinalAdicionar
+      ...p, estoque: novoEstoque
     } : p));
+
+    try {
+      await supabaseClient?.from('produtos').update({ estoque: novoEstoque }).eq('id', idProdutoSelecionadoEdicao);
+    } catch (err) { console.warn('Nuvem offline:', err); }
 
     dispararMensagem('Estoque', `Foram adicionadas ${qtdFinalAdicionar} unidades ao estoque de ${novoProdNome}.`);
     setNovoProdEstoque('');

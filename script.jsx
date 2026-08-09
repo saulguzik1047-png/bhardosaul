@@ -208,7 +208,7 @@ function App() {
     ));
   };
   
-  const confirmarProcessamentoNota = () => {
+  const confirmarProcessamentoNota = async () => {
     let produtosAtualizados = [...produtos];
 
     itensNotaIA.forEach(itemInfo => {
@@ -254,6 +254,17 @@ function App() {
     });
 
     setProdutos(produtosAtualizados);
+
+    try {
+      for (const p of produtosAtualizados) {
+        await supabaseClient?.from('produtos').upsert({
+          id: p.id, nome: p.nome, category: p.category, preco: p.preco,
+          preco_custo: p.precoCusto, estoque: p.estoque, estoque_minimo: p.estoqueMinimo,
+          imagem: p.imagem || '', fator_conversao: p.fatorConversao || 1,
+          apelidos: p.apelidos || [], data_ultima_compra: p.dataUltimaCompra || null
+        });
+      }
+    } catch (err) { console.warn('Nuvem offline:', err); }
     
     // 🛠️ FIX CEO: Resolvemos o reducer da despesa pra lidar com strings com vírgula tbm
     const totalDaNota = itensNotaIA.reduce((acc, item) => acc + (parseFloat(String(item.custoTotal).replace(',', '.')) || 0), 0);
@@ -451,6 +462,16 @@ function App() {
         }
       });
       setProdutos(produtosAtualizados);
+      try {
+        for (const p of produtosAtualizados) {
+          supabaseClient?.from('produtos').upsert({
+            id: p.id, nome: p.nome, category: p.category, preco: p.preco,
+            preco_custo: p.precoCusto, estoque: p.estoque, estoque_minimo: p.estoqueMinimo,
+            imagem: p.imagem || '', fator_conversao: p.fatorConversao || 1,
+            apelidos: p.apelidos || [], data_ultima_compra: p.dataUltimaCompra || null
+          });
+        }
+      } catch (err) { console.warn('Nuvem offline:', err); }
       dispararMensagem('Estoque Atualizado!', `Entrada processada com sucesso!\n\n• ${itensNota.length - novosCriados} item(ns) existente(s) tiveram o estoque somado.\n• ${novosCriados} novo(s) produto(s) foram Pré-Cadastrados.`);
       setMostrarLeitorCamera(false);
     };
@@ -741,15 +762,16 @@ function App() {
   }
 
   function excluirProdutoDoEstoque(id, nome) {
-    dispararConfirmacao('Excluir Produto', `Deseja realmente EXCLUIR permanentemente o produto "${nome}"?`, () => {
+    dispararConfirmacao('Excluir Produto', `Deseja realmente EXCLUIR permanentemente o produto "${nome}"?`, async () => {
         setProdutos(prev => prev.filter((p) => p.id !== id));
+        try { await supabaseClient?.from('produtos').delete().eq('id', id); } catch (err) { console.warn('Nuvem offline:', err); }
         dispararMensagem('Estoque', `Produto "${nome}" foi removido do estoque.`);
         const restantes = produtos.filter((p) => p.id !== id);
         if (restantes.length > 0) setIdProdutoSelecionadoEdicao(restantes[0].id);
     });
   }
 
-  function addItemNaComanda(produto) {
+  async function addItemNaComanda(produto) {
     if (!comandaAtual) {
       dispararMensagem('Aviso', 'Selecione uma comanda primeiro!');
       return;
@@ -759,7 +781,9 @@ function App() {
       return;
     }
 
-    setProdutos((prev) => prev.map((p) => p.id === produto.id ? { ...p, estoque: p.estoque - 1 } : p));
+    const novoEstoque = produto.estoque - 1;
+    setProdutos((prev) => prev.map((p) => p.id === produto.id ? { ...p, estoque: novoEstoque } : p));
+    try { await supabaseClient?.from('produtos').update({ estoque: novoEstoque }).eq('id', produto.id); } catch (err) { console.warn('Nuvem offline:', err); }
     setComandas((prev) =>
       prev.map((c) => {
         if (c.id !== comandaAtivaId) return c;
@@ -817,7 +841,12 @@ function App() {
             }, ...prev,
         ]);
 
-        setProdutos((prev) => prev.map((p) => p.id === idProd ? { ...p, estoque: p.estoque + qtdDevolver } : p));
+        setProdutos((prev) => {
+          const prodAtual = prev.find((p) => p.id === idProd);
+          const novoEst = (prodAtual?.estoque || 0) + qtdDevolver;
+          try { supabaseClient?.from('produtos').update({ estoque: novoEst }).eq('id', idProd); } catch (err) { console.warn('Nuvem offline:', err); }
+          return prev.map((p) => p.id === idProd ? { ...p, estoque: novoEst } : p);
+        });
         setComandas((prev) => prev.map((c) => {
             if (c.id !== comandaAtivaId) return c;
             return { ...c, itens: c.itens.filter((i) => i.idProd !== idProd) };

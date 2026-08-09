@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatarMoeda, calcularTotal } from './formatadores.js';
+import { supabaseClient } from './supabase.js';
 
 export const Clientes = ({
   clientesCadastrados,
@@ -15,7 +16,7 @@ export const Clientes = ({
   const [pesquisaClienteBase, setPesquisaClienteBase] = React.useState('');
   const [expandedCliente, setExpandedCliente] = React.useState(null);
 
-  const handleSalvarCliente = (e) => {
+  const handleSalvarCliente = async (e) => {
     e.preventDefault();
     if (!novoClienteNomeInput.trim() || !novoClienteSobrenomeInput.trim()) {
       dispararMensagem('Erro', 'Nome e Sobrenome são obrigatórios.');
@@ -30,15 +31,14 @@ export const Clientes = ({
       dispararMensagem('Aviso', 'Este cliente já está cadastrado.');
       return;
     }
-    setClientesCadastrados(prev => [
-      ...prev,
-      {
-        nome: nomeCompleto,
-        sobrenome: novoClienteSobrenomeInput.trim(),
-        telefone: novoClienteTelefoneInput.trim(),
-        foto: '',
-      },
-    ]);
+    const novoCli = {
+      nome: nomeCompleto,
+      sobrenome: novoClienteSobrenomeInput.trim(),
+      telefone: novoClienteTelefoneInput.trim(),
+      foto: '',
+    };
+    setClientesCadastrados(prev => [...prev, novoCli]);
+    try { await supabaseClient?.from('clientes').insert([novoCli]); } catch (err) { console.warn('Nuvem offline:', err); }
     setNovoClienteNomeInput('');
     setNovoClienteSobrenomeInput('');
     setNovoClienteTelefoneInput('');
