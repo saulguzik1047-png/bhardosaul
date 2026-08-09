@@ -512,10 +512,10 @@ function App() {
   React.useEffect(() => {
     async function carregarDadosDaNuvem() {
       try {
-        const { data: clis } = await supabaseClient.from('clientes').select('*');
+        const { data: clis } = (await supabaseClient?.from('clientes').select('*')) || {};
         if (clis && clis.length > 0) setClientesCadastrados(clis);
 
-        const { data: prods } = await supabaseClient.from('produtos').select('*');
+        const { data: prods } = (await supabaseClient?.from('produtos').select('*')) || {};
         if (prods && prods.length > 0) {
           setProdutos(prods.map((p) => ({
               id: p.id, category: p.category, nome: p.nome,
@@ -527,7 +527,7 @@ function App() {
           );
         }
 
-        const { data: vnds } = await supabaseClient.from('vendas').select('*');
+        const { data: vnds } = (await supabaseClient?.from('vendas').select('*')) || {};
         if (vnds && vnds.length > 0) {
           setVendas(vnds.map((v) => ({
               idVenda: v.id, data: v.data, cliente: v.cliente,
@@ -536,7 +536,7 @@ function App() {
           );
         }
 
-        const { data: logs } = await supabaseClient.from('auditoria_cancelamentos').select('*').order('data', { ascending: false });
+        const { data: logs } = (await supabaseClient?.from('auditoria_cancelamentos').select('*').order('data', { ascending: false })) || {};
         if (logs) setLogsAuditoria(logs);
       } catch (err) {
         console.error('Erro ao carregar dados da nuvem, rodando local offline:', err);
@@ -558,7 +558,7 @@ function App() {
 
     try {
       for (const p of produtos) {
-        await supabaseClient.from('produtos').upsert({
+        await supabaseClient?.from('produtos').upsert({
           id: p.id, nome: p.nome, category: p.category, preco: p.preco,
           preco_custo: p.precoCusto, estoque: p.estoque, estoque_minimo: p.estoqueMinimo, imagem: p.imagem,
           fator_conversao: p.fatorConversao || 1, data_ultima_compra: p.dataUltimaCompra || null,
@@ -567,13 +567,13 @@ function App() {
       }
 
       for (const c of crediarios) {
-        await supabaseClient.from('crediarios').upsert({
+        await supabaseClient?.from('crediarios').upsert({
           id_cred: c.idCred, data: c.data, cliente: c.cliente,
           total: c.total, status: c.status, itens_consumidos: c.itensConsumidos, pagamentos: c.pagamentos || []
         });
       }
 
-      const { data: vendasNuvem } = await supabaseClient.from('vendas').select('data, cliente, total');
+      const { data: vendasNuvem } = (await supabaseClient?.from('vendas').select('data, cliente, total')) || {};
       const vendasParaInserir = vendas.filter(vLocal => {
         const jaExiste = vendasNuvem?.some(vCloud => vCloud.data === vLocal.data && vCloud.cliente === vLocal.cliente && vCloud.total === vLocal.total);
         return !jaExiste; 
@@ -583,16 +583,16 @@ function App() {
         const vendasFormatadas = vendasParaInserir.map(v => ({
           data: v.data, cliente: v.cliente, total: v.total, pagamento: v.pagamento, itens_consumidos: v.itensConsumidos
         }));
-        await supabaseClient.from('vendas').insert(vendasFormatadas);
+        await supabaseClient?.from('vendas').insert(vendasFormatadas);
       }
 
-      const { data: clientesNuvem } = await supabaseClient.from('clientes').select('nome');
+      const { data: clientesNuvem } = (await supabaseClient?.from('clientes').select('nome')) || {};
       const clientesParaInserir = clientesCadastrados.filter(cLocal => {
         return !clientesNuvem?.some(cCloud => cCloud.nome.toLowerCase() === cLocal.nome.toLowerCase());
       });
 
       if (clientesParaInserir.length > 0) {
-        await supabaseClient.from('clientes').insert(clientesParaInserir.map(c => ({
+        await supabaseClient?.from('clientes').insert(clientesParaInserir.map(c => ({
            nome: c.nome, sobrenome: c.sobrenome, telefone: c.telefone, foto: c.foto
         })));
       }
@@ -633,7 +633,7 @@ function App() {
       const novoCli = { nome: nomePronto, sobrenome: sobrenome, telefone: '', foto: '' };
 
       setClientesCadastrados(prev => [...prev, novoCli]);
-      await supabaseClient.from('clientes').insert([novoCli]);
+      await supabaseClient?.from('clientes').insert([novoCli]);
     }
   }
 
@@ -804,7 +804,7 @@ function App() {
         const qtdDevolver = itemNoConsumo.qtd;
 
         try {
-          await supabaseClient.from('auditoria_cancelamentos').insert([{
+          await supabaseClient?.from('auditoria_cancelamentos').insert([{
               operador: usuarioLogado ? usuarioLogado.usuario : 'Admin', tipo: 'Remoção de Item',
               motivo: motivo, data: new Date().toISOString(),
               detalhes: { id_comanda: comandaAtual.id, nome_cliente: comandaAtual.nome, produto: itemNoConsumo.nome, quantidade: qtdDevolver },
@@ -903,7 +903,7 @@ function App() {
         }
 
         try {
-          await supabaseClient.from('auditoria_cancelamentos').insert([{
+          await supabaseClient?.from('auditoria_cancelamentos').insert([{
               operador: usuarioLogado ? usuarioLogado.usuario : 'Admin', tipo: 'Cancelamento de Comanda',
               motivo: motivo, data: new Date().toISOString(), detalhes: { id_comanda: comanda.id, nome_cliente: comanda.nome },
             }]);
@@ -1024,7 +1024,7 @@ function App() {
               total: cr, status: 'Pendente', itensConsumidos: itensParaSalvar,
           }]);
 
-          supabaseClient.from('crediarios').insert([{
+          supabaseClient?.from('crediarios').insert([{
                 id_cred: idCredGerado, data: new Date().toLocaleString('pt-BR'), cliente: comandaAtual.nome,
                 total: cr, status: 'Pendente', itens_consumidos: itensParaSalvar,
           }]).then(() => console.log('Fiado composto salvo na nuvem!'));
@@ -1047,7 +1047,7 @@ function App() {
         }]);
 
         try {
-          await supabaseClient.from('vendas').insert([{
+          await supabaseClient?.from('vendas').insert([{
               data: new Date().toLocaleString('pt-BR'), cliente: comandaAtual.nome, total: totalCobranca,
               pagamento: formasTexto.join(' | '), itens_consumidos: itensFormatados,
           }]);
@@ -1081,7 +1081,7 @@ function App() {
               total: totalCobranca, status: 'Pendente', itensConsumidos: itensParaSalvar,
           }]);
 
-          supabaseClient.from('crediarios').insert([{
+          supabaseClient?.from('crediarios').insert([{
             id_cred: idCredGerado, data: new Date().toLocaleString('pt-BR'), cliente: comandaAtual.nome,
             total: totalCobranca, status: 'Pendente', itens_consumidos: itensParaSalvar
           }]).then(() => console.log('Fiado direto salvo na nuvem com sucesso!')).catch(err => console.error(err));
@@ -1104,7 +1104,7 @@ function App() {
         }]);
 
         try {
-          await supabaseClient.from('vendas').insert([{
+          await supabaseClient?.from('vendas').insert([{
               data: new Date().toLocaleString('pt-BR'), cliente: comandaAtual.nome, total: totalCobranca,
               pagamento: tipo.toUpperCase(), itens_consumidos: itensFormatados,
           }]);
@@ -1132,7 +1132,7 @@ function App() {
     if (propriedade === 'dataUltimaCompra') dbProp = 'data_ultima_compra';
 
     try {
-      await supabaseClient.from('produtos').update({ [dbProp]: valorFormatado }).eq('id', id);
+      await supabaseClient?.from('produtos').update({ [dbProp]: valorFormatado }).eq('id', id);
     } catch (error) { console.error('Erro ao sincronizar na nuvem:', error); }
   }
 
@@ -1247,9 +1247,9 @@ function App() {
 
           try {
             for (const item of alteradosParaBanco) {
-              await supabaseClient.from('crediarios').update({ total: item.total, status: item.status, pagamentos: item.pagamentos }).eq('id_cred', item.idCred);
+              await supabaseClient?.from('crediarios').update({ total: item.total, status: item.status, pagamentos: item.pagamentos }).eq('id_cred', item.idCred);
             }
-            await supabaseClient.from('vendas').insert([{ data: new Date().toLocaleString('pt-BR'), cliente: `Abatimento Parcial - ${cliente}`, total: valor, pagamento: 'PIX/Dinheiro/Cartão', itens_consumidos: [{ nome: 'Abatimento Parcial Fiado', qtd: 1, preco: valor }]}]);
+            await supabaseClient?.from('vendas').insert([{ data: new Date().toLocaleString('pt-BR'), cliente: `Abatimento Parcial - ${cliente}`, total: valor, pagamento: 'PIX/Dinheiro/Cartão', itens_consumidos: [{ nome: 'Abatimento Parcial Fiado', qtd: 1, preco: valor }]}]);
           } catch (error) { console.error(error); }
 
           dispararMensagem('Sucesso', `Abatimento de ${formatarMoeda(valor)} registrado com sucesso!${msgWppStatus}`);
@@ -1285,9 +1285,9 @@ function App() {
 
         try {
           for (const credItem of comandasArray) {
-            await supabaseClient.from('crediarios').update({ total: 0, status: 'Pago' }).eq('id_cred', credItem.idCred);
+            await supabaseClient?.from('crediarios').update({ total: 0, status: 'Pago' }).eq('id_cred', credItem.idCred);
           }
-          await supabaseClient.from('vendas').insert([{ data: new Date().toLocaleString('pt-BR'), cliente: `Quitação Total - ${cliente}`, total: totalDivida, pagamento: metodo, itens_consumidos: [{ nome: 'Quitação Total Fiado', qtd: 1, preco: totalDivida }]}]);
+          await supabaseClient?.from('vendas').insert([{ data: new Date().toLocaleString('pt-BR'), cliente: `Quitação Total - ${cliente}`, total: totalDivida, pagamento: metodo, itens_consumidos: [{ nome: 'Quitação Total Fiado', qtd: 1, preco: totalDivida }]}]);
         } catch (error) { console.error(error); }
 
         dispararMensagem('Sucesso', `Todas as comandas deste cliente foram totalmente baixadas e inseridas no caixa!${msgWppStatus}`);
