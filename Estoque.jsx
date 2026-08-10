@@ -162,6 +162,7 @@ export const Estoque = ({
     const vendaFinal = parseFloat(precoVenda) || 0;
     const minFinal = parseFloat(novoProdEstoqueMin) || 0;
     const fatorFinal = parseFloat(fatorConversao) || 1;
+    const nomeNormalizado = novoProdNome.trim().toLowerCase();
 
     if (idProdutoSelecionadoEdicao) {
       const prodAtualizado = {
@@ -187,6 +188,18 @@ export const Estoque = ({
       setProdutoPesquisa('');
       dispararMensagem('Sucesso', 'Produto atualizado com sucesso!');
     } else {
+      const produtoJaExiste = produtos.some((produto) => {
+        if (produto.id === idProdutoSelecionadoEdicao) return false;
+        const nomeProduto = String(produto.nome || '').trim().toLowerCase();
+        const apelidosProduto = (produto.apelidos || []).map((apelido) => String(apelido || '').trim().toLowerCase());
+        return nomeProduto === nomeNormalizado || apelidosProduto.includes(nomeNormalizado);
+      });
+
+      if (produtoJaExiste) {
+        dispararMensagem('Erro', 'Este produto já existe no estoque.');
+        return;
+      }
+
       const novoProduto = {
         id: Date.now(),
         nome: novoProdNome,

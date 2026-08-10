@@ -775,7 +775,18 @@ export function PDV({
                 categoriaAtiva === cat ? 'active' : ''
               }`}
               onClick={() => setCategoriaAtiva(cat)}
-              style={{ padding: '8px 10px', fontSize: '11px', borderRadius: '6px' }}
+              style={{
+                padding: '10px 12px',
+                fontSize: '12px',
+                fontWeight: '800',
+                borderRadius: '8px',
+                border: categoriaAtiva === cat ? '1px solid #f97316' : '1px solid #cbd5e1',
+                background: categoriaAtiva === cat ? '#f97316' : '#ffffff',
+                color: categoriaAtiva === cat ? '#ffffff' : '#334155',
+                boxShadow: categoriaAtiva === cat ? '0 4px 10px rgba(249, 115, 22, 0.28)' : '0 2px 4px rgba(0,0,0,0.08)',
+                transform: 'scale(1.02)',
+                letterSpacing: '0.2px'
+              }}
             >
               {cat}
             </button>
