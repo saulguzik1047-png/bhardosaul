@@ -1650,16 +1650,16 @@ function App() {
                     setCategoriaGerenciarSelecionada(e.target.value);
                     setNovoNomeCategoriaGerenciar(e.target.value);
                   }}
-                  style={{ textAlign: 'left', background: '#090f17', border: '1px solid #ef4444' }}
+                  style={{ textAlign: 'left', background: '#0f172a', color: '#f8fafc', border: '1px solid #334155' }}
                 >
                   {(caixaDialogo.categorias || []).map((categoria) => (
-                    <option key={categoria} value={categoria}>{categoria}</option>
+                    <option key={categoria} value={categoria} style={{ background: '#0f172a', color: '#f8fafc' }}>{categoria}</option>
                   ))}
                 </select>
 
                 <input
                   type="text" className="dark-input-field" placeholder="Novo nome da categoria..."
-                  style={{ textAlign: 'left', background: '#090f17', border: '1px solid #ef4444' }}
+                  style={{ textAlign: 'left', background: '#0f172a', color: '#f8fafc', border: '1px solid #334155' }}
                   value={novoNomeCategoriaGerenciar}
                   onChange={(e) => setNovoNomeCategoriaGerenciar(e.target.value)}
                 />
@@ -1690,6 +1690,18 @@ function App() {
                     Excluir
                   </button>
                 </div>
+
+                <button
+                  type="button"
+                  style={{ background: 'transparent', color: '#cbd5e1', border: '1px solid #334155', padding: '10px 14px', borderRadius: '10px', fontWeight: '600', cursor: 'pointer' }}
+                  onClick={() => {
+                    setCaixaDialogo(null);
+                    setCategoriaGerenciarSelecionada('');
+                    setNovoNomeCategoriaGerenciar('');
+                  }}
+                >
+                  Fechar
+                </button>
               </div>
             )}
 
