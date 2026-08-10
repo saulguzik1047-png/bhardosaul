@@ -6,10 +6,14 @@ export default async function handler(req, res) {
   
     // 2. Puxa a chave SECRETAMENTE do cofre do Vercel (ninguém de fora consegue ver isso)
     const apiKey = process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY;
+    if (!apiKey) {
+      console.error("Chave da OpenAI não configurada no servidor");
+      return res.status(500).json({ error: "Chave da OpenAI não configurada no servidor" });
+    }
   
     try {
       // 3. Faz a comunicação direta e oficial com a OpenAI
-const respostaOpenAI = await fetch("https://api.openai.com/v1/responses", {
+      const respostaOpenAI = await fetch("https://api.openai.com/v1/responses", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -19,10 +23,14 @@ const respostaOpenAI = await fetch("https://api.openai.com/v1/responses", {
       });
   
       const data = await respostaOpenAI.json();
+      if (!respostaOpenAI.ok) {
+        console.error("Erro OpenAI:", data);
+        return res.status(respostaOpenAI.status).json(data);
+      }
       return res.status(200).json(data);
       
     } catch (error) {
       console.error("Erro no backend:", error);
-      return res.status(500).json({ error: 'Erro ao conectar com a IA' });
+      return res.status(500).json({ error: error.message || 'Erro ao conectar com a IA' });
     }
   }

@@ -27,11 +27,20 @@ export const Estoque = ({
   const [precoVenda, setPrecoVenda] = useState('');
   const [novoProdEstoqueMin, setNovoProdEstoqueMin] = useState('');
   const [novoProdImagem, setNovoProdImagem] = useState('');
+  const [imagemPreviewUrl, setImagemPreviewUrl] = useState('');
+  const [imagemPreviewErro, setImagemPreviewErro] = useState(false);
+  const [isArrastandoImagem, setIsArrastandoImagem] = useState(false);
   const [tipoProduto, setTipoProduto] = useState('padrao');
   const [novoProdEstoque, setNovoProdEstoque] = useState('');
   const [fatorConversao, setFatorConversao] = useState('');
   const [apelidos, setApelidos] = useState([]);
   const [novoApelido, setNovoApelido] = useState('');
+
+  useEffect(() => {
+    const url = validarUrlImagem(novoProdImagem);
+    setImagemPreviewUrl(url);
+    setImagemPreviewErro(false);
+  }, [novoProdImagem]);
   const [mostrarLeitorCamera, setMostrarLeitorCamera] = useState(false);
   const [filtroCategoria, setFiltroCategoria] = useState('Todos');
   const [estoqueEditando, setEstoqueEditando] = useState({});
@@ -47,6 +56,84 @@ export const Estoque = ({
 
   const normalizarCategorias = (lista) =>
     Array.from(new Set((lista || []).filter((valor) => typeof valor === 'string' && valor.trim())));
+
+  const validarUrlImagem = (url) => {
+    if (!url) return '';
+    const texto = String(url).trim();
+    if (!texto) return '';
+    if (/^data:image\//i.test(texto)) return texto;
+    const finalUrl = /^https?:\/\//i.test(texto) ? texto : `https://${texto}`;
+    try {
+      return new URL(finalUrl).toString();
+    } catch (err) {
+      return '';
+    }
+  };
+
+  const extrairUrlDoDrop = async (dataTransfer) => {
+    const urlFromTransfer = dataTransfer.getData('text/uri-list') || dataTransfer.getData('text/plain');
+    if (urlFromTransfer && /^https?:\/\//i.test(urlFromTransfer.trim())) {
+      return urlFromTransfer.trim();
+    }
+
+    const htmlData = dataTransfer.getData('text/html');
+    if (htmlData) {
+      const match = htmlData.match(/src=["']([^"']+)["']/i);
+      if (match) return match[1];
+    }
+
+    const itens = Array.from(dataTransfer.items || []);
+    for (const item of itens) {
+      if (item.kind === 'string') {
+        const valor = await new Promise((resolve) => item.getAsString(resolve));
+        if (/^https?:\/\//i.test(valor.trim())) return valor.trim();
+        if (/^data:image\//i.test(valor.trim())) return valor.trim();
+      }
+      if (item.kind === 'file') {
+        const arquivo = item.getAsFile();
+        if (arquivo && arquivo.type.startsWith('image/')) {
+          return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => resolve('');
+            reader.readAsDataURL(arquivo);
+          });
+        }
+      }
+    }
+
+    if (dataTransfer.files && dataTransfer.files.length > 0) {
+      const arquivo = dataTransfer.files[0];
+      if (arquivo.type.startsWith('image/')) {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => resolve('');
+          reader.readAsDataURL(arquivo);
+        });
+      }
+    }
+
+    return '';
+  };
+
+  const handleImagemDrop = async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsArrastandoImagem(false);
+
+    const url = await extrairUrlDoDrop(event.dataTransfer);
+    const urlValidada = validarUrlImagem(url);
+    if (urlValidada) {
+      setNovoProdImagem(urlValidada);
+      setImagemPreviewUrl(urlValidada);
+      setImagemPreviewErro(false);
+    } else if (url) {
+      setNovoProdImagem(url);
+      setImagemPreviewUrl('');
+      setImagemPreviewErro(true);
+    }
+  };
 
   useEffect(() => {
     setCategoriasCustomizadas(prev => normalizarCategorias(prev));
@@ -164,7 +251,10 @@ export const Estoque = ({
       setPrecoCusto(prod.precoCusto);
       setPrecoVenda(prod.preco);
       setNovoProdEstoqueMin(prod.estoqueMinimo);
-      setNovoProdImagem(prod.imagem || '');
+      const imagemValida = validarUrlImagem(prod.imagem || '');
+      setNovoProdImagem(imagemValida);
+      setImagemPreviewUrl(imagemValida);
+      setImagemPreviewErro(false);
       setFatorConversao(prod.fatorConversao > 1 ? prod.fatorConversao : '');
       setTipoProduto(prod.fatorConversao > 1 ? 'garrafa' : 'padrao');
       setApelidos(prod.apelidos || []);
@@ -241,7 +331,7 @@ export const Estoque = ({
         precoCusto: custoFinal,
         preco: vendaFinal,
         estoqueMinimo: minFinal,
-        imagem: novoProdImagem,
+        imagem: validarUrlImagem(novoProdImagem),
         fatorConversao: fatorFinal,
         apelidos: apelidos
       };
@@ -278,7 +368,7 @@ export const Estoque = ({
         preco: vendaFinal,
         estoque: 0,
         estoqueMinimo: minFinal,
-        imagem: novoProdImagem,
+        imagem: validarUrlImagem(novoProdImagem),
         fatorConversao: fatorFinal,
         apelidos: apelidos,
         dataUltimaCompra: new Date().toISOString().split('T')[0]
@@ -345,6 +435,7 @@ export const Estoque = ({
     setTipoProduto('padrao');
     setApelidos([]);
     setNovoApelido('');
+    setImagemPreviewErro(false);
   };
 
   const handleExcluirProduto = () => {
@@ -661,24 +752,57 @@ export const Estoque = ({
           {/* COL 3: IMAGE PREVIEW */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
             <label style={labelStyle}>Preview da Imagem</label>
-            <div style={{
-              width: '120px', height: '120px', background: fillBg,
-              border: '2px dashed rgba(120,120,128,0.32)', borderRadius: radiusMd,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
-            }}>
-              {novoProdImagem ? (
-                <img src={novoProdImagem} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            <div
+              onDrop={handleImagemDrop}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                setIsArrastandoImagem(true);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsArrastandoImagem(true);
+              }}
+              onDragLeave={() => setIsArrastandoImagem(false)}
+              style={{
+                width: '120px', height: '120px', background: '#f5f7fb',
+                border: `2px dashed ${isArrastandoImagem ? '#007aff' : 'rgba(120,120,128,0.32)'}`,
+                borderRadius: radiusMd,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+                transition: 'border-color 0.2s ease, background-color 0.2s ease'
+              }}
+            >
+              {imagemPreviewUrl && !imagemPreviewErro ? (
+                <img
+                  src={imagemPreviewUrl}
+                  alt="Preview"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  onError={() => setImagemPreviewErro(true)}
+                  onLoad={() => setImagemPreviewErro(false)}
+                />
               ) : (
-                <i className="fas fa-image" style={{ fontSize: '30px', color: 'rgba(120,120,128,0.3)' }}></i>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'rgba(120,120,128,0.6)', fontSize: '12px', textAlign: 'center', padding: '10px' }}>
+                  <i className="fas fa-image" style={{ fontSize: '24px', marginBottom: '6px' }}></i>
+                  Arraste a imagem
+                  <br />para cá ou cole o link
+                </div>
               )}
             </div>
             <input
               type="text"
               value={novoProdImagem}
-              onChange={(e) => setNovoProdImagem(e.target.value)}
+              onChange={(e) => {
+                setNovoProdImagem(e.target.value);
+                setImagemPreviewErro(false);
+              }}
+              onBlur={() => setNovoProdImagem(validarUrlImagem(novoProdImagem))}
               placeholder="Cole o link da imagem..."
               style={{ ...inputStyle, fontSize: '13px', textAlign: 'center' }}
             />
+            {(novoProdImagem && (!imagemPreviewUrl || imagemPreviewErro)) && (
+              <small style={{ color: '#ff3b30', marginTop: '6px', display: 'block', fontSize: '12px' }}>
+                URL inválida ou sem imagem. Cole um link direto para imagem (https://...).
+              </small>
+            )}
           </div>
         </div>
       </div>

@@ -162,19 +162,29 @@ function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        ultimaResposta = await res.text();
+
+        const respostaTexto = await res.text();
+        ultimaResposta = respostaTexto;
 
         if (res.ok) {
           break;
         }
+
+        let detalheErro = respostaTexto;
+        try {
+          const parsed = JSON.parse(respostaTexto);
+          detalheErro = parsed.error || parsed.message || JSON.stringify(parsed);
+        } catch (_) {}
+        console.warn(`Erro no endpoint ${endpoint}:`, detalheErro);
       } catch (erro) {
         console.warn(`Falha ao chamar endpoint ${endpoint}:`, erro);
       }
     }
 
     if (!res || !res.ok) {
-      console.error('🛑 Erro na API da OpenAI:', ultimaResposta || 'Sem resposta');
-      throw new Error('Falha na comunicação com a IA');
+      const detalheErro = ultimaResposta ? `Erro na API: ${ultimaResposta}` : 'Sem resposta';
+      console.error('🛑 Erro na API da OpenAI:', detalheErro);
+      throw new Error(detalheErro);
     }
 
     const data = JSON.parse(ultimaResposta);
