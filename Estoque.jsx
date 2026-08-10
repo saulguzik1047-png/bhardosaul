@@ -574,13 +574,13 @@ export const Estoque = ({
                   }}>
                     {p.estoque}
                   </td>
-                  <td style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                  <td style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <button onClick={() => carregarProdutoParaEdicao(p.id)} style={{
                       background: 'rgba(52, 199, 89, 0.12)', color: iosGreen, border: 'none',
-                      padding: '8px 12px', borderRadius: radiusSm, cursor: 'pointer',
-                      transition, fontSize: '14px'
+                      padding: '8px 14px', borderRadius: radiusSm, cursor: 'pointer',
+                      transition, fontSize: '14px', minWidth: '120px'
                     }}>
-                      <i className="fas fa-edit"></i> Editar
+                      <i className="fas fa-edit"></i> Editar Categoria
                     </button>
                     <button onClick={() => excluirProdutoDoEstoque(p.id, p.nome)} style={{
                       background: 'rgba(255, 59, 48, 0.1)', color: iosRed, border: 'none',
