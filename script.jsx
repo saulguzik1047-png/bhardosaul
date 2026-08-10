@@ -310,8 +310,21 @@ function App() {
   const [caixaDialogo, setCaixaDialogo] = React.useState(null);
   const [promptVal, setPromptVal] = React.useState('');
   const [promptValDivisivel, setPromptValDivisivel] = React.useState(false);
+  const [categoriaGerenciarSelecionada, setCategoriaGerenciarSelecionada] = React.useState('');
+  const [novoNomeCategoriaGerenciar, setNovoNomeCategoriaGerenciar] = React.useState('');
   const [modalDividir, setModalDividir] = React.useState(null);
   const [comandasSelecionadasSplit, setComandasSelecionadasSplit] = React.useState([]);
+
+  React.useEffect(() => {
+    if (caixaDialogo?.tipo === 'gerenciar_categoria') {
+      const categoriaInicial = caixaDialogo.categoriaInicial || caixaDialogo.categorias?.[0] || '';
+      setCategoriaGerenciarSelecionada(categoriaInicial);
+      setNovoNomeCategoriaGerenciar(categoriaInicial);
+    } else if (!caixaDialogo) {
+      setCategoriaGerenciarSelecionada('');
+      setNovoNomeCategoriaGerenciar('');
+    }
+  }, [caixaDialogo]);
 
   const dispararMensagem = (titulo, message) => {
     setCaixaDialogo({
@@ -1628,27 +1641,81 @@ function App() {
               </div>
             )}
 
-            <div className="custom-dialog-buttons" style={{ gap: '10px', flexWrap: 'wrap' }}>
-              {caixaDialogo.tipo !== 'alert' && !caixaDialogo.noCancel && (
-                <button type="button" className="btn-dialog-cancel" onClick={() => { if (caixaDialogo.onCancel) caixaDialogo.onCancel(); setCaixaDialogo(null); }}>
-                  {caixaDialogo.cancelTxt || 'Cancelar'}
-                </button>
-              )}
-
-              {caixaDialogo.tipo !== 'motivos_botoes' && (
-                <button
-                  type="button" className="btn-dialog-confirm"
-                  onClick={() => {
-                    if (caixaDialogo.tipo === 'prompt') caixaDialogo.onConfirm(promptVal);
-                    else if (caixaDialogo.tipo === 'prompt_categoria') caixaDialogo.onConfirm(promptVal, promptValDivisivel);
-                    else caixaDialogo.onConfirm();
-                    setCaixaDialogo(null);
+            {caixaDialogo.tipo === 'gerenciar_categoria' && (
+              <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <select
+                  className="dark-input-field"
+                  value={categoriaGerenciarSelecionada}
+                  onChange={(e) => {
+                    setCategoriaGerenciarSelecionada(e.target.value);
+                    setNovoNomeCategoriaGerenciar(e.target.value);
                   }}
+                  style={{ textAlign: 'left', background: '#090f17', border: '1px solid #ef4444' }}
                 >
-                  {caixaDialogo.confirmTxt || 'Confirmar'}
-                </button>
-              )}
-            </div>
+                  {(caixaDialogo.categorias || []).map((categoria) => (
+                    <option key={categoria} value={categoria}>{categoria}</option>
+                  ))}
+                </select>
+
+                <input
+                  type="text" className="dark-input-field" placeholder="Novo nome da categoria..."
+                  style={{ textAlign: 'left', background: '#090f17', border: '1px solid #ef4444' }}
+                  value={novoNomeCategoriaGerenciar}
+                  onChange={(e) => setNovoNomeCategoriaGerenciar(e.target.value)}
+                />
+
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    style={{ flex: 1, background: '#2563eb', color: 'white', padding: '10px 14px', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+                    onClick={() => {
+                      caixaDialogo.onConfirm?.(categoriaGerenciarSelecionada, novoNomeCategoriaGerenciar, 'renomear');
+                      setCaixaDialogo(null);
+                      setCategoriaGerenciarSelecionada('');
+                      setNovoNomeCategoriaGerenciar('');
+                    }}
+                  >
+                    Renomear
+                  </button>
+                  <button
+                    type="button"
+                    style={{ flex: 1, background: '#ef4444', color: 'white', padding: '10px 14px', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+                    onClick={() => {
+                      caixaDialogo.onConfirm?.(categoriaGerenciarSelecionada, '', 'excluir');
+                      setCaixaDialogo(null);
+                      setCategoriaGerenciarSelecionada('');
+                      setNovoNomeCategoriaGerenciar('');
+                    }}
+                  >
+                    Excluir
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {caixaDialogo.tipo !== 'gerenciar_categoria' && (
+              <div className="custom-dialog-buttons" style={{ gap: '10px', flexWrap: 'wrap' }}>
+                {caixaDialogo.tipo !== 'alert' && !caixaDialogo.noCancel && (
+                  <button type="button" className="btn-dialog-cancel" onClick={() => { if (caixaDialogo.onCancel) caixaDialogo.onCancel(); setCaixaDialogo(null); }}>
+                    {caixaDialogo.cancelTxt || 'Cancelar'}
+                  </button>
+                )}
+
+                {caixaDialogo.tipo !== 'motivos_botoes' && (
+                  <button
+                    type="button" className="btn-dialog-confirm"
+                    onClick={() => {
+                      if (caixaDialogo.tipo === 'prompt') caixaDialogo.onConfirm(promptVal);
+                      else if (caixaDialogo.tipo === 'prompt_categoria') caixaDialogo.onConfirm(promptVal, promptValDivisivel);
+                      else caixaDialogo.onConfirm();
+                      setCaixaDialogo(null);
+                    }}
+                  >
+                    {caixaDialogo.confirmTxt || 'Confirmar'}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

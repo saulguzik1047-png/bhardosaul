@@ -36,6 +36,71 @@ export const Estoque = ({
     ...new Set([...categoriasCustomizadas, ...produtos.map((p) => p.category)])
   ];
 
+  const categoriasDisponiveis = Array.from(
+    new Set([...categoriasCustomizadas, ...produtos.map((p) => p.category)].filter(Boolean))
+  );
+
+  const normalizarCategorias = (lista) =>
+    Array.from(new Set((lista || []).filter((valor) => typeof valor === 'string' && valor.trim())));
+
+  const handleGerenciarCategoria = async (categoriaOrigem, novoNome, acao) => {
+    const categoriaAntiga = String(categoriaOrigem || '').trim();
+    if (!categoriaAntiga) {
+      dispararMensagem('Atenção', 'Selecione uma categoria antes de continuar.');
+      return;
+    }
+
+    if (acao === 'excluir') {
+      const categoriaDestino = 'Geral';
+      setProdutos(prev => prev.map((p) => p.category === categoriaAntiga ? { ...p, category: categoriaDestino } : p));
+      setCategoriasCustomizadas(prev => normalizarCategorias([...prev.filter((cat) => cat !== categoriaAntiga), categoriaDestino]));
+      setCategoriasDivisiveis(prev => prev.filter((cat) => cat !== categoriaAntiga));
+      if (categoriaAntiga === novoProdCategoria) setNovoProdCategoria(categoriaDestino);
+      if (filtroCategoria === categoriaAntiga) setFiltroCategoria(categoriaDestino);
+
+      try {
+        await supabaseClient?.from('produtos').update({ category: categoriaDestino }).eq('category', categoriaAntiga);
+      } catch (err) { console.warn('Nuvem offline:', err); }
+
+      dispararMensagem('Categoria Excluída', `A categoria ${categoriaAntiga} foi removida e os produtos foram movidos para ${categoriaDestino}.`);
+      return;
+    }
+
+    const categoriaNova = String(novoNome || '').trim();
+    if (!categoriaNova) {
+      dispararMensagem('Atenção', 'Digite um nome para a categoria.');
+      return;
+    }
+
+    if (categoriaNova === categoriaAntiga) {
+      dispararMensagem('Atenção', 'O novo nome precisa ser diferente do atual.');
+      return;
+    }
+
+    const categoriaJaExiste = categoriasDisponiveis.includes(categoriaNova) && categoriaNova !== categoriaAntiga;
+    if (categoriaJaExiste) {
+      dispararMensagem('Atenção', `A categoria "${categoriaNova}" já existe.`);
+      return;
+    }
+
+    setProdutos(prev => prev.map((p) => p.category === categoriaAntiga ? { ...p, category: categoriaNova } : p));
+    setCategoriasCustomizadas(prev => normalizarCategorias([...prev.filter((cat) => cat !== categoriaAntiga && cat !== categoriaNova), categoriaNova]));
+    setCategoriasDivisiveis(prev => {
+      const estavaDivisivel = prev.includes(categoriaAntiga);
+      const semAntiga = prev.filter((cat) => cat !== categoriaAntiga);
+      return estavaDivisivel ? normalizarCategorias([...semAntiga, categoriaNova]) : semAntiga;
+    });
+
+    if (categoriaAntiga === novoProdCategoria) setNovoProdCategoria(categoriaNova);
+    if (filtroCategoria === categoriaAntiga) setFiltroCategoria(categoriaNova);
+
+    try {
+      await supabaseClient?.from('produtos').update({ category: categoriaNova }).eq('category', categoriaAntiga);
+    } catch (err) { console.warn('Nuvem offline:', err); }
+
+    dispararMensagem('Categoria Atualizada', `A categoria ${categoriaAntiga} foi renomeada para ${categoriaNova}.`);
+  };
+
   const custo = parseFloat(precoCusto) || 0;
   const venda = parseFloat(precoVenda) || 0;
   let margemCalculada = '% Lucro: 0.00%';
@@ -249,31 +314,17 @@ export const Estoque = ({
         </button>
 
         <button
-          onClick={() => {
-            if (!idProdutoSelecionadoEdicao) {
-              dispararMensagem('Atenção', 'Selecione um produto primeiro para editar a categoria.');
-              return;
-            }
-            setCaixaDialogo({
-              titulo: 'Editar Categoria',
-              mensagem: 'Digite a nova categoria para o produto selecionado:',
-              tipo: 'prompt_categoria',
-              onConfirm: (nomeCat, divisivel) => {
-                if (!nomeCat) return;
-                setNovoProdCategoria(nomeCat);
-                if (!categoriasCustomizadas.includes(nomeCat)) {
-                  setCategoriasCustomizadas([...categoriasCustomizadas, nomeCat]);
-                }
-                if (divisivel && !categoriasDivisiveis.includes(nomeCat)) {
-                  setCategoriasDivisiveis([...categoriasDivisiveis, nomeCat]);
-                }
-                dispararMensagem('Categoria Atualizada', `Categoria alterada para ${nomeCat}.`);
-              }
-            });
-          }}
+          onClick={() => setCaixaDialogo({
+            titulo: 'Gerenciar Categoria',
+            mensagem: 'Escolha uma categoria para renomear ou excluir.',
+            tipo: 'gerenciar_categoria',
+            categorias: categoriasDisponiveis,
+            categoriaInicial: novoProdCategoria || categoriasDisponiveis[0] || '',
+            onConfirm: (categoriaOrigem, novoNome, acao) => handleGerenciarCategoria(categoriaOrigem, novoNome, acao)
+          })}
           style={{ ...btnBase, background: '#ff9500' }}
         >
-          <i className="fas fa-edit" style={{ marginRight: '6px' }}></i>Editar Categoria
+          <i className="fas fa-edit" style={{ marginRight: '6px' }}></i>Gerenciar Categoria
         </button>
 
         <button onClick={() => idProdutoSelecionadoEdicao ? excluirProdutoDoEstoque(idProdutoSelecionadoEdicao, novoProdNome) : null} style={{ ...btnBase, background: iosRed }}>
@@ -608,7 +659,7 @@ export const Estoque = ({
                       padding: '8px 14px', borderRadius: radiusSm, cursor: 'pointer',
                       transition, fontSize: '14px', minWidth: '120px'
                     }}>
-                      <i className="fas fa-edit"></i> Editar Categoria
+                      <i className="fas fa-edit"></i> Editar Produto
                     </button>
                     <button onClick={() => excluirProdutoDoEstoque(p.id, p.nome)} style={{
                       background: 'rgba(255, 59, 48, 0.1)', color: iosRed, border: 'none',
