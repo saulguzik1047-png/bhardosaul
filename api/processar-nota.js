@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     }
   
     // 2. Puxa a chave SECRETAMENTE do cofre do Vercel (ninguém de fora consegue ver isso)
-    const apiKey = process.env.VITE_OPENAI_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY;
   
     try {
       // 3. Faz a comunicação direta e oficial com a OpenAI

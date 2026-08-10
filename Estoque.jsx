@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { formatarMoeda } from './formatadores.js';
 import LeitorNotaCamera from './LeitorNotaCamera.jsx';
 import { supabaseClient } from './supabase.js';
@@ -15,9 +15,12 @@ export const Estoque = ({
   excluirProdutoDoEstoque,
   imprimirPainelRelatorio,
   processarNotaComIA,
-  imagemAutomaticaProduto
+  imagemAutomaticaProduto,
+  categoriaAtiva,
+  setCategoriaAtiva
 }) => {
   const [idProdutoSelecionadoEdicao, setIdProdutoSelecionadoEdicao] = useState(null);
+  const [produtoPesquisa, setProdutoPesquisa] = useState('');
   const [novoProdNome, setNovoProdNome] = useState('');
   const [novoProdCategoria, setNovoProdCategoria] = useState('');
   const [precoCusto, setPrecoCusto] = useState('');
@@ -43,12 +46,14 @@ export const Estoque = ({
   const normalizarCategorias = (lista) =>
     Array.from(new Set((lista || []).filter((valor) => typeof valor === 'string' && valor.trim())));
 
+  useEffect(() => {
+    setCategoriasCustomizadas(prev => normalizarCategorias(prev));
+    setCategoriasDivisiveis(prev => normalizarCategorias(prev));
+  }, [setCategoriasCustomizadas, setCategoriasDivisiveis]);
+
   const handleGerenciarCategoria = async (categoriaOrigem, novoNome, acao) => {
-    const categoriaAntiga = String(categoriaOrigem || '').trim();
-    if (!categoriaAntiga) {
-      dispararMensagem('Atenção', 'Selecione uma categoria antes de continuar.');
-      return;
-    }
+    const categoriaAntiga = String(categoriaOrigem ?? '');
+    const categoriaAntigaLimpa = categoriaAntiga.trim();
 
     if (acao === 'excluir') {
       const categoriaDestino = 'Geral';
@@ -57,6 +62,7 @@ export const Estoque = ({
       setCategoriasDivisiveis(prev => prev.filter((cat) => cat !== categoriaAntiga));
       if (categoriaAntiga === novoProdCategoria) setNovoProdCategoria(categoriaDestino);
       if (filtroCategoria === categoriaAntiga) setFiltroCategoria(categoriaDestino);
+      if (categoriaAtiva === categoriaAntiga) setCategoriaAtiva('Todos');
 
       try {
         await supabaseClient?.from('produtos').update({ category: categoriaDestino }).eq('category', categoriaAntiga);
@@ -72,12 +78,12 @@ export const Estoque = ({
       return;
     }
 
-    if (categoriaNova === categoriaAntiga) {
+    if (categoriaNova === categoriaAntigaLimpa) {
       dispararMensagem('Atenção', 'O novo nome precisa ser diferente do atual.');
       return;
     }
 
-    const categoriaJaExiste = categoriasDisponiveis.includes(categoriaNova) && categoriaNova !== categoriaAntiga;
+    const categoriaJaExiste = categoriasDisponiveis.includes(categoriaNova) && categoriaNova !== categoriaAntigaLimpa;
     if (categoriaJaExiste) {
       dispararMensagem('Atenção', `A categoria "${categoriaNova}" já existe.`);
       return;
@@ -93,6 +99,7 @@ export const Estoque = ({
 
     if (categoriaAntiga === novoProdCategoria) setNovoProdCategoria(categoriaNova);
     if (filtroCategoria === categoriaAntiga) setFiltroCategoria(categoriaNova);
+    if (categoriaAtiva === categoriaAntiga) setCategoriaAtiva('Todos');
 
     try {
       await supabaseClient?.from('produtos').update({ category: categoriaNova }).eq('category', categoriaAntiga);
@@ -130,6 +137,7 @@ export const Estoque = ({
       : produtos.find(p => p.nome === produtoIdentificador);
 
     if (prod) {
+      setProdutoPesquisa(prod.nome);
       setIdProdutoSelecionadoEdicao(prod.id);
       setNovoProdNome(prod.nome);
       setNovoProdCategoria(prod.category);
@@ -176,6 +184,7 @@ export const Estoque = ({
           fator_conversao: prodAtualizado.fatorConversao, apelidos: prodAtualizado.apelidos
         });
       } catch (err) { console.warn('Nuvem offline:', err); }
+      setProdutoPesquisa('');
       dispararMensagem('Sucesso', 'Produto atualizado com sucesso!');
     } else {
       const novoProduto = {
@@ -202,6 +211,7 @@ export const Estoque = ({
           apelidos: novoProduto.apelidos, data_ultima_compra: novoProduto.dataUltimaCompra
         });
       } catch (err) { console.warn('Nuvem offline:', err); }
+      setProdutoPesquisa('');
       dispararMensagem('Sucesso', 'Novo produto cadastrado!');
     }
   };
@@ -241,6 +251,7 @@ export const Estoque = ({
 
   const handleLimpar = () => {
     setIdProdutoSelecionadoEdicao(null);
+    setProdutoPesquisa('');
     setNovoProdNome('');
     setPrecoCusto('');
     setPrecoVenda('');
@@ -251,6 +262,13 @@ export const Estoque = ({
     setTipoProduto('padrao');
     setApelidos([]);
     setNovoApelido('');
+  };
+
+  const handleExcluirProduto = () => {
+    if (idProdutoSelecionadoEdicao) {
+      excluirProdutoDoEstoque(idProdutoSelecionadoEdicao, novoProdNome);
+      handleLimpar();
+    }
   };
 
   // iOS-style shared constants
@@ -303,8 +321,10 @@ export const Estoque = ({
             tipo: 'prompt_categoria',
             onConfirm: (nomeCat, divisivel) => {
               if(nomeCat) {
-                setCategoriasCustomizadas([...categoriasCustomizadas, nomeCat]);
-                if(divisivel) setCategoriasDivisiveis([...categoriasDivisiveis, nomeCat]);
+                const nomeLimpo = String(nomeCat || '').trim();
+                if (!nomeLimpo) return;
+                setCategoriasCustomizadas(prev => normalizarCategorias([...prev.filter((cat) => cat !== nomeLimpo), nomeLimpo]));
+                if(divisivel) setCategoriasDivisiveis(prev => normalizarCategorias([...prev.filter((cat) => cat !== nomeLimpo), nomeLimpo]));
               }
             }
           })}
@@ -327,7 +347,7 @@ export const Estoque = ({
           <i className="fas fa-edit" style={{ marginRight: '6px' }}></i>Gerenciar Categoria
         </button>
 
-        <button onClick={() => idProdutoSelecionadoEdicao ? excluirProdutoDoEstoque(idProdutoSelecionadoEdicao, novoProdNome) : null} style={{ ...btnBase, background: iosRed }}>
+        <button onClick={handleExcluirProduto} style={{ ...btnBase, background: iosRed }}>
           <i className="fas fa-trash" style={{ marginRight: '6px' }}></i>Excluir
         </button>
 
@@ -391,7 +411,11 @@ export const Estoque = ({
                   type="text"
                   list="lista-produtos-edit"
                   placeholder="Procurar produto para editar..."
-                  onChange={(e) => carregarProdutoParaEdicao(e.target.value)}
+                  value={produtoPesquisa}
+                  onChange={(e) => {
+                    setProdutoPesquisa(e.target.value);
+                    carregarProdutoParaEdicao(e.target.value);
+                  }}
                   style={{ ...inputStyle, paddingLeft: '36px' }}
                 />
                 <datalist id="lista-produtos-edit">
@@ -661,7 +685,10 @@ export const Estoque = ({
                     }}>
                       <i className="fas fa-edit"></i> Editar Produto
                     </button>
-                    <button onClick={() => excluirProdutoDoEstoque(p.id, p.nome)} style={{
+                    <button onClick={() => {
+                      excluirProdutoDoEstoque(p.id, p.nome);
+                      handleLimpar();
+                    }} style={{
                       background: 'rgba(255, 59, 48, 0.1)', color: iosRed, border: 'none',
                       padding: '8px 12px', borderRadius: radiusSm, cursor: 'pointer',
                       transition, fontSize: '14px'
