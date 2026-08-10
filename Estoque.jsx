@@ -35,6 +35,7 @@ export const Estoque = ({
   const [mostrarLeitorCamera, setMostrarLeitorCamera] = useState(false);
   const [filtroCategoria, setFiltroCategoria] = useState('Todos');
   const [estoqueEditando, setEstoqueEditando] = useState({});
+  const [custoEditando, setCustoEditando] = useState({});
 
   const listaCategorias = [
     ...new Set([...categoriasCustomizadas, ...produtos.map((p) => p.category)])
@@ -57,6 +58,14 @@ export const Estoque = ({
       const next = { ...prev };
       produtos.forEach((p) => {
         if (next[p.id] === undefined) next[p.id] = p.estoque;
+      });
+      return next;
+    });
+
+    setCustoEditando((prev) => {
+      const next = { ...prev };
+      produtos.forEach((p) => {
+        if (next[p.id] === undefined) next[p.id] = p.precoCusto;
       });
       return next;
     });
@@ -168,6 +177,11 @@ export const Estoque = ({
     setEstoqueEditando((prev) => ({ ...prev, [id]: novoEstoque }));
   };
 
+  const atualizarCustoTemporario = (id, valor) => {
+    const novoCusto = Math.max(0, parseFloat(valor) || 0);
+    setCustoEditando((prev) => ({ ...prev, [id]: novoCusto }));
+  };
+
   const salvarEstoqueProduto = async (id) => {
     const valorEditado = estoqueEditando[id];
     if (valorEditado === undefined) return;
@@ -186,6 +200,26 @@ export const Estoque = ({
     }
 
     dispararMensagem('Estoque', `Estoque de ${produto?.nome || 'produto'} salvo com sucesso.`);
+  };
+
+  const salvarCustoProduto = async (id) => {
+    const valorEditado = custoEditando[id];
+    if (valorEditado === undefined) return;
+
+    const novoCusto = Math.max(0, parseFloat(valorEditado) || 0);
+    const produto = produtos.find((p) => p.id === id);
+
+    setProdutos((prev) => prev.map((p) =>
+      p.id === id ? { ...p, precoCusto: novoCusto } : p
+    ));
+
+    try {
+      await supabaseClient?.from('produtos').update({ preco_custo: novoCusto }).eq('id', id);
+    } catch (err) {
+      console.warn('Nuvem offline:', err);
+    }
+
+    dispararMensagem('Custo', `Preço de custo de ${produto?.nome || 'produto'} salvo com sucesso.`);
   };
 
   const handleSalvar = async () => {
@@ -718,7 +752,26 @@ export const Estoque = ({
                     <small style={{ color: labelColor }}>Mínimo: {p.estoqueMinimo}</small>
                   </td>
                   <td style={{ color: textSecondary }}>{p.category}</td>
-                  <td style={{ color: iosRed }}>{formatarMoeda(p.precoCusto)}</td>
+                  <td style={{ padding: '6px' }}>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={custoEditando[p.id] ?? p.precoCusto}
+                      onChange={(e) => atualizarCustoTemporario(p.id, e.target.value)}
+                      style={{
+                        width: '90px',
+                        padding: '6px 8px',
+                        fontSize: '14px',
+                        borderRadius: '8px',
+                        border: '1px solid #d1d5db',
+                        textAlign: 'center',
+                        color: iosRed,
+                        background: '#ffffff',
+                        outline: 'none'
+                      }}
+                    />
+                  </td>
                   <td style={{ padding: '6px' }}>
                     <input
                       type="number"
@@ -739,6 +792,23 @@ export const Estoque = ({
                     />
                   </td>
                   <td style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => salvarCustoProduto(p.id)}
+                      disabled={Number(custoEditando[p.id] ?? p.precoCusto) === Number(p.precoCusto)}
+                      style={{
+                        background: Number(custoEditando[p.id] ?? p.precoCusto) === Number(p.precoCusto) ? '#d1d5db' : 'rgba(255, 59, 48, 0.1)',
+                        color: Number(custoEditando[p.id] ?? p.precoCusto) === Number(p.precoCusto) ? '#8e8e93' : iosRed,
+                        border: 'none',
+                        padding: '8px 12px',
+                        borderRadius: radiusSm,
+                        cursor: Number(custoEditando[p.id] ?? p.precoCusto) === Number(p.precoCusto) ? 'not-allowed' : 'pointer',
+                        transition,
+                        fontSize: '14px',
+                        minWidth: '120px'
+                      }}
+                    >
+                      <i className="fas fa-save"></i> Salvar Custo
+                    </button>
                     <button
                       onClick={() => salvarEstoqueProduto(p.id)}
                       disabled={(estoqueEditando[p.id] ?? p.estoque) === p.estoque}

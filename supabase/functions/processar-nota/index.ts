@@ -27,7 +27,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
 
     const respostaOpenAI = await fetch(
-      "https://api.openai.com/v1/chat/completions",
+      "https://api.openai.com/v1/responses",
       {
         method: "POST",
         headers: {

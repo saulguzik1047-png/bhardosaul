@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   
     try {
       // 3. Faz a comunicação direta e oficial com a OpenAI
-      const respostaOpenAI = await fetch("https://api.openai.com/v1/chat/completions", {
+const respostaOpenAI = await fetch("https://api.openai.com/v1/responses", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

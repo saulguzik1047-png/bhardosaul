@@ -122,9 +122,9 @@ function App() {
       }).join(', ');
 
       const payload = {
-        model: "gpt-4o", 
+        model: "gpt-4o",
         response_format: { type: "json_object" },
-        messages: [
+        input: [
           {
             role: "user",
             content: [
@@ -178,15 +178,27 @@ function App() {
     }
 
     const data = JSON.parse(ultimaResposta);
-    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+
+    let respostaIA = '';
+    if (data.choices?.[0]?.message?.content) {
+      respostaIA = data.choices[0].message.content;
+    } else if (data.output?.[0]?.content) {
+      const outputContent = data.output[0].content;
+      const contentArray = Array.isArray(outputContent) ? outputContent : [outputContent];
+      const textBlock = contentArray.find((item) => item?.type === 'output_text' || item?.type === 'message' || item?.type === 'text');
+      respostaIA = textBlock?.text || textBlock?.value || textBlock?.content?.[0]?.text || '';
+      if (!respostaIA && typeof outputContent === 'string') {
+        respostaIA = outputContent;
+      }
+    } else {
       throw new Error('Resposta inesperada da IA');
     }
 
-    let respostaIA = data.choices[0].message.content;
-      
-      console.log("🧠 RESPOSTA BRUTA DA IA:", respostaIA);
+    console.log("🧠 RESPOSTA BRUTA DA IA:", respostaIA);
+    if (typeof respostaIA === 'string') {
       respostaIA = respostaIA.replace(/```json/g, '').replace(/```/g, '').trim();
-      const notaConvertida = JSON.parse(respostaIA);
+    }
+    const notaConvertida = typeof respostaIA === 'string' ? JSON.parse(respostaIA) : respostaIA;
 
       const itensProntos = (notaConvertida.itens || []).map(item => {
         const nomeItem = (item.nome || '').toLowerCase();
