@@ -368,8 +368,22 @@ function App() {
     });
   };
 
-  const [categoriasCustomizadas, setCategoriasCustomizadas] = React.useState(['Cervejas', 'Drinks', 'Porções', 'Não Alcoólicos']);
-  const [categoriasDivisiveis, setCategoriasDivisiveis] = React.useState(['Porções']);
+  const [categoriasCustomizadas, setCategoriasCustomizadas] = React.useState(() => {
+    try {
+      const salvadas = localStorage.getItem('bhar_categorias_customizadas_v1');
+      return salvadas ? JSON.parse(salvadas) : ['Cervejas', 'Drinks', 'Porções', 'Não Alcoólicos'];
+    } catch (e) {
+      return ['Cervejas', 'Drinks', 'Porções', 'Não Alcoólicos'];
+    }
+  });
+  const [categoriasDivisiveis, setCategoriasDivisiveis] = React.useState(() => {
+    try {
+      const salvadas = localStorage.getItem('bhar_categorias_divisiveis_v1');
+      return salvadas ? JSON.parse(salvadas) : ['Porções'];
+    } catch (e) {
+      return ['Porções'];
+    }
+  });
 
   const [novoClienteNomeInput, setNovoClienteNomeInput] = React.useState('');
   const [novoClienteSobrenomeInput, setNovoClienteSobrenomeInput] = React.useState('');
@@ -448,6 +462,14 @@ function App() {
   React.useEffect(() => {
     localStorage.setItem('bhar_clientes_v2', JSON.stringify(clientesCadastrados));
   }, [clientesCadastrados]);
+
+  React.useEffect(() => {
+    try { localStorage.setItem('bhar_categorias_customizadas_v1', JSON.stringify(categoriasCustomizadas)); } catch (e) {}
+  }, [categoriasCustomizadas]);
+
+  React.useEffect(() => {
+    try { localStorage.setItem('bhar_categorias_divisiveis_v1', JSON.stringify(categoriasDivisiveis)); } catch (e) {}
+  }, [categoriasDivisiveis]);
 
   const [produtos, setProdutos] = React.useState(() => {
     try {

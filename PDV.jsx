@@ -96,7 +96,7 @@ export function PDV({
   const saldoRestantePagamento = subtotal - totalPagoAtualmente;
 
   return (
-    <div className="main-container" style={{ display: 'flex', height: 'calc(100vh - 60px)', gap: '8px', padding: '8px', background: '#f7fbff' }}>
+    <div className="main-container" style={{ display: 'flex', height: 'calc(100vh - 60px)', gap: '8px', padding: '8px', background: '#eaf2ff' }}>
       
       {/* COLUNA 1: COMANDAS (Largura reduzida para 180px) */}
       <div className="col" style={{ flex: '0 0 180px', maxWidth: '180px', display: 'flex', flexDirection: 'column' }}>
@@ -794,13 +794,13 @@ export function PDV({
           ))}
         </div>
 
-        <div className="grid-produtos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(145px, 1fr))', gap: '10px 10px', alignContent: 'start', overflowY: 'auto', flexGrow: '1' }}>
+        <div className="grid-produtos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))', gap: '12px 12px', alignContent: 'start', overflowY: 'auto', flexGrow: '1' }}>
           {produtosFiltrados.map((p) => (
             <div
               key={p.id}
               className="card-prod"
               onClick={() => addItemNaComanda(p)}
-              style={{ position: 'relative', minHeight: '130px', padding: '10px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', borderRadius: '10px', cursor: 'pointer', background: '#ffffff', border: '1px solid #cbd5e1', boxShadow: '0 2px 6px rgba(0,0,0,0.12)' }}
+              style={{ position: 'relative', minHeight: '155px', padding: '12px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', borderRadius: '10px', cursor: 'pointer', background: '#ffffff', border: '1px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.14)' }}
             >
               {p.estoque <= p.estoqueMinimo && (
                 <span
@@ -824,7 +824,7 @@ export function PDV({
               <img
                 src={p.imagem || imagemAutomaticaProduto(p.nome, p.category)}
                 alt={p.nome}
-                style={{ width: '62px', height: '62px', objectFit: 'cover', borderRadius: '8px' }}
+                style={{ width: '74px', height: '74px', objectFit: 'cover', borderRadius: '10px' }}
               />
               
               <span className="prod-nome" style={{ fontSize: '12px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', padding: '0 2px' }}>{p.nome}</span>
