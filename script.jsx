@@ -146,11 +146,13 @@ function App() {
         temperature: 0.1 
       };
 
-      // 🛡️ ROTA BLINDADA DO VERCEL (Adeus bloqueios de CORS e chave escondida)
-    const res = await fetch("/api/processar-nota", {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://perjhxqgcdccmfyazubi.supabase.co';
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBlcmpoeHFnY2RjY21meWF6dWJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5MDA1ODQsImV4cCI6MjA5OTQ3NjU4NH0.fADhYiAjHFWRvp30UHdS5my9ROkemKB2dGgYKPeGQWM';
+    const res = await fetch(`${supabaseUrl}/functions/v1/processar-nota`, {
       method: "POST",
       headers: { 
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${supabaseAnonKey}`
       },
       body: JSON.stringify(payload)
     });
