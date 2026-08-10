@@ -248,6 +248,34 @@ export const Estoque = ({
           <i className="fas fa-folder-plus" style={{ marginRight: '6px' }}></i>Criar Categoria
         </button>
 
+        <button
+          onClick={() => {
+            if (!idProdutoSelecionadoEdicao) {
+              dispararMensagem('Atenção', 'Selecione um produto primeiro para editar a categoria.');
+              return;
+            }
+            setCaixaDialogo({
+              titulo: 'Editar Categoria',
+              mensagem: 'Digite a nova categoria para o produto selecionado:',
+              tipo: 'prompt_categoria',
+              onConfirm: (nomeCat, divisivel) => {
+                if (!nomeCat) return;
+                setNovoProdCategoria(nomeCat);
+                if (!categoriasCustomizadas.includes(nomeCat)) {
+                  setCategoriasCustomizadas([...categoriasCustomizadas, nomeCat]);
+                }
+                if (divisivel && !categoriasDivisiveis.includes(nomeCat)) {
+                  setCategoriasDivisiveis([...categoriasDivisiveis, nomeCat]);
+                }
+                dispararMensagem('Categoria Atualizada', `Categoria alterada para ${nomeCat}.`);
+              }
+            });
+          }}
+          style={{ ...btnBase, background: '#ff9500' }}
+        >
+          <i className="fas fa-edit" style={{ marginRight: '6px' }}></i>Editar Categoria
+        </button>
+
         <button onClick={() => idProdutoSelecionadoEdicao ? excluirProdutoDoEstoque(idProdutoSelecionadoEdicao, novoProdNome) : null} style={{ ...btnBase, background: iosRed }}>
           <i className="fas fa-trash" style={{ marginRight: '6px' }}></i>Excluir
         </button>
