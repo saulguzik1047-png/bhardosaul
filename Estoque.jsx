@@ -59,8 +59,11 @@ export const Estoque = ({
   const lucroProjetadoTotal = vendaTotalEstoque - custoTotalEstoque;
   const produtosFiltrados = filtroCategoria === 'Todos' ? produtos : produtos.filter(p => p.category === filtroCategoria);
 
-  const carregarProdutoParaEdicao = (nomeBuscado) => {
-    const prod = produtos.find(p => p.nome === nomeBuscado);
+  const carregarProdutoParaEdicao = (produtoIdentificador) => {
+    const prod = typeof produtoIdentificador === 'number'
+      ? produtos.find(p => p.id === produtoIdentificador)
+      : produtos.find(p => p.nome === produtoIdentificador);
+
     if (prod) {
       setIdProdutoSelecionadoEdicao(prod.id);
       setNovoProdNome(prod.nome);
@@ -571,7 +574,14 @@ export const Estoque = ({
                   }}>
                     {p.estoque}
                   </td>
-                  <td>
+                  <td style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                    <button onClick={() => carregarProdutoParaEdicao(p.id)} style={{
+                      background: 'rgba(52, 199, 89, 0.12)', color: iosGreen, border: 'none',
+                      padding: '8px 12px', borderRadius: radiusSm, cursor: 'pointer',
+                      transition, fontSize: '14px'
+                    }}>
+                      <i className="fas fa-edit"></i> Editar
+                    </button>
                     <button onClick={() => excluirProdutoDoEstoque(p.id, p.nome)} style={{
                       background: 'rgba(255, 59, 48, 0.1)', color: iosRed, border: 'none',
                       padding: '8px 12px', borderRadius: radiusSm, cursor: 'pointer',
