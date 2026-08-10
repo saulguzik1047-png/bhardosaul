@@ -1656,10 +1656,10 @@ function App() {
               <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 <input
                   type="text" className="dark-input-field" placeholder="Nome da Categoria..."
-                  style={{ textAlign: 'left', background: '#090f17', border: '1px solid #ef4444' }}
+                  style={{ textAlign: 'left', background: '#ffffff', color: '#111827', border: '1px solid #cbd5e1' }}
                   value={promptVal} onChange={(e) => setPromptVal(e.target.value)} autoFocus
                 />
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', color: '#cbd5e1' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', color: '#334155' }}>
                   <input type="checkbox" style={{ width: 'auto', margin: 0 }} checked={promptValDivisivel} onChange={(e) => setPromptValDivisivel(e.target.checked)} />
                   <span>Permitir dividir produtos desta categoria nas mesas?</span>
                 </label>
@@ -1689,7 +1689,7 @@ function App() {
                     setCategoriaGerenciarSelecionada(e.target.value);
                     setNovoNomeCategoriaGerenciar(e.target.value);
                   }}
-                  style={{ textAlign: 'left', background: '#0f172a', color: '#f8fafc', border: '1px solid #334155' }}
+                  style={{ textAlign: 'left', background: '#ffffff', color: '#111827', border: '1px solid #cbd5e1' }}
                 >
                   {(caixaDialogo.categorias || []).map((categoria) => (
                     <option key={categoria || '__vazio__'} value={categoria} style={{ background: '#0f172a', color: '#f8fafc' }}>
@@ -1700,7 +1700,7 @@ function App() {
 
                 <input
                   type="text" className="dark-input-field" placeholder="Novo nome da categoria..."
-                  style={{ textAlign: 'left', background: '#0f172a', color: '#f8fafc', border: '1px solid #334155' }}
+                  style={{ textAlign: 'left', background: '#ffffff', color: '#111827', border: '1px solid #cbd5e1' }}
                   value={novoNomeCategoriaGerenciar}
                   onChange={(e) => setNovoNomeCategoriaGerenciar(e.target.value)}
                 />

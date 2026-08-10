@@ -34,6 +34,7 @@ export const Estoque = ({
   const [novoApelido, setNovoApelido] = useState('');
   const [mostrarLeitorCamera, setMostrarLeitorCamera] = useState(false);
   const [filtroCategoria, setFiltroCategoria] = useState('Todos');
+  const [estoqueEditando, setEstoqueEditando] = useState({});
 
   const listaCategorias = [
     ...new Set([...categoriasCustomizadas, ...produtos.map((p) => p.category)])
@@ -50,6 +51,16 @@ export const Estoque = ({
     setCategoriasCustomizadas(prev => normalizarCategorias(prev));
     setCategoriasDivisiveis(prev => normalizarCategorias(prev));
   }, [setCategoriasCustomizadas, setCategoriasDivisiveis]);
+
+  useEffect(() => {
+    setEstoqueEditando((prev) => {
+      const next = { ...prev };
+      produtos.forEach((p) => {
+        if (next[p.id] === undefined) next[p.id] = p.estoque;
+      });
+      return next;
+    });
+  }, [produtos]);
 
   const handleGerenciarCategoria = async (categoriaOrigem, novoNome, acao) => {
     const categoriaAntiga = String(categoriaOrigem ?? '');
@@ -150,6 +161,31 @@ export const Estoque = ({
       setApelidos(prod.apelidos || []);
       setNovoApelido('');
     }
+  };
+
+  const atualizarEstoqueTemporario = (id, valor) => {
+    const novoEstoque = Math.max(0, parseFloat(valor) || 0);
+    setEstoqueEditando((prev) => ({ ...prev, [id]: novoEstoque }));
+  };
+
+  const salvarEstoqueProduto = async (id) => {
+    const valorEditado = estoqueEditando[id];
+    if (valorEditado === undefined) return;
+
+    const novoEstoque = Math.max(0, parseFloat(valorEditado) || 0);
+    const produto = produtos.find((p) => p.id === id);
+
+    setProdutos((prev) => prev.map((p) =>
+      p.id === id ? { ...p, estoque: novoEstoque } : p
+    ));
+
+    try {
+      await supabaseClient?.from('produtos').update({ estoque: novoEstoque }).eq('id', id);
+    } catch (err) {
+      console.warn('Nuvem offline:', err);
+    }
+
+    dispararMensagem('Estoque', `Estoque de ${produto?.nome || 'produto'} salvo com sucesso.`);
   };
 
   const handleSalvar = async () => {
@@ -683,14 +719,43 @@ export const Estoque = ({
                   </td>
                   <td style={{ color: textSecondary }}>{p.category}</td>
                   <td style={{ color: iosRed }}>{formatarMoeda(p.precoCusto)}</td>
-                  <td style={{ color: iosGreen, fontWeight: 'bold' }}>{formatarMoeda(p.preco)}</td>
-                  <td style={{
-                    color: p.estoque <= p.estoqueMinimo ? iosRed : iosBlue,
-                    fontWeight: 'bold', fontSize: '16px'
-                  }}>
-                    {p.estoque}
+                  <td style={{ padding: '6px' }}>
+                    <input
+                      type="number"
+                      min="0"
+                      value={estoqueEditando[p.id] ?? p.estoque}
+                      onChange={(e) => atualizarEstoqueTemporario(p.id, e.target.value)}
+                      style={{
+                        width: '80px',
+                        padding: '6px 8px',
+                        fontSize: '14px',
+                        borderRadius: '8px',
+                        border: '1px solid #d1d5db',
+                        textAlign: 'center',
+                        color: (estoqueEditando[p.id] ?? p.estoque) <= p.estoqueMinimo ? iosRed : iosBlue,
+                        background: '#ffffff',
+                        outline: 'none'
+                      }}
+                    />
                   </td>
                   <td style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => salvarEstoqueProduto(p.id)}
+                      disabled={(estoqueEditando[p.id] ?? p.estoque) === p.estoque}
+                      style={{
+                        background: (estoqueEditando[p.id] ?? p.estoque) === p.estoque ? '#d1d5db' : 'rgba(0, 122, 255, 0.12)',
+                        color: (estoqueEditando[p.id] ?? p.estoque) === p.estoque ? '#8e8e93' : iosBlue,
+                        border: 'none',
+                        padding: '8px 12px',
+                        borderRadius: radiusSm,
+                        cursor: (estoqueEditando[p.id] ?? p.estoque) === p.estoque ? 'not-allowed' : 'pointer',
+                        transition,
+                        fontSize: '14px',
+                        minWidth: '120px'
+                      }}
+                    >
+                      <i className="fas fa-save"></i> Salvar Estoque
+                    </button>
                     <button onClick={() => carregarProdutoParaEdicao(p.id)} style={{
                       background: 'rgba(52, 199, 89, 0.12)', color: iosGreen, border: 'none',
                       padding: '8px 14px', borderRadius: radiusSm, cursor: 'pointer',
