@@ -495,9 +495,38 @@ function App() {
 
   const [produtos, setProdutos] = React.useState(() => {
     try {
-      const salvosProd = localStorage.getItem('bhar_produtos_v3');
-      return salvosProd ? JSON.parse(salvosProd) : [];
-    } catch (e) { return []; }
+      const explicitKeys = ['bhar_produtos_v3', 'bhar_produtos_v2', 'bhar_produtos_v1'];
+      let loaded = [];
+
+      for (const key of explicitKeys) {
+        const salvosProd = localStorage.getItem(key);
+        if (salvosProd) {
+          const produtosCarregados = JSON.parse(salvosProd);
+          if (Array.isArray(produtosCarregados)) {
+            console.log(`[DEBUG] carregando produtos de localStorage key=${key} count=${produtosCarregados.length}`);
+            return produtosCarregados;
+          }
+        }
+      }
+
+      const storedKeys = Object.keys(localStorage || {}).filter((k) => k.toLowerCase().includes('produtos'));
+      for (const key of storedKeys) {
+        const salvosProd = localStorage.getItem(key);
+        if (salvosProd) {
+          const produtosCarregados = JSON.parse(salvosProd);
+          if (Array.isArray(produtosCarregados)) {
+            console.log(`[DEBUG] carregando produtos de localStorage key=${key} count=${produtosCarregados.length}`);
+            return produtosCarregados;
+          }
+        }
+      }
+
+      console.log('[DEBUG] nenhum produto encontrado em localStorage', storedKeys);
+      return [];
+    } catch (e) {
+      console.error('[DEBUG] falha ao carregar produtos de localStorage', e);
+      return [];
+    }
   });
 
   React.useEffect(() => {
@@ -650,9 +679,25 @@ function App() {
       noCancel: true,
       onConfirm: () => {}
     });
-
     try {
-      for (const p of produtos) {
+      // fallback: se o estado `produtos` estiver vazio, tente carregar do localStorage
+      let produtosParaSincronizar = produtos;
+      if ((!produtos || produtos.length === 0) && typeof localStorage !== 'undefined') {
+        try {
+          const saved = localStorage.getItem('bhar_produtos_v3') || localStorage.getItem('bhar_produtos_v2') || localStorage.getItem('bhar_produtos_v1');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              produtosParaSincronizar = parsed;
+              console.log(`[SYNC] carregando ${parsed.length} produtos do localStorage para sincronizar`);
+            }
+          }
+        } catch (e) {
+          console.warn('Erro lendo localStorage para sincronizar:', e);
+        }
+      }
+
+      for (const p of (produtosParaSincronizar || [])) {
         await supabaseClient?.from('produtos').upsert({
           id: p.id, nome: p.nome, category: p.category, preco: p.preco,
           preco_custo: p.precoCusto, estoque: p.estoque, estoque_minimo: p.estoqueMinimo, imagem: p.imagem,
