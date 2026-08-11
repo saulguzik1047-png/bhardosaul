@@ -30,6 +30,8 @@ export const Estoque = ({
   const [imagemPreviewUrl, setImagemPreviewUrl] = useState('');
   const [imagemPreviewErro, setImagemPreviewErro] = useState(false);
   const [isArrastandoImagem, setIsArrastandoImagem] = useState(false);
+  const [carregandoImagem, setCarregandoImagem] = useState(false);
+  const [erroUploadImagem, setErroUploadImagem] = useState('');
   const [tipoProduto, setTipoProduto] = useState('padrao');
   const [novoProdEstoque, setNovoProdEstoque] = useState('');
   const [fatorConversao, setFatorConversao] = useState('');
@@ -67,6 +69,76 @@ export const Estoque = ({
       return new URL(finalUrl).toString();
     } catch (err) {
       return '';
+    }
+  };
+
+  const gerarNomeArquivoImagem = (nomeProduto, arquivo) => {
+    const nomeBase = String(nomeProduto || 'produto')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '') || 'produto';
+    const extensao = (arquivo?.name?.split('.').pop() || 'jpg').toLowerCase();
+    return `${Date.now()}-${nomeBase}-${Math.random().toString(36).slice(2, 8)}.${extensao}`;
+  };
+
+  const uploadImagemParaStorage = async (arquivoOuUrl, nomeProduto = '') => {
+    if (!arquivoOuUrl) return '';
+    if (!supabaseClient) throw new Error('Cliente Supabase indisponível');
+
+    if (typeof arquivoOuUrl === 'string' && /^data:image\//i.test(arquivoOuUrl.trim())) {
+      const response = await fetch(arquivoOuUrl);
+      const blob = await response.blob();
+      arquivoOuUrl = new File([blob], `imagem-${Date.now()}.png`, { type: blob.type || 'image/png' });
+    }
+
+    if (arquivoOuUrl instanceof File || arquivoOuUrl instanceof Blob) {
+      const arquivo = arquivoOuUrl instanceof File ? arquivoOuUrl : new File([arquivoOuUrl], `imagem-${Date.now()}.png`, { type: arquivoOuUrl.type || 'image/png' });
+      const bucket = (import.meta.env.VITE_SUPABASE_STORAGE_BUCKET || 'produtos').trim();
+      const nomeArquivo = gerarNomeArquivoImagem(nomeProduto, arquivo);
+      const { error } = await supabaseClient.storage.from(bucket).upload(nomeArquivo, arquivo, {
+        cacheControl: '3600',
+        upsert: true,
+        contentType: arquivo.type || 'image/jpeg'
+      });
+
+      if (error) throw error;
+
+      const { data } = supabaseClient.storage.from(bucket).getPublicUrl(nomeArquivo);
+      return data?.publicUrl || '';
+    }
+
+    return validarUrlImagem(arquivoOuUrl);
+  };
+
+  const processarImagemSelecionada = async (arquivoOuUrl) => {
+    if (!arquivoOuUrl) return;
+
+    setCarregandoImagem(true);
+    setErroUploadImagem('');
+    setImagemPreviewErro(false);
+
+    try {
+      const urlFinal = await uploadImagemParaStorage(arquivoOuUrl, novoProdNome);
+      if (urlFinal) {
+        setNovoProdImagem(urlFinal);
+        setImagemPreviewUrl(urlFinal);
+        setImagemPreviewErro(false);
+      } else {
+        setNovoProdImagem('');
+        setImagemPreviewUrl('');
+        setImagemPreviewErro(true);
+      }
+    } catch (err) {
+      console.error('Erro ao salvar imagem no Supabase Storage:', err);
+      setErroUploadImagem('Não foi possível salvar a imagem. Crie um bucket no Supabase Storage e confira as políticas de upload.');
+      setNovoProdImagem('');
+      setImagemPreviewUrl('');
+      setImagemPreviewErro(true);
+    } finally {
+      setCarregandoImagem(false);
     }
   };
 
@@ -123,6 +195,11 @@ export const Estoque = ({
     setIsArrastandoImagem(false);
 
     const url = await extrairUrlDoDrop(event.dataTransfer);
+    if (url && /^data:image\//i.test(url)) {
+      await processarImagemSelecionada(url);
+      return;
+    }
+
     const urlValidada = validarUrlImagem(url);
     if (urlValidada) {
       setNovoProdImagem(urlValidada);
@@ -133,6 +210,14 @@ export const Estoque = ({
       setImagemPreviewUrl('');
       setImagemPreviewErro(true);
     }
+  };
+
+  const handleImagemSelecionadaInput = async (event) => {
+    const arquivo = event.target.files?.[0];
+    if (arquivo && arquivo.type?.startsWith('image/')) {
+      await processarImagemSelecionada(arquivo);
+    }
+    event.target.value = '';
   };
 
   useEffect(() => {
@@ -435,7 +520,10 @@ export const Estoque = ({
     setTipoProduto('padrao');
     setApelidos([]);
     setNovoApelido('');
+    setImagemPreviewUrl('');
     setImagemPreviewErro(false);
+    setCarregandoImagem(false);
+    setErroUploadImagem('');
   };
 
   const handleExcluirProduto = () => {
@@ -793,11 +881,31 @@ export const Estoque = ({
               onChange={(e) => {
                 setNovoProdImagem(e.target.value);
                 setImagemPreviewErro(false);
+                setErroUploadImagem('');
               }}
               onBlur={() => setNovoProdImagem(validarUrlImagem(novoProdImagem))}
-              placeholder="Cole o link da imagem..."
+              placeholder="Cole o link da imagem ou use o botão abaixo"
               style={{ ...inputStyle, fontSize: '13px', textAlign: 'center' }}
             />
+            <input type="file" accept="image/*" id="uploadImagemProduto" style={{ display: 'none' }} onChange={handleImagemSelecionadaInput} />
+            <button
+              type="button"
+              onClick={() => document.getElementById('uploadImagemProduto').click()}
+              style={{ ...btnBase, background: iosBlue, width: '100%', padding: '10px 12px' }}
+            >
+              <i className="fas fa-cloud-upload-alt" style={{ marginRight: '6px' }}></i>
+              {carregandoImagem ? 'Enviando...' : 'Enviar imagem para o Supabase'}
+            </button>
+            {carregandoImagem && (
+              <small style={{ color: iosBlue, marginTop: '4px', display: 'block', fontSize: '12px' }}>
+                Enviando imagem para o Storage...
+              </small>
+            )}
+            {erroUploadImagem && (
+              <small style={{ color: '#ff3b30', marginTop: '6px', display: 'block', fontSize: '12px' }}>
+                {erroUploadImagem}
+              </small>
+            )}
             {(novoProdImagem && (!imagemPreviewUrl || imagemPreviewErro)) && (
               <small style={{ color: '#ff3b30', marginTop: '6px', display: 'block', fontSize: '12px' }}>
                 URL inválida ou sem imagem. Cole um link direto para imagem (https://...).
