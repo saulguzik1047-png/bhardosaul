@@ -84,14 +84,33 @@ export const Estoque = ({
     return `${Date.now()}-${nomeBase}-${Math.random().toString(36).slice(2, 8)}.${extensao}`;
   };
 
+  const isSupabaseStorageUrl = (url) => {
+    return typeof url === 'string' && /\/storage\/v1\/object\/public\//.test(url);
+  };
+
   const uploadImagemParaStorage = async (arquivoOuUrl, nomeProduto = '') => {
     if (!arquivoOuUrl) return '';
     if (!supabaseClient) throw new Error('Cliente Supabase indisponível');
 
-    if (typeof arquivoOuUrl === 'string' && /^data:image\//i.test(arquivoOuUrl.trim())) {
-      const response = await fetch(arquivoOuUrl);
-      const blob = await response.blob();
-      arquivoOuUrl = new File([blob], `imagem-${Date.now()}.png`, { type: blob.type || 'image/png' });
+    if (typeof arquivoOuUrl === 'string') {
+      const texto = arquivoOuUrl.trim();
+      if (!texto) return '';
+      if (isSupabaseStorageUrl(texto)) {
+        return texto;
+      }
+      if (/^data:image\//i.test(texto)) {
+        const response = await fetch(texto);
+        const blob = await response.blob();
+        arquivoOuUrl = new File([blob], `imagem-${Date.now()}.png`, { type: blob.type || 'image/png' });
+      } else if (/^https?:\/\//i.test(texto)) {
+        const response = await fetch(texto);
+        if (!response.ok) throw new Error(`Falha ao baixar imagem: ${response.status}`);
+        const contentType = response.headers.get('content-type') || 'image/jpeg';
+        if (!/^image\//i.test(contentType)) throw new Error('A URL não retorna uma imagem.');
+        const blob = await response.blob();
+        const extensao = contentType.split('/')[1]?.split(';')[0]?.replace('jpeg', 'jpg') || 'jpg';
+        arquivoOuUrl = new File([blob], `imagem-${Date.now()}.${extensao}`, { type: contentType });
+      }
     }
 
     if (arquivoOuUrl instanceof File || arquivoOuUrl instanceof Blob) {
@@ -410,13 +429,20 @@ export const Estoque = ({
     const nomeNormalizado = novoProdNome.trim().toLowerCase();
 
     if (idProdutoSelecionadoEdicao) {
+      let imagemProcessada = novoProdImagem;
+      try {
+        imagemProcessada = await uploadImagemParaStorage(novoProdImagem, novoProdNome);
+      } catch (err) {
+        console.warn('Erro ao processar a imagem para o Storage:', err);
+      }
+
       const prodAtualizado = {
         nome: novoProdNome,
         category: novoProdCategoria,
         precoCusto: custoFinal,
         preco: vendaFinal,
         estoqueMinimo: minFinal,
-        imagem: validarUrlImagem(novoProdImagem),
+        imagem: validarUrlImagem(imagemProcessada),
         fatorConversao: fatorFinal,
         apelidos: apelidos
       };
@@ -445,6 +471,13 @@ export const Estoque = ({
         return;
       }
 
+      let imagemProcessada = novoProdImagem;
+      try {
+        imagemProcessada = await uploadImagemParaStorage(novoProdImagem, novoProdNome);
+      } catch (err) {
+        console.warn('Erro ao processar a imagem para o Storage:', err);
+      }
+
       const novoProduto = {
         id: Date.now(),
         nome: novoProdNome,
@@ -453,7 +486,7 @@ export const Estoque = ({
         preco: vendaFinal,
         estoque: 0,
         estoqueMinimo: minFinal,
-        imagem: validarUrlImagem(novoProdImagem),
+        imagem: validarUrlImagem(imagemProcessada),
         fatorConversao: fatorFinal,
         apelidos: apelidos,
         dataUltimaCompra: new Date().toISOString().split('T')[0]
@@ -883,7 +916,27 @@ export const Estoque = ({
                 setImagemPreviewErro(false);
                 setErroUploadImagem('');
               }}
-              onBlur={() => setNovoProdImagem(validarUrlImagem(novoProdImagem))}
+              onBlur={async () => {
+                const url = validarUrlImagem(novoProdImagem);
+                if (url && /^https?:\/\//i.test(url)) {
+                  setCarregandoImagem(true);
+                  setErroUploadImagem('');
+                  try {
+                    const uploadedUrl = await uploadImagemParaStorage(url, novoProdNome);
+                    setNovoProdImagem(uploadedUrl);
+                    setImagemPreviewUrl(uploadedUrl);
+                    setImagemPreviewErro(false);
+                  } catch (err) {
+                    console.error('Erro ao baixar/enviar imagem da URL:', err);
+                    setErroUploadImagem('Não foi possível salvar a imagem da URL. Verifique se o link é direto para imagem.');
+                    setImagemPreviewErro(true);
+                  } finally {
+                    setCarregandoImagem(false);
+                  }
+                } else {
+                  setNovoProdImagem(url);
+                }
+              }}
               placeholder="Cole o link da imagem ou use o botão abaixo"
               style={{ ...inputStyle, fontSize: '13px', textAlign: 'center' }}
             />
