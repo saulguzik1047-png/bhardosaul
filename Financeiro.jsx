@@ -22,9 +22,26 @@ export function Financeiro({
   const [novaDespesaVenc, setNovaDespesaVenc] = React.useState(new Date().toISOString().split('T')[0]);
   const [filtroPagamento, setFiltroPagamento] = React.useState('Todos');
 
+  const parseMoedaBR = (valor) => {
+    if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
+    const texto = String(valor || '').trim();
+    if (!texto) return 0;
+
+    const somenteNumeros = texto.replace(/[^\d]/g, '');
+    if (!somenteNumeros) return 0;
+
+    return Number(somenteNumeros) / 100;
+  };
+
+  const formatarMoedaInput = (valor) => {
+    const numero = typeof valor === 'number' ? valor : parseMoedaBR(valor);
+    if (!numero) return '';
+    return numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
   function lancarDespesa(e) {
     e.preventDefault();
-    const v = parseFloat(novaDespesaValor);
+    const v = parseMoedaBR(novaDespesaValor);
     if (!novaDespesaDesc.trim() || isNaN(v) || v <= 0) {
       dispararMensagem('Erro', 'Preencha corretamente todos os dados da despesa!');
       return;
@@ -164,11 +181,11 @@ export function Financeiro({
               onChange={(e) => setNovaDespesaDesc(e.target.value)}
             />
             <input
-              type="number"
-              step="0.01"
-              placeholder="Valor R$"
+              type="text"
+              inputMode="decimal"
+              placeholder="R$ 0,00"
               value={novaDespesaValor}
-              onChange={(e) => setNovaDespesaValor(e.target.value)}
+              onChange={(e) => setNovaDespesaValor(formatarMoedaInput(e.target.value))}
             />
             <input
               type="date"

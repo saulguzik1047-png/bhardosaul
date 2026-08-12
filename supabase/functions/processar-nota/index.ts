@@ -26,15 +26,42 @@ Deno.serve(async (req: Request) => {
 
     const body = await req.json();
 
+    const normalizeOpenAIBody = (raw: any) => {
+      if (raw && Array.isArray(raw.messages)) return raw;
+
+      const input = Array.isArray(raw?.input) ? raw.input : [];
+      const firstUser = input.find((item: any) => item?.role === "user") || input[0] || {};
+      const content = Array.isArray(firstUser?.content) ? firstUser.content : [];
+
+      return {
+        model: raw?.model || "gpt-4o-mini",
+        response_format: raw?.response_format,
+        temperature: raw?.temperature,
+        max_tokens: raw?.max_tokens,
+        messages: [
+          {
+            role: "user",
+            content: content.map((part: any) => {
+              if (part?.type === "text") return { type: "text", text: part.text || "" };
+              if (part?.type === "image_url") return { type: "image_url", image_url: part.image_url };
+              return part;
+            }),
+          },
+        ],
+      };
+    };
+
+    const payload = normalizeOpenAIBody(body);
+
     const respostaOpenAI = await fetch(
-      "https://api.openai.com/v1/responses",
+      "https://api.openai.com/v1/chat/completions",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(payload),
       }
     );
 

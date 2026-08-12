@@ -89,7 +89,7 @@ export function Crediario({
           <h3>📕 Penduras Devidas (Agrupadas por Cliente)</h3>
           <table style={{ borderCollapse: 'collapse', width: '100%' }}>
             <thead>
-              <tr style={{ background: '#1e293b', color: '#94a3b8', fontSize: '12px', textTransform: 'uppercase' }}>
+              <tr style={{ background: 'rgba(120,120,128,0.12)', color: '#5c5c66', fontSize: '12px', textTransform: 'uppercase' }}>
                 <th style={{ padding: '12px', textAlign: 'left' }}>Cliente / Resumo</th>
                 <th style={{ padding: '12px', textAlign: 'center', width: '150px' }}>Ação</th>
               </tr>
@@ -102,7 +102,7 @@ export function Crediario({
                     .includes(buscaCrediario.toLowerCase())
                 )
                 .map((g) => (
-                  <tr key={g.cliente} style={{ borderBottom: '1px solid #334155' }}>
+                  <tr key={g.cliente} style={{ borderBottom: '1px solid rgba(60,60,67,0.12)' }}>
                     <td
                       style={{ padding: '12px', cursor: 'pointer' }}
                       onClick={() =>
@@ -113,15 +113,15 @@ export function Crediario({
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
-                          <strong style={{ fontSize: '15px', color: '#f97316' }}>
+                          <strong style={{ fontSize: '15px', color: '#d97706' }}>
                             <i className="fas fa-user" style={{ marginRight: '6px' }}></i>
                             {g.cliente}
                           </strong>
-                          <span style={{ fontSize: '11px', color: '#94a3b8', marginLeft: '8px' }}>
+                          <span style={{ fontSize: '11px', color: '#6b7280', marginLeft: '8px' }}>
                             ({g.comandas.length} comanda{g.comandas.length > 1 ? 's' : ''})
                           </span>
                         </div>
-                        <div style={{ fontWeight: 'bold', color: '#ef4444', fontSize: '16px' }}>
+                        <div style={{ fontWeight: 'bold', color: '#dc2626', fontSize: '16px' }}>
                           {formatarMoeda(g.total)}
                         </div>
                       </div>
@@ -129,7 +129,7 @@ export function Crediario({
                       {expandedCliente === g.cliente && (
                         <div
                           className="detalhe-comandas-bloco"
-                          style={{ marginTop: '12px', padding: '12px', background: '#0f172a', borderRadius: '8px', borderLeft: '3px solid #f97316' }}
+                          style={{ marginTop: '12px', padding: '12px', background: 'rgba(120,120,128,0.12)', borderRadius: '8px', borderLeft: '3px solid #d97706' }}
                           onClick={(e) => e.stopPropagation()}
                         >
                           <strong
@@ -137,7 +137,7 @@ export function Crediario({
                               fontSize: '12px',
                               display: 'block',
                               marginBottom: '8px',
-                              color: '#cbd5e1',
+                              color: '#374151',
                             }}
                           >
                             Detalhamento do Consumo:
@@ -146,7 +146,7 @@ export function Crediario({
                             <div
                               key={c.idCred}
                               style={{
-                                borderBottom: '1px solid #1e293b',
+                                borderBottom: '1px solid rgba(60,60,67,0.12)',
                                 paddingBottom: '8px',
                                 marginBottom: '8px',
                               }}
@@ -157,11 +157,11 @@ export function Crediario({
                                   justifyContent: 'space-between',
                                   fontWeight: '600',
                                   fontSize: '12px',
-                                  color: '#94a3b8',
+                                  color: '#6b7280',
                                 }}
                               >
                                 <span>📅 {c.data}</span>
-                                <span style={{ color: '#fb923c', fontWeight: 'bold' }}>
+                                <span style={{ color: '#d97706', fontWeight: 'bold' }}>
                                   {formatarMoeda(c.total)}
                                 </span>
                               </div>
@@ -174,7 +174,7 @@ export function Crediario({
                                         display: 'flex',
                                         justifyContent: 'space-between',
                                         fontSize: '11px',
-                                        color: '#cbd5e1'
+                                        color: '#374151'
                                       }}
                                     >
                                       <span>• {it.qtd}x {it.nome}</span>
@@ -212,7 +212,7 @@ export function Crediario({
 
               {pendentesAgrupados.filter((g) => g.cliente.toLowerCase().includes(buscaCrediario.toLowerCase())).length === 0 && (
                 <tr>
-                  <td colSpan="2" style={{ textAlign: 'center', padding: '20px', color: '#64748b', fontSize: '13px' }}>
+                  <td colSpan="2" style={{ textAlign: 'center', padding: '20px', color: '#6b7280', fontSize: '13px' }}>
                     Nenhuma conta pendente encontrada.
                   </td>
                 </tr>
@@ -225,7 +225,7 @@ export function Crediario({
           <h3>✅ Penduras Pagas (Agrupadas por Cliente)</h3>
           <table style={{ borderCollapse: 'collapse', width: '100%' }}>
             <thead>
-              <tr style={{ background: '#1e293b', color: '#94a3b8', fontSize: '12px', textTransform: 'uppercase' }}>
+              <tr style={{ background: 'rgba(120,120,128,0.12)', color: '#5c5c66', fontSize: '12px', textTransform: 'uppercase' }}>
                 <th style={{ padding: '12px', textAlign: 'left' }}>Cliente / Histórico</th>
                 <th style={{ padding: '12px', textAlign: 'center', width: '120px' }}>Status</th>
               </tr>
@@ -249,7 +249,7 @@ export function Crediario({
                     .join(', ');
 
                   return (
-                    <tr key={g.cliente} style={{ borderBottom: '1px solid #334155' }}>
+                    <tr key={g.cliente} style={{ borderBottom: '1px solid rgba(60,60,67,0.12)' }}>
                       <td
                         style={{ padding: '12px', cursor: 'pointer' }}
                         onClick={() =>
@@ -267,7 +267,7 @@ export function Crediario({
                               {g.cliente}
                             </strong>
                             {metodosUsados && (
-                              <span style={{ fontSize: '10px', color: '#94a3b8', marginLeft: '8px', background: '#1e293b', padding: '2px 6px', borderRadius: '4px' }}>
+                              <span style={{ fontSize: '10px', color: '#6b7280', marginLeft: '8px', background: 'rgba(120,120,128,0.16)', padding: '2px 6px', borderRadius: '4px' }}>
                                 <i className="fas fa-money-check-alt"></i> {metodosUsados}
                               </span>
                             )}
@@ -280,14 +280,14 @@ export function Crediario({
                         {expandedClientePago === g.cliente && (
                           <div
                             className="detalhe-comandas-bloco"
-                            style={{ marginTop: '12px', padding: '12px', background: '#0f172a', borderRadius: '8px', borderLeft: '3px solid #22c55e' }}
+                            style={{ marginTop: '12px', padding: '12px', background: 'rgba(120,120,128,0.12)', borderRadius: '8px', borderLeft: '3px solid #22c55e' }}
                             onClick={(e) => e.stopPropagation()}
                           >
                             {g.comandas.map((c) => (
                               <div
                                 key={c.idCred}
                                 style={{
-                                  borderBottom: '1px solid #1e293b',
+                                  borderBottom: '1px solid rgba(60,60,67,0.12)',
                                   paddingBottom: '8px',
                                   marginBottom: '8px',
                                 }}
@@ -298,7 +298,7 @@ export function Crediario({
                                     justifyContent: 'space-between',
                                     fontSize: '12px',
                                     fontWeight: '600',
-                                    color: '#94a3b8'
+                                    color: '#6b7280'
                                   }}
                                 >
                                   <span>📅 {c.data}</span>
@@ -315,7 +315,7 @@ export function Crediario({
                                           display: 'flex',
                                           justifyContent: 'space-between',
                                           fontSize: '11px',
-                                          color: '#cbd5e1'
+                                          color: '#374151'
                                         }}
                                       >
                                         <span>• {it.qtd}x {it.nome}</span>
@@ -327,7 +327,7 @@ export function Crediario({
                                     key={i}
                                     style={{
                                       fontSize: '10px',
-                                      color: '#64748b',
+                                      color: '#6b7280',
                                       marginTop: '4px'
                                     }}
                                   >
@@ -352,7 +352,7 @@ export function Crediario({
                 
               {pagasAgrupadas.filter((g) => g.cliente.toLowerCase().includes(buscaCrediario.toLowerCase())).length === 0 && (
                 <tr>
-                  <td colSpan="2" style={{ textAlign: 'center', padding: '20px', color: '#64748b', fontSize: '13px' }}>
+                  <td colSpan="2" style={{ textAlign: 'center', padding: '20px', color: '#6b7280', fontSize: '13px' }}>
                     Nenhum histórico encontrado.
                   </td>
                 </tr>

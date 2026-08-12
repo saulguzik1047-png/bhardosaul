@@ -82,6 +82,17 @@ const FRASES_ROCK = [
   '"Pode ser que eu saiba o que é o amor." - Motörhead',
 ];
 
+const parseMoedaBR = (valor) => {
+  if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
+  const texto = String(valor || '').trim();
+  if (!texto) return 0;
+
+  const somenteNumeros = texto.replace(/[^\d]/g, '');
+  if (!somenteNumeros) return 0;
+
+  return Number(somenteNumeros) / 100;
+};
+
 function App() {
   const [nomeSoftware, setNomeSoftware] = React.useState(() => {
     try {
@@ -122,44 +133,54 @@ function App() {
       }).join(', ');
 
       const payload = {
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
         response_format: { type: "json_object" },
-        input: [
+        messages: [
           {
             role: "user",
             content: [
-              { 
-                type: "text", 
-                text: `Você é um sistema inteligente de leitura de notas fiscais de um bar/restaurante.\n\nAqui está a NOSSA LISTA OFICIAL DE PRODUTOS: [${nomesOficiais}].\n\nSua missão:\n1. Extraia os produtos, quantidades e o valor total de cada item desta imagem.\n2. DE/PARA AUTOMÁTICO: Compare o nome lido na nota com a nossa lista oficial. Se for uma variação, erro de digitação ou apelido (ex: 'brasilberger' = 'Aperitivo Brasilberg', 'conhaque dimel' = 'Conhaque de Mel'), troque e USE O NOSSO NOME OFICIAL.\n3. Se o produto da nota for totalmente novo e não estiver na lista, mande o nome original da nota.\n\nRetorne ESTRITAMENTE o seguinte formato JSON:\n{\n  "descricao": "Resumo do que leu",\n  "itens": [\n    {\n      "nome": "Nome Oficial do Produto (ou nome original se for novo)",\n      "quantidade": 1,\n      "custoTotal": 15.50\n    }\n  ]\n}` 
+              {
+                type: "text",
+                text: `Você é um sistema inteligente de leitura de notas fiscais de um bar/restaurante.\n\nAqui está a NOSSA LISTA OFICIAL DE PRODUTOS: [${nomesOficiais}].\n\nSua missão:\n1. Extraia os produtos, quantidades e o valor total de cada item desta imagem.\n2. DE/PARA AUTOMÁTICO: Compare o nome lido na nota com a nossa lista oficial. Se for uma variação, erro de digitação ou apelido (ex: 'brasilberger' = 'Aperitivo Brasilberg', 'conhaque dimel' = 'Conhaque de Mel'), troque e USE O NOSSO NOME OFICIAL.\n3. Se o produto da nota for totalmente novo e não estiver na lista, mande o nome original da nota.\n\nRetorne ESTRITAMENTE o seguinte formato JSON:\n{\n  "descricao": "Resumo do que leu",\n  "itens": [\n    {\n      "nome": "Nome Oficial do Produto (ou nome original se for novo)",\n      "quantidade": 1,\n      "custoTotal": 15.50\n    }\n  ]\n}`
               },
-              { 
-                type: "image_url", 
-                image_url: { 
+              {
+                type: "image_url",
+                image_url: {
                   url: base64DataUrl,
-                  detail: "high" 
-                } 
+                  detail: "high"
+                }
               }
             ]
           }
         ],
         max_tokens: 1500,
-        temperature: 0.1 
+        temperature: 0.1
       };
 
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://perjhxqgcdccmfyazubi.supabase.co';
     const endpoints = [
-      import.meta.env.VITE_PROCESSAR_NOTA_URL || '/api/processar-nota',
-      `${supabaseUrl}/functions/v1/processar-nota`
-    ].filter(Boolean);
+      {
+        url: import.meta.env.VITE_PROCESSAR_NOTA_URL || '/api/processar-nota',
+        headers: { 'Content-Type': 'application/json' }
+      },
+      {
+        url: `${supabaseUrl}/functions/v1/processar-nota`,
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`
+        }
+      }
+    ].filter((endpoint) => endpoint.url);
 
     let ultimaResposta = null;
     let res = null;
 
     for (const endpoint of endpoints) {
       try {
-        res = await fetch(endpoint, {
+        res = await fetch(endpoint.url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: endpoint.headers,
           body: JSON.stringify(payload)
         });
 
@@ -175,9 +196,9 @@ function App() {
           const parsed = JSON.parse(respostaTexto);
           detalheErro = parsed.error || parsed.message || JSON.stringify(parsed);
         } catch (_) {}
-        console.warn(`Erro no endpoint ${endpoint}:`, detalheErro);
+        console.warn(`Erro no endpoint ${endpoint.url}:`, detalheErro);
       } catch (erro) {
-        console.warn(`Falha ao chamar endpoint ${endpoint}:`, erro);
+        console.warn(`Falha ao chamar endpoint ${endpoint.url}:`, erro);
       }
     }
 
@@ -233,7 +254,16 @@ function App() {
       setItensNotaIA(itensProntos);
     } catch (erro) {
       console.error(erro);
-      dispararMensagem("Erro na Leitura", "A extração falhou. Verifique se a chave da OpenAI está correta ou o proxy.");
+      const msg = String(erro?.message || 'Falha ao processar nota');
+      let dica = 'A extração falhou. Verifique a chave da OpenAI e o endpoint de proxy.';
+      if (msg.includes('OPENAI_API_KEY') || msg.toLowerCase().includes('chave')) {
+        dica = 'A chave da OpenAI não está configurada no servidor. Configure OPENAI_API_KEY no Vercel/Supabase e tente novamente.';
+      } else if (msg.includes('401') || msg.toLowerCase().includes('unauthorized')) {
+        dica = 'A chave da OpenAI parece inválida ou sem permissão para visão.';
+      } else if (file?.type === 'application/pdf') {
+        dica = 'PDF pode falhar neste modo. Tente enviar a foto da nota (JPG/PNG) para extrair com IA.';
+      }
+      dispararMensagem("Erro na Leitura", dica);
       setModalRevisaoNota(false);
     } finally {
       setProcessandoNota(false);
@@ -1206,10 +1236,10 @@ function App() {
     if (!comandaAtual || comandaAtual.itens.length === 0) return;
     const totalCobranca = calcularTotal(comandaAtual.itens);
 
-    const d = parseFloat(valDinheiro) || 0;
-    const p = parseFloat(valPix) || 0;
-    const c = parseFloat(valCartao) || 0;
-    const cr = parseFloat(valCrediario) || 0;
+    const d = parseMoedaBR(valDinheiro);
+    const p = parseMoedaBR(valPix);
+    const c = parseMoedaBR(valCartao);
+    const cr = parseMoedaBR(valCrediario);
 
     const somaPaga = d + p + c + cr;
 
@@ -1411,7 +1441,7 @@ function App() {
       setCaixaDialogo({
         titulo: `Abatimento Parcial - ${cliente}`,
         mensagem: `Dívida total: ${formatarMoeda(totalDivida)}\nDigite o valor que o cliente está pagando (Ex: 50,00):`,
-        tipo: 'prompt',
+        tipo: 'prompt_moeda',
         confirmTxt: 'Abater',
         cancelTxt: 'Cancelar',
         onConfirm: async (valorDigitado) => {
@@ -1784,6 +1814,26 @@ function App() {
               </div>
             )}
 
+            {caixaDialogo.tipo === 'prompt_moeda' && (
+              <div style={{ marginBottom: '20px' }}>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  className="dark-input-field"
+                  placeholder="R$ 0,00"
+                  style={{ textAlign: 'left', background: '#090f17', border: '1px solid #ef4444' }}
+                  value={promptVal}
+                  onChange={(e) => {
+                    const somenteNumeros = String(e.target.value || '').replace(/[^\d]/g, '');
+                    const numero = somenteNumeros ? Number(somenteNumeros) / 100 : 0;
+                    setPromptVal(numero ? numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '');
+                  }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { caixaDialogo.onConfirm(promptVal); setCaixaDialogo(null); } }}
+                  autoFocus
+                />
+              </div>
+            )}
+
             {caixaDialogo.tipo === 'prompt_categoria' && (
               <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 <input
@@ -1890,7 +1940,7 @@ function App() {
                   <button
                     type="button" className="btn-dialog-confirm"
                     onClick={() => {
-                      if (caixaDialogo.tipo === 'prompt') caixaDialogo.onConfirm(promptVal);
+                      if (caixaDialogo.tipo === 'prompt' || caixaDialogo.tipo === 'prompt_moeda') caixaDialogo.onConfirm(promptVal);
                       else if (caixaDialogo.tipo === 'prompt_categoria') caixaDialogo.onConfirm(promptVal, promptValDivisivel);
                       else caixaDialogo.onConfirm();
                       setCaixaDialogo(null);

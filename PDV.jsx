@@ -38,6 +38,27 @@ export function PDV({
   buscaContainerRef,
   nomeSoftware
 }) {
+  const parseMoedaBR = (valor) => {
+    if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
+    const texto = String(valor || '').trim();
+    if (!texto) return 0;
+
+    const somenteNumeros = texto.replace(/[^\d]/g, '');
+    if (!somenteNumeros) return 0;
+
+    return Number(somenteNumeros) / 100;
+  };
+
+  const formatarMoedaInput = (valor) => {
+    const numero = typeof valor === 'number' ? valor : parseMoedaBR(valor);
+    if (!numero) return '';
+    return numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
+  const handleChangeMoedaInput = (setter) => (e) => {
+    setter(formatarMoedaInput(e.target.value));
+  };
+
   let subtotal = comandaAtual ? calcularTotal(comandaAtual.itens) : 0;
   const listaCategorias = [
     'Todos',
@@ -89,10 +110,10 @@ export function PDV({
 
   /* CALCULO DO SALDO MULTI-PAGAMENTO */
   const totalPagoAtualmente =
-    (parseFloat(valDinheiro) || 0) +
-    (parseFloat(valPix) || 0) +
-    (parseFloat(valCartao) || 0) +
-    (parseFloat(valCrediario) || 0);
+    parseMoedaBR(valDinheiro) +
+    parseMoedaBR(valPix) +
+    parseMoedaBR(valCartao) +
+    parseMoedaBR(valCrediario);
   const saldoRestantePagamento = subtotal - totalPagoAtualmente;
 
   return (
@@ -562,40 +583,44 @@ export function PDV({
                           <div className="linha-multi-pagamento" style={{fontSize: '12px', fontWeight: 'bold'}}>
                             <label>💵 R$:</label>
                             <input
-                              type="number"
-                              placeholder="0.00"
+                              type="text"
+                              inputMode="decimal"
+                              placeholder="R$ 0,00"
                               value={valDinheiro}
-                              onChange={(e) => setValDinheiro(e.target.value)}
+                              onChange={handleChangeMoedaInput(setValDinheiro)}
                               style={{padding: '8px', borderRadius: '6px'}}
                             />
                           </div>
                           <div className="linha-multi-pagamento" style={{fontSize: '12px', fontWeight: 'bold'}}>
                             <label>⚡ Pix:</label>
                             <input
-                              type="number"
-                              placeholder="0.00"
+                              type="text"
+                              inputMode="decimal"
+                              placeholder="R$ 0,00"
                               value={valPix}
-                              onChange={(e) => setValPix(e.target.value)}
+                              onChange={handleChangeMoedaInput(setValPix)}
                               style={{padding: '8px', borderRadius: '6px'}}
                             />
                           </div>
                           <div className="linha-multi-pagamento" style={{fontSize: '12px', fontWeight: 'bold'}}>
                             <label>💳 Cart:</label>
                             <input
-                              type="number"
-                              placeholder="0.00"
+                              type="text"
+                              inputMode="decimal"
+                              placeholder="R$ 0,00"
                               value={valCartao}
-                              onChange={(e) => setValCartao(e.target.value)}
+                              onChange={handleChangeMoedaInput(setValCartao)}
                               style={{padding: '8px', borderRadius: '6px'}}
                             />
                           </div>
                           <div className="linha-multi-pagamento" style={{fontSize: '12px', fontWeight: 'bold'}}>
                             <label>📙 Fiad:</label>
                             <input
-                              type="number"
-                              placeholder="0.00"
+                              type="text"
+                              inputMode="decimal"
+                              placeholder="R$ 0,00"
                               value={valCrediario}
-                              onChange={(e) => setValCrediario(e.target.value)}
+                              onChange={handleChangeMoedaInput(setValCrediario)}
                               style={{padding: '8px', borderRadius: '6px'}}
                             />
                           </div>

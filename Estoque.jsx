@@ -32,12 +32,33 @@ export const Estoque = ({
   const [mostrarLeitorCamera, setMostrarLeitorCamera] = useState(false);
   const [filtroCategoria, setFiltroCategoria] = useState('Todos');
 
+  const parseMoedaBR = (valor) => {
+    if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
+    const texto = String(valor || '').trim();
+    if (!texto) return 0;
+
+    const somenteNumeros = texto.replace(/[^\d]/g, '');
+    if (!somenteNumeros) return 0;
+
+    return Number(somenteNumeros) / 100;
+  };
+
+  const formatarMoedaInput = (valor) => {
+    const numero = typeof valor === 'number' ? valor : parseMoedaBR(valor);
+    if (!numero) return '';
+    return numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
+  const handleChangeMoedaInput = (setter) => (e) => {
+    setter(formatarMoedaInput(e.target.value));
+  };
+
   const listaCategorias = [
     ...new Set([...categoriasCustomizadas, ...produtos.map((p) => p.category)])
   ];
 
-  const custo = parseFloat(precoCusto) || 0;
-  const venda = parseFloat(precoVenda) || 0;
+  const custo = parseMoedaBR(precoCusto);
+  const venda = parseMoedaBR(precoVenda);
   let margemCalculada = '% Lucro: 0.00%';
   let corMargem = '#8e8e93';
 
@@ -68,8 +89,8 @@ export const Estoque = ({
       setIdProdutoSelecionadoEdicao(prod.id);
       setNovoProdNome(prod.nome);
       setNovoProdCategoria(prod.category);
-      setPrecoCusto(prod.precoCusto);
-      setPrecoVenda(prod.preco);
+      setPrecoCusto(formatarMoedaInput(prod.precoCusto));
+      setPrecoVenda(formatarMoedaInput(prod.preco));
       setNovoProdEstoqueMin(prod.estoqueMinimo);
       setNovoProdImagem(prod.imagem || '');
       setFatorConversao(prod.fatorConversao > 1 ? prod.fatorConversao : '');
@@ -85,8 +106,8 @@ export const Estoque = ({
       return;
     }
 
-    const custoFinal = parseFloat(precoCusto) || 0;
-    const vendaFinal = parseFloat(precoVenda) || 0;
+    const custoFinal = parseMoedaBR(precoCusto);
+    const vendaFinal = parseMoedaBR(precoVenda);
     const minFinal = parseFloat(novoProdEstoqueMin) || 0;
     const fatorFinal = parseFloat(fatorConversao) || 1;
 
@@ -358,7 +379,14 @@ export const Estoque = ({
 
             <div>
               <label style={labelStyle}>Preço de Venda (R$)</label>
-              <input type="number" step="0.05" value={precoVenda} onChange={(e) => setPrecoVenda(e.target.value)} style={inputStyle} />
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="R$ 0,00"
+                value={precoVenda}
+                onChange={handleChangeMoedaInput(setPrecoVenda)}
+                style={inputStyle}
+              />
             </div>
 
             <div>
@@ -381,7 +409,14 @@ export const Estoque = ({
 
             <div>
               <label style={labelStyle}>Preço de Custo (R$)</label>
-              <input type="number" step="0.01" value={precoCusto} onChange={(e) => setPrecoCusto(e.target.value)} style={inputStyle} />
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="R$ 0,00"
+                value={precoCusto}
+                onChange={handleChangeMoedaInput(setPrecoCusto)}
+                style={inputStyle}
+              />
             </div>
 
             <div>
