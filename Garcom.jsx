@@ -357,6 +357,10 @@ export function Garcom({
                 <img
                   src={p.imagem || imagemAutomaticaProduto(p.nome, p.category)}
                   alt={p.nome}
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = imagemAutomaticaProduto(p.nome, p.category);
+                  }}
                   style={{
                     width: '100%', height: '80px', objectFit: 'cover',
                     borderRadius: radiusSm, background: fillBg

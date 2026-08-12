@@ -849,6 +849,10 @@ export function PDV({
               <img
                 src={p.imagem || imagemAutomaticaProduto(p.nome, p.category)}
                 alt={p.nome}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = imagemAutomaticaProduto(p.nome, p.category);
+                }}
                 style={{ width: '74px', height: '74px', objectFit: 'cover', borderRadius: '10px' }}
               />
               

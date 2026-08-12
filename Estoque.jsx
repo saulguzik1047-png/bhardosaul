@@ -622,7 +622,17 @@ export const Estoque = ({
               {produtosFiltrados.map(p => (
                 <tr key={p.id} style={{ borderBottom: '0.5px solid ' + separator, fontSize: '14px' }}>
                   <td style={{ padding: '10px' }}>
-                    <img src={p.imagem || imagemAutomaticaProduto(p.nome, p.category)} alt={p.nome} width="40" height="40" style={{ borderRadius: '10px', objectFit: 'cover' }} />
+                    <img
+                      src={p.imagem || imagemAutomaticaProduto(p.nome, p.category)}
+                      alt={p.nome}
+                      width="40"
+                      height="40"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = imagemAutomaticaProduto(p.nome, p.category);
+                      }}
+                      style={{ borderRadius: '10px', objectFit: 'cover' }}
+                    />
                   </td>
                   <td style={{ textAlign: 'left' }}>
                     <strong style={{ display: 'block', color: textPrimary }}>{p.nome}</strong>
