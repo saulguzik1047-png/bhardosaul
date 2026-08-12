@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { formatarMoeda } from './formatadores.js';
 import LeitorNotaCamera from './LeitorNotaCamera.jsx';
 import { supabaseClient } from './supabase.js';
@@ -15,309 +15,26 @@ export const Estoque = ({
   excluirProdutoDoEstoque,
   imprimirPainelRelatorio,
   processarNotaComIA,
-  imagemAutomaticaProduto,
-  categoriaAtiva,
-  setCategoriaAtiva
+  imagemAutomaticaProduto
 }) => {
   const [idProdutoSelecionadoEdicao, setIdProdutoSelecionadoEdicao] = useState(null);
-  const [produtoPesquisa, setProdutoPesquisa] = useState('');
   const [novoProdNome, setNovoProdNome] = useState('');
   const [novoProdCategoria, setNovoProdCategoria] = useState('');
   const [precoCusto, setPrecoCusto] = useState('');
   const [precoVenda, setPrecoVenda] = useState('');
   const [novoProdEstoqueMin, setNovoProdEstoqueMin] = useState('');
   const [novoProdImagem, setNovoProdImagem] = useState('');
-  const [imagemPreviewUrl, setImagemPreviewUrl] = useState('');
-  const [imagemPreviewErro, setImagemPreviewErro] = useState(false);
-  const [isArrastandoImagem, setIsArrastandoImagem] = useState(false);
-  const [carregandoImagem, setCarregandoImagem] = useState(false);
-  const [erroUploadImagem, setErroUploadImagem] = useState('');
   const [tipoProduto, setTipoProduto] = useState('padrao');
   const [novoProdEstoque, setNovoProdEstoque] = useState('');
   const [fatorConversao, setFatorConversao] = useState('');
   const [apelidos, setApelidos] = useState([]);
   const [novoApelido, setNovoApelido] = useState('');
-
-  useEffect(() => {
-    const url = validarUrlImagem(novoProdImagem);
-    setImagemPreviewUrl(url);
-    setImagemPreviewErro(false);
-  }, [novoProdImagem]);
   const [mostrarLeitorCamera, setMostrarLeitorCamera] = useState(false);
   const [filtroCategoria, setFiltroCategoria] = useState('Todos');
-  const [estoqueEditando, setEstoqueEditando] = useState({});
-  const [custoEditando, setCustoEditando] = useState({});
 
   const listaCategorias = [
     ...new Set([...categoriasCustomizadas, ...produtos.map((p) => p.category)])
   ];
-
-  const categoriasDisponiveis = Array.from(
-    new Set([...categoriasCustomizadas, ...produtos.map((p) => p.category)].filter(Boolean))
-  );
-
-  const normalizarCategorias = (lista) =>
-    Array.from(new Set((lista || []).filter((valor) => typeof valor === 'string' && valor.trim())));
-
-  const validarUrlImagem = (url) => {
-    if (!url) return '';
-    const texto = String(url).trim();
-    if (!texto) return '';
-    if (/^data:image\//i.test(texto)) return texto;
-    const finalUrl = /^https?:\/\//i.test(texto) ? texto : `https://${texto}`;
-    try {
-      return new URL(finalUrl).toString();
-    } catch (err) {
-      return '';
-    }
-  };
-
-  const gerarNomeArquivoImagem = (nomeProduto, arquivo) => {
-    const nomeBase = String(nomeProduto || 'produto')
-      .trim()
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '') || 'produto';
-    const extensao = (arquivo?.name?.split('.').pop() || 'jpg').toLowerCase();
-    return `${Date.now()}-${nomeBase}-${Math.random().toString(36).slice(2, 8)}.${extensao}`;
-  };
-
-  const isSupabaseStorageUrl = (url) => {
-    return typeof url === 'string' && /\/storage\/v1\/object\/public\//.test(url);
-  };
-
-  const uploadImagemParaStorage = async (arquivoOuUrl, nomeProduto = '') => {
-    if (!arquivoOuUrl) return '';
-    if (!supabaseClient) throw new Error('Cliente Supabase indisponível');
-
-    if (typeof arquivoOuUrl === 'string') {
-      const texto = arquivoOuUrl.trim();
-      if (!texto) return '';
-      if (isSupabaseStorageUrl(texto)) {
-        return texto;
-      }
-      if (/^data:image\//i.test(texto)) {
-        const response = await fetch(texto);
-        const blob = await response.blob();
-        arquivoOuUrl = new File([blob], `imagem-${Date.now()}.png`, { type: blob.type || 'image/png' });
-      } else if (/^https?:\/\//i.test(texto)) {
-        const response = await fetch(texto);
-        if (!response.ok) throw new Error(`Falha ao baixar imagem: ${response.status}`);
-        const contentType = response.headers.get('content-type') || 'image/jpeg';
-        if (!/^image\//i.test(contentType)) throw new Error('A URL não retorna uma imagem.');
-        const blob = await response.blob();
-        const extensao = contentType.split('/')[1]?.split(';')[0]?.replace('jpeg', 'jpg') || 'jpg';
-        arquivoOuUrl = new File([blob], `imagem-${Date.now()}.${extensao}`, { type: contentType });
-      }
-    }
-
-    if (arquivoOuUrl instanceof File || arquivoOuUrl instanceof Blob) {
-      const arquivo = arquivoOuUrl instanceof File ? arquivoOuUrl : new File([arquivoOuUrl], `imagem-${Date.now()}.png`, { type: arquivoOuUrl.type || 'image/png' });
-      const bucket = (import.meta.env.VITE_SUPABASE_STORAGE_BUCKET || 'produtos').trim();
-      const nomeArquivo = gerarNomeArquivoImagem(nomeProduto, arquivo);
-      const { error } = await supabaseClient.storage.from(bucket).upload(nomeArquivo, arquivo, {
-        cacheControl: '3600',
-        upsert: true,
-        contentType: arquivo.type || 'image/jpeg'
-      });
-
-      if (error) throw error;
-
-      const { data } = supabaseClient.storage.from(bucket).getPublicUrl(nomeArquivo);
-      return data?.publicUrl || '';
-    }
-
-    return validarUrlImagem(arquivoOuUrl);
-  };
-
-  const processarImagemSelecionada = async (arquivoOuUrl) => {
-    if (!arquivoOuUrl) return;
-
-    setCarregandoImagem(true);
-    setErroUploadImagem('');
-    setImagemPreviewErro(false);
-
-    try {
-      const urlFinal = await uploadImagemParaStorage(arquivoOuUrl, novoProdNome);
-      if (urlFinal) {
-        setNovoProdImagem(urlFinal);
-        setImagemPreviewUrl(urlFinal);
-        setImagemPreviewErro(false);
-      } else {
-        setNovoProdImagem('');
-        setImagemPreviewUrl('');
-        setImagemPreviewErro(true);
-      }
-    } catch (err) {
-      console.error('Erro ao salvar imagem no Supabase Storage:', err);
-      setErroUploadImagem('Não foi possível salvar a imagem. Crie um bucket no Supabase Storage e confira as políticas de upload.');
-      setNovoProdImagem('');
-      setImagemPreviewUrl('');
-      setImagemPreviewErro(true);
-    } finally {
-      setCarregandoImagem(false);
-    }
-  };
-
-  const extrairUrlDoDrop = async (dataTransfer) => {
-    const urlFromTransfer = dataTransfer.getData('text/uri-list') || dataTransfer.getData('text/plain');
-    if (urlFromTransfer && /^https?:\/\//i.test(urlFromTransfer.trim())) {
-      return urlFromTransfer.trim();
-    }
-
-    const htmlData = dataTransfer.getData('text/html');
-    if (htmlData) {
-      const match = htmlData.match(/src=["']([^"']+)["']/i);
-      if (match) return match[1];
-    }
-
-    const itens = Array.from(dataTransfer.items || []);
-    for (const item of itens) {
-      if (item.kind === 'string') {
-        const valor = await new Promise((resolve) => item.getAsString(resolve));
-        if (/^https?:\/\//i.test(valor.trim())) return valor.trim();
-        if (/^data:image\//i.test(valor.trim())) return valor.trim();
-      }
-      if (item.kind === 'file') {
-        const arquivo = item.getAsFile();
-        if (arquivo && arquivo.type.startsWith('image/')) {
-          return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = () => resolve('');
-            reader.readAsDataURL(arquivo);
-          });
-        }
-      }
-    }
-
-    if (dataTransfer.files && dataTransfer.files.length > 0) {
-      const arquivo = dataTransfer.files[0];
-      if (arquivo.type.startsWith('image/')) {
-        return new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = () => resolve('');
-          reader.readAsDataURL(arquivo);
-        });
-      }
-    }
-
-    return '';
-  };
-
-  const handleImagemDrop = async (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setIsArrastandoImagem(false);
-
-    const url = await extrairUrlDoDrop(event.dataTransfer);
-    if (url && /^data:image\//i.test(url)) {
-      await processarImagemSelecionada(url);
-      return;
-    }
-
-    const urlValidada = validarUrlImagem(url);
-    if (urlValidada) {
-      setNovoProdImagem(urlValidada);
-      setImagemPreviewUrl(urlValidada);
-      setImagemPreviewErro(false);
-    } else if (url) {
-      setNovoProdImagem(url);
-      setImagemPreviewUrl('');
-      setImagemPreviewErro(true);
-    }
-  };
-
-  const handleImagemSelecionadaInput = async (event) => {
-    const arquivo = event.target.files?.[0];
-    if (arquivo && arquivo.type?.startsWith('image/')) {
-      await processarImagemSelecionada(arquivo);
-    }
-    event.target.value = '';
-  };
-
-  useEffect(() => {
-    setCategoriasCustomizadas(prev => normalizarCategorias(prev));
-    setCategoriasDivisiveis(prev => normalizarCategorias(prev));
-  }, [setCategoriasCustomizadas, setCategoriasDivisiveis]);
-
-  useEffect(() => {
-    setEstoqueEditando((prev) => {
-      const next = { ...prev };
-      produtos.forEach((p) => {
-        if (next[p.id] === undefined) next[p.id] = p.estoque;
-      });
-      return next;
-    });
-
-    setCustoEditando((prev) => {
-      const next = { ...prev };
-      produtos.forEach((p) => {
-        if (next[p.id] === undefined) next[p.id] = p.precoCusto;
-      });
-      return next;
-    });
-  }, [produtos]);
-
-  const handleGerenciarCategoria = async (categoriaOrigem, novoNome, acao) => {
-    const categoriaAntiga = String(categoriaOrigem ?? '');
-    const categoriaAntigaLimpa = categoriaAntiga.trim();
-
-    if (acao === 'excluir') {
-      const categoriaDestino = 'Geral';
-      setProdutos(prev => prev.map((p) => p.category === categoriaAntiga ? { ...p, category: categoriaDestino } : p));
-      setCategoriasCustomizadas(prev => normalizarCategorias([...prev.filter((cat) => cat !== categoriaAntiga), categoriaDestino]));
-      setCategoriasDivisiveis(prev => prev.filter((cat) => cat !== categoriaAntiga));
-      if (categoriaAntiga === novoProdCategoria) setNovoProdCategoria(categoriaDestino);
-      if (filtroCategoria === categoriaAntiga) setFiltroCategoria(categoriaDestino);
-      if (categoriaAtiva === categoriaAntiga) setCategoriaAtiva('Todos');
-
-      try {
-        await supabaseClient?.from('produtos').update({ category: categoriaDestino }).eq('category', categoriaAntiga);
-      } catch (err) { console.warn('Nuvem offline:', err); }
-
-      dispararMensagem('Categoria Excluída', `A categoria ${categoriaAntiga} foi removida e os produtos foram movidos para ${categoriaDestino}.`);
-      return;
-    }
-
-    const categoriaNova = String(novoNome || '').trim();
-    if (!categoriaNova) {
-      dispararMensagem('Atenção', 'Digite um nome para a categoria.');
-      return;
-    }
-
-    if (categoriaNova === categoriaAntigaLimpa) {
-      dispararMensagem('Atenção', 'O novo nome precisa ser diferente do atual.');
-      return;
-    }
-
-    const categoriaJaExiste = categoriasDisponiveis.includes(categoriaNova) && categoriaNova !== categoriaAntigaLimpa;
-    if (categoriaJaExiste) {
-      dispararMensagem('Atenção', `A categoria "${categoriaNova}" já existe.`);
-      return;
-    }
-
-    setProdutos(prev => prev.map((p) => p.category === categoriaAntiga ? { ...p, category: categoriaNova } : p));
-    setCategoriasCustomizadas(prev => normalizarCategorias([...prev.filter((cat) => cat !== categoriaAntiga && cat !== categoriaNova), categoriaNova]));
-    setCategoriasDivisiveis(prev => {
-      const estavaDivisivel = prev.includes(categoriaAntiga);
-      const semAntiga = prev.filter((cat) => cat !== categoriaAntiga);
-      return estavaDivisivel ? normalizarCategorias([...semAntiga, categoriaNova]) : semAntiga;
-    });
-
-    if (categoriaAntiga === novoProdCategoria) setNovoProdCategoria(categoriaNova);
-    if (filtroCategoria === categoriaAntiga) setFiltroCategoria(categoriaNova);
-    if (categoriaAtiva === categoriaAntiga) setCategoriaAtiva('Todos');
-
-    try {
-      await supabaseClient?.from('produtos').update({ category: categoriaNova }).eq('category', categoriaAntiga);
-    } catch (err) { console.warn('Nuvem offline:', err); }
-
-    dispararMensagem('Categoria Atualizada', `A categoria ${categoriaAntiga} foi renomeada para ${categoriaNova}.`);
-  };
 
   const custo = parseFloat(precoCusto) || 0;
   const venda = parseFloat(precoVenda) || 0;
@@ -348,72 +65,18 @@ export const Estoque = ({
       : produtos.find(p => p.nome === produtoIdentificador);
 
     if (prod) {
-      setProdutoPesquisa(prod.nome);
       setIdProdutoSelecionadoEdicao(prod.id);
       setNovoProdNome(prod.nome);
       setNovoProdCategoria(prod.category);
       setPrecoCusto(prod.precoCusto);
       setPrecoVenda(prod.preco);
       setNovoProdEstoqueMin(prod.estoqueMinimo);
-      const imagemValida = validarUrlImagem(prod.imagem || '');
-      setNovoProdImagem(imagemValida);
-      setImagemPreviewUrl(imagemValida);
-      setImagemPreviewErro(false);
+      setNovoProdImagem(prod.imagem || '');
       setFatorConversao(prod.fatorConversao > 1 ? prod.fatorConversao : '');
       setTipoProduto(prod.fatorConversao > 1 ? 'garrafa' : 'padrao');
       setApelidos(prod.apelidos || []);
       setNovoApelido('');
     }
-  };
-
-  const atualizarEstoqueTemporario = (id, valor) => {
-    const novoEstoque = Math.max(0, parseFloat(valor) || 0);
-    setEstoqueEditando((prev) => ({ ...prev, [id]: novoEstoque }));
-  };
-
-  const atualizarCustoTemporario = (id, valor) => {
-    const novoCusto = Math.max(0, parseFloat(valor) || 0);
-    setCustoEditando((prev) => ({ ...prev, [id]: novoCusto }));
-  };
-
-  const salvarEstoqueProduto = async (id) => {
-    const valorEditado = estoqueEditando[id];
-    if (valorEditado === undefined) return;
-
-    const novoEstoque = Math.max(0, parseFloat(valorEditado) || 0);
-    const produto = produtos.find((p) => p.id === id);
-
-    setProdutos((prev) => prev.map((p) =>
-      p.id === id ? { ...p, estoque: novoEstoque } : p
-    ));
-
-    try {
-      await supabaseClient?.from('produtos').update({ estoque: novoEstoque }).eq('id', id);
-    } catch (err) {
-      console.warn('Nuvem offline:', err);
-    }
-
-    dispararMensagem('Estoque', `Estoque de ${produto?.nome || 'produto'} salvo com sucesso.`);
-  };
-
-  const salvarCustoProduto = async (id) => {
-    const valorEditado = custoEditando[id];
-    if (valorEditado === undefined) return;
-
-    const novoCusto = Math.max(0, parseFloat(valorEditado) || 0);
-    const produto = produtos.find((p) => p.id === id);
-
-    setProdutos((prev) => prev.map((p) =>
-      p.id === id ? { ...p, precoCusto: novoCusto } : p
-    ));
-
-    try {
-      await supabaseClient?.from('produtos').update({ preco_custo: novoCusto }).eq('id', id);
-    } catch (err) {
-      console.warn('Nuvem offline:', err);
-    }
-
-    dispararMensagem('Custo', `Preço de custo de ${produto?.nome || 'produto'} salvo com sucesso.`);
   };
 
   const handleSalvar = async () => {
@@ -426,23 +89,15 @@ export const Estoque = ({
     const vendaFinal = parseFloat(precoVenda) || 0;
     const minFinal = parseFloat(novoProdEstoqueMin) || 0;
     const fatorFinal = parseFloat(fatorConversao) || 1;
-    const nomeNormalizado = novoProdNome.trim().toLowerCase();
 
     if (idProdutoSelecionadoEdicao) {
-      let imagemProcessada = novoProdImagem;
-      try {
-        imagemProcessada = await uploadImagemParaStorage(novoProdImagem, novoProdNome);
-      } catch (err) {
-        console.warn('Erro ao processar a imagem para o Storage:', err);
-      }
-
       const prodAtualizado = {
         nome: novoProdNome,
         category: novoProdCategoria,
         precoCusto: custoFinal,
         preco: vendaFinal,
         estoqueMinimo: minFinal,
-        imagem: validarUrlImagem(imagemProcessada),
+        imagem: novoProdImagem,
         fatorConversao: fatorFinal,
         apelidos: apelidos
       };
@@ -456,28 +111,8 @@ export const Estoque = ({
           fator_conversao: prodAtualizado.fatorConversao, apelidos: prodAtualizado.apelidos
         });
       } catch (err) { console.warn('Nuvem offline:', err); }
-      setProdutoPesquisa('');
       dispararMensagem('Sucesso', 'Produto atualizado com sucesso!');
     } else {
-      const produtoJaExiste = produtos.some((produto) => {
-        if (produto.id === idProdutoSelecionadoEdicao) return false;
-        const nomeProduto = String(produto.nome || '').trim().toLowerCase();
-        const apelidosProduto = (produto.apelidos || []).map((apelido) => String(apelido || '').trim().toLowerCase());
-        return nomeProduto === nomeNormalizado || apelidosProduto.includes(nomeNormalizado);
-      });
-
-      if (produtoJaExiste) {
-        dispararMensagem('Erro', 'Este produto já existe no estoque.');
-        return;
-      }
-
-      let imagemProcessada = novoProdImagem;
-      try {
-        imagemProcessada = await uploadImagemParaStorage(novoProdImagem, novoProdNome);
-      } catch (err) {
-        console.warn('Erro ao processar a imagem para o Storage:', err);
-      }
-
       const novoProduto = {
         id: Date.now(),
         nome: novoProdNome,
@@ -486,7 +121,7 @@ export const Estoque = ({
         preco: vendaFinal,
         estoque: 0,
         estoqueMinimo: minFinal,
-        imagem: validarUrlImagem(imagemProcessada),
+        imagem: novoProdImagem,
         fatorConversao: fatorFinal,
         apelidos: apelidos,
         dataUltimaCompra: new Date().toISOString().split('T')[0]
@@ -502,7 +137,6 @@ export const Estoque = ({
           apelidos: novoProduto.apelidos, data_ultima_compra: novoProduto.dataUltimaCompra
         });
       } catch (err) { console.warn('Nuvem offline:', err); }
-      setProdutoPesquisa('');
       dispararMensagem('Sucesso', 'Novo produto cadastrado!');
     }
   };
@@ -542,7 +176,6 @@ export const Estoque = ({
 
   const handleLimpar = () => {
     setIdProdutoSelecionadoEdicao(null);
-    setProdutoPesquisa('');
     setNovoProdNome('');
     setPrecoCusto('');
     setPrecoVenda('');
@@ -553,17 +186,6 @@ export const Estoque = ({
     setTipoProduto('padrao');
     setApelidos([]);
     setNovoApelido('');
-    setImagemPreviewUrl('');
-    setImagemPreviewErro(false);
-    setCarregandoImagem(false);
-    setErroUploadImagem('');
-  };
-
-  const handleExcluirProduto = () => {
-    if (idProdutoSelecionadoEdicao) {
-      excluirProdutoDoEstoque(idProdutoSelecionadoEdicao, novoProdNome);
-      handleLimpar();
-    }
   };
 
   // iOS-style shared constants
@@ -616,10 +238,8 @@ export const Estoque = ({
             tipo: 'prompt_categoria',
             onConfirm: (nomeCat, divisivel) => {
               if(nomeCat) {
-                const nomeLimpo = String(nomeCat || '').trim();
-                if (!nomeLimpo) return;
-                setCategoriasCustomizadas(prev => normalizarCategorias([...prev.filter((cat) => cat !== nomeLimpo), nomeLimpo]));
-                if(divisivel) setCategoriasDivisiveis(prev => normalizarCategorias([...prev.filter((cat) => cat !== nomeLimpo), nomeLimpo]));
+                setCategoriasCustomizadas([...categoriasCustomizadas, nomeCat]);
+                if(divisivel) setCategoriasDivisiveis([...categoriasDivisiveis, nomeCat]);
               }
             }
           })}
@@ -629,20 +249,34 @@ export const Estoque = ({
         </button>
 
         <button
-          onClick={() => setCaixaDialogo({
-            titulo: 'Gerenciar Categoria',
-            mensagem: 'Escolha uma categoria para renomear ou excluir.',
-            tipo: 'gerenciar_categoria',
-            categorias: categoriasDisponiveis,
-            categoriaInicial: novoProdCategoria || categoriasDisponiveis[0] || '',
-            onConfirm: (categoriaOrigem, novoNome, acao) => handleGerenciarCategoria(categoriaOrigem, novoNome, acao)
-          })}
+          onClick={() => {
+            if (!idProdutoSelecionadoEdicao) {
+              dispararMensagem('Atenção', 'Selecione um produto primeiro para editar a categoria.');
+              return;
+            }
+            setCaixaDialogo({
+              titulo: 'Editar Categoria',
+              mensagem: 'Digite a nova categoria para o produto selecionado:',
+              tipo: 'prompt_categoria',
+              onConfirm: (nomeCat, divisivel) => {
+                if (!nomeCat) return;
+                setNovoProdCategoria(nomeCat);
+                if (!categoriasCustomizadas.includes(nomeCat)) {
+                  setCategoriasCustomizadas([...categoriasCustomizadas, nomeCat]);
+                }
+                if (divisivel && !categoriasDivisiveis.includes(nomeCat)) {
+                  setCategoriasDivisiveis([...categoriasDivisiveis, nomeCat]);
+                }
+                dispararMensagem('Categoria Atualizada', `Categoria alterada para ${nomeCat}.`);
+              }
+            });
+          }}
           style={{ ...btnBase, background: '#ff9500' }}
         >
-          <i className="fas fa-edit" style={{ marginRight: '6px' }}></i>Gerenciar Categoria
+          <i className="fas fa-edit" style={{ marginRight: '6px' }}></i>Editar Categoria
         </button>
 
-        <button onClick={handleExcluirProduto} style={{ ...btnBase, background: iosRed }}>
+        <button onClick={() => idProdutoSelecionadoEdicao ? excluirProdutoDoEstoque(idProdutoSelecionadoEdicao, novoProdNome) : null} style={{ ...btnBase, background: iosRed }}>
           <i className="fas fa-trash" style={{ marginRight: '6px' }}></i>Excluir
         </button>
 
@@ -706,11 +340,7 @@ export const Estoque = ({
                   type="text"
                   list="lista-produtos-edit"
                   placeholder="Procurar produto para editar..."
-                  value={produtoPesquisa}
-                  onChange={(e) => {
-                    setProdutoPesquisa(e.target.value);
-                    carregarProdutoParaEdicao(e.target.value);
-                  }}
+                  onChange={(e) => carregarProdutoParaEdicao(e.target.value)}
                   style={{ ...inputStyle, paddingLeft: '36px' }}
                 />
                 <datalist id="lista-produtos-edit">
@@ -873,97 +503,24 @@ export const Estoque = ({
           {/* COL 3: IMAGE PREVIEW */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
             <label style={labelStyle}>Preview da Imagem</label>
-            <div
-              onDrop={handleImagemDrop}
-              onDragEnter={(e) => {
-                e.preventDefault();
-                setIsArrastandoImagem(true);
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsArrastandoImagem(true);
-              }}
-              onDragLeave={() => setIsArrastandoImagem(false)}
-              style={{
-                width: '120px', height: '120px', background: '#f5f7fb',
-                border: `2px dashed ${isArrastandoImagem ? '#007aff' : 'rgba(120,120,128,0.32)'}`,
-                borderRadius: radiusMd,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-                transition: 'border-color 0.2s ease, background-color 0.2s ease'
-              }}
-            >
-              {imagemPreviewUrl && !imagemPreviewErro ? (
-                <img
-                  src={imagemPreviewUrl}
-                  alt="Preview"
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                  onError={() => setImagemPreviewErro(true)}
-                  onLoad={() => setImagemPreviewErro(false)}
-                />
+            <div style={{
+              width: '120px', height: '120px', background: fillBg,
+              border: '2px dashed rgba(120,120,128,0.32)', borderRadius: radiusMd,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
+            }}>
+              {novoProdImagem ? (
+                <img src={novoProdImagem} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'rgba(120,120,128,0.6)', fontSize: '12px', textAlign: 'center', padding: '10px' }}>
-                  <i className="fas fa-image" style={{ fontSize: '24px', marginBottom: '6px' }}></i>
-                  Arraste a imagem
-                  <br />para cá ou cole o link
-                </div>
+                <i className="fas fa-image" style={{ fontSize: '30px', color: 'rgba(120,120,128,0.3)' }}></i>
               )}
             </div>
             <input
               type="text"
               value={novoProdImagem}
-              onChange={(e) => {
-                setNovoProdImagem(e.target.value);
-                setImagemPreviewErro(false);
-                setErroUploadImagem('');
-              }}
-              onBlur={async () => {
-                const url = validarUrlImagem(novoProdImagem);
-                if (url && /^https?:\/\//i.test(url)) {
-                  setCarregandoImagem(true);
-                  setErroUploadImagem('');
-                  try {
-                    const uploadedUrl = await uploadImagemParaStorage(url, novoProdNome);
-                    setNovoProdImagem(uploadedUrl);
-                    setImagemPreviewUrl(uploadedUrl);
-                    setImagemPreviewErro(false);
-                  } catch (err) {
-                    console.error('Erro ao baixar/enviar imagem da URL:', err);
-                    setErroUploadImagem('Não foi possível salvar a imagem da URL. Verifique se o link é direto para imagem.');
-                    setImagemPreviewErro(true);
-                  } finally {
-                    setCarregandoImagem(false);
-                  }
-                } else {
-                  setNovoProdImagem(url);
-                }
-              }}
-              placeholder="Cole o link da imagem ou use o botão abaixo"
+              onChange={(e) => setNovoProdImagem(e.target.value)}
+              placeholder="Cole o link da imagem..."
               style={{ ...inputStyle, fontSize: '13px', textAlign: 'center' }}
             />
-            <input type="file" accept="image/*" id="uploadImagemProduto" style={{ display: 'none' }} onChange={handleImagemSelecionadaInput} />
-            <button
-              type="button"
-              onClick={() => document.getElementById('uploadImagemProduto').click()}
-              style={{ ...btnBase, background: iosBlue, width: '100%', padding: '10px 12px' }}
-            >
-              <i className="fas fa-cloud-upload-alt" style={{ marginRight: '6px' }}></i>
-              {carregandoImagem ? 'Enviando...' : 'Enviar imagem para o Supabase'}
-            </button>
-            {carregandoImagem && (
-              <small style={{ color: iosBlue, marginTop: '4px', display: 'block', fontSize: '12px' }}>
-                Enviando imagem para o Storage...
-              </small>
-            )}
-            {erroUploadImagem && (
-              <small style={{ color: '#ff3b30', marginTop: '6px', display: 'block', fontSize: '12px' }}>
-                {erroUploadImagem}
-              </small>
-            )}
-            {(novoProdImagem && (!imagemPreviewUrl || imagemPreviewErro)) && (
-              <small style={{ color: '#ff3b30', marginTop: '6px', display: 'block', fontSize: '12px' }}>
-                URL inválida ou sem imagem. Cole um link direto para imagem (https://...).
-              </small>
-            )}
           </div>
         </div>
       </div>
@@ -1037,91 +594,23 @@ export const Estoque = ({
                     <small style={{ color: labelColor }}>Mínimo: {p.estoqueMinimo}</small>
                   </td>
                   <td style={{ color: textSecondary }}>{p.category}</td>
-                  <td style={{ padding: '6px' }}>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={custoEditando[p.id] ?? p.precoCusto}
-                      onChange={(e) => atualizarCustoTemporario(p.id, e.target.value)}
-                      style={{
-                        width: '90px',
-                        padding: '6px 8px',
-                        fontSize: '14px',
-                        borderRadius: '8px',
-                        border: '1px solid #d1d5db',
-                        textAlign: 'center',
-                        color: iosRed,
-                        background: '#ffffff',
-                        outline: 'none'
-                      }}
-                    />
-                  </td>
-                  <td style={{ padding: '6px' }}>
-                    <input
-                      type="number"
-                      min="0"
-                      value={estoqueEditando[p.id] ?? p.estoque}
-                      onChange={(e) => atualizarEstoqueTemporario(p.id, e.target.value)}
-                      style={{
-                        width: '80px',
-                        padding: '6px 8px',
-                        fontSize: '14px',
-                        borderRadius: '8px',
-                        border: '1px solid #d1d5db',
-                        textAlign: 'center',
-                        color: (estoqueEditando[p.id] ?? p.estoque) <= p.estoqueMinimo ? iosRed : iosBlue,
-                        background: '#ffffff',
-                        outline: 'none'
-                      }}
-                    />
+                  <td style={{ color: iosRed }}>{formatarMoeda(p.precoCusto)}</td>
+                  <td style={{ color: iosGreen, fontWeight: 'bold' }}>{formatarMoeda(p.preco)}</td>
+                  <td style={{
+                    color: p.estoque <= p.estoqueMinimo ? iosRed : iosBlue,
+                    fontWeight: 'bold', fontSize: '16px'
+                  }}>
+                    {p.estoque}
                   </td>
                   <td style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <button
-                      onClick={() => salvarCustoProduto(p.id)}
-                      disabled={Number(custoEditando[p.id] ?? p.precoCusto) === Number(p.precoCusto)}
-                      style={{
-                        background: Number(custoEditando[p.id] ?? p.precoCusto) === Number(p.precoCusto) ? '#d1d5db' : 'rgba(255, 59, 48, 0.1)',
-                        color: Number(custoEditando[p.id] ?? p.precoCusto) === Number(p.precoCusto) ? '#8e8e93' : iosRed,
-                        border: 'none',
-                        padding: '8px 12px',
-                        borderRadius: radiusSm,
-                        cursor: Number(custoEditando[p.id] ?? p.precoCusto) === Number(p.precoCusto) ? 'not-allowed' : 'pointer',
-                        transition,
-                        fontSize: '14px',
-                        minWidth: '120px'
-                      }}
-                    >
-                      <i className="fas fa-save"></i> Salvar Custo
-                    </button>
-                    <button
-                      onClick={() => salvarEstoqueProduto(p.id)}
-                      disabled={(estoqueEditando[p.id] ?? p.estoque) === p.estoque}
-                      style={{
-                        background: (estoqueEditando[p.id] ?? p.estoque) === p.estoque ? '#d1d5db' : 'rgba(0, 122, 255, 0.12)',
-                        color: (estoqueEditando[p.id] ?? p.estoque) === p.estoque ? '#8e8e93' : iosBlue,
-                        border: 'none',
-                        padding: '8px 12px',
-                        borderRadius: radiusSm,
-                        cursor: (estoqueEditando[p.id] ?? p.estoque) === p.estoque ? 'not-allowed' : 'pointer',
-                        transition,
-                        fontSize: '14px',
-                        minWidth: '120px'
-                      }}
-                    >
-                      <i className="fas fa-save"></i> Salvar Estoque
-                    </button>
                     <button onClick={() => carregarProdutoParaEdicao(p.id)} style={{
                       background: 'rgba(52, 199, 89, 0.12)', color: iosGreen, border: 'none',
                       padding: '8px 14px', borderRadius: radiusSm, cursor: 'pointer',
                       transition, fontSize: '14px', minWidth: '120px'
                     }}>
-                      <i className="fas fa-edit"></i> Editar Produto
+                      <i className="fas fa-edit"></i> Editar Categoria
                     </button>
-                    <button onClick={() => {
-                      excluirProdutoDoEstoque(p.id, p.nome);
-                      handleLimpar();
-                    }} style={{
+                    <button onClick={() => excluirProdutoDoEstoque(p.id, p.nome)} style={{
                       background: 'rgba(255, 59, 48, 0.1)', color: iosRed, border: 'none',
                       padding: '8px 12px', borderRadius: radiusSm, cursor: 'pointer',
                       transition, fontSize: '14px'

@@ -697,13 +697,21 @@ function App() {
         }
       }
 
-      for (const p of (produtosParaSincronizar || [])) {
-        await supabaseClient?.from('produtos').upsert({
-          id: p.id, nome: p.nome, category: p.category, preco: p.preco,
-          preco_custo: p.precoCusto, estoque: p.estoque, estoque_minimo: p.estoqueMinimo, imagem: p.imagem,
-          fator_conversao: p.fatorConversao || 1, data_ultima_compra: p.dataUltimaCompra || null,
-          apelidos: p.apelidos || []
+      // send products to serverless endpoint which uses service_role key
+      try {
+        const resp = await fetch('/api/sync-products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ products: produtosParaSincronizar || [] })
         });
+        try {
+          const json = await resp.json();
+          console.log('[SYNC] server response', resp.status, json);
+        } catch (e) {
+          console.log('[SYNC] server non-json response', resp.status, await resp.text());
+        }
+      } catch (err) {
+        console.error('[SYNC] erro ao chamar /api/sync-products', err);
       }
 
       for (const c of crediarios) {
