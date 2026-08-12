@@ -641,14 +641,30 @@ function App() {
 
         const { data: prods } = (await supabaseClient?.from('produtos').select('*')) || {};
         if (prods && prods.length > 0) {
-          setProdutos(prods.map((p) => ({
-              id: p.id, category: p.category, nome: p.nome,
-              precoCusto: p.preco_custo, preco: p.preco, estoque: p.estoque,
-              estoqueMinimo: p.estoque_minimo, dataUltimaCompra: p.data_ultima_compra, imagem: p.imagem,
-              fatorConversao: p.fator_conversao || 1,
-              apelidos: p.apelidos || [],
-            }))
-          );
+          const produtosNuvem = prods.map((p) => ({
+            id: p.id, category: p.category, nome: p.nome,
+            precoCusto: p.preco_custo, preco: p.preco, estoque: p.estoque,
+            estoqueMinimo: p.estoque_minimo, dataUltimaCompra: p.data_ultima_compra, imagem: p.imagem,
+            fatorConversao: p.fator_conversao || 1,
+            apelidos: p.apelidos || [],
+          }));
+
+          setProdutos((prev) => {
+            const produtosLocais = Array.isArray(prev) ? prev : [];
+            const mapaMerge = new Map();
+
+            for (const p of produtosNuvem) mapaMerge.set(String(p.id), p);
+            for (const p of produtosLocais) mapaMerge.set(String(p.id), p);
+
+            const produtosMesclados = Array.from(mapaMerge.values());
+
+            if (produtosMesclados.length > produtosNuvem.length) {
+              console.log(`[SYNC] preservando ${produtosMesclados.length - produtosNuvem.length} produto(s) local(is) ainda não presente(s) na nuvem`);
+              return produtosMesclados;
+            }
+
+            return produtosNuvem;
+          });
         }
 
         const { data: vnds } = (await supabaseClient?.from('vendas').select('*')) || {};
@@ -697,6 +713,8 @@ function App() {
         }
       }
 
+      let produtosSincronizados = false;
+
       // send products to serverless endpoint which uses service_role key
       try {
         const resp = await fetch('/api/sync-products', {
@@ -704,14 +722,53 @@ function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ products: produtosParaSincronizar || [] })
         });
+
+        let json = null;
         try {
-          const json = await resp.json();
+          json = await resp.json();
           console.log('[SYNC] server response', resp.status, json);
         } catch (e) {
           console.log('[SYNC] server non-json response', resp.status, await resp.text());
         }
+
+        if (resp.ok) {
+          produtosSincronizados = true;
+        } else {
+          console.warn('[SYNC] endpoint /api/sync-products falhou, tentando fallback via cliente Supabase', json);
+        }
       } catch (err) {
         console.error('[SYNC] erro ao chamar /api/sync-products', err);
+      }
+
+      if (!produtosSincronizados) {
+        if (!supabaseClient) {
+          throw new Error('Cliente Supabase indisponível para fallback de produtos.');
+        }
+
+        const produtosNormalizados = (produtosParaSincronizar || []).map((p) => ({
+          id: p.id,
+          nome: p.nome,
+          category: p.category || 'Geral',
+          preco: Number(p.preco || 0),
+          preco_custo: Number(p.precoCusto || 0),
+          estoque: Number(p.estoque || 0),
+          estoque_minimo: Number(p.estoqueMinimo || 0),
+          imagem: p.imagem || '',
+          fator_conversao: Number(p.fatorConversao || 1),
+          apelidos: Array.isArray(p.apelidos) ? p.apelidos : [],
+          data_ultima_compra: p.dataUltimaCompra || null,
+        }));
+
+        const { error: erroUpsertProdutos } = await supabaseClient
+          .from('produtos')
+          .upsert(produtosNormalizados, { onConflict: 'id' });
+
+        if (erroUpsertProdutos) {
+          throw erroUpsertProdutos;
+        }
+
+        produtosSincronizados = true;
+        console.log(`[SYNC] fallback cliente Supabase concluiu ${produtosNormalizados.length} produto(s).`);
       }
 
       for (const c of crediarios) {
@@ -745,7 +802,7 @@ function App() {
         })));
       }
 
-      dispararMensagem('✅ Sincronização Concluída', `Tudo certo! Dados seguros na nuvem.\n\n📊 Resumo:\n- ${produtos.length} Produtos\n- ${crediarios.length} Fiados\n- ${vendasParaInserir.length} Vendas resgatadas\n- ${clientesParaInserir.length} Clientes novos`);
+      dispararMensagem('✅ Sincronização Concluída', `Tudo certo! Dados seguros na nuvem.\n\n📊 Resumo:\n- ${(produtosParaSincronizar || []).length} Produtos${produtosSincronizados ? ' (OK)' : ''}\n- ${crediarios.length} Fiados\n- ${vendasParaInserir.length} Vendas resgatadas\n- ${clientesParaInserir.length} Clientes novos`);
     } catch (err) {
       console.error('Erro na sincronização:', err);
       dispararMensagem('❌ Erro de Conexão', 'Não foi possível sincronizar. Verifique a internet e tente novamente.');
