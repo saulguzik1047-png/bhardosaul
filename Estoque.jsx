@@ -100,6 +100,33 @@ export const Estoque = ({
     }
   };
 
+  const enviarImagemParaStorage = async (imagemOrigem, nomeProduto) => {
+    const source = String(imagemOrigem || '').trim();
+    if (!source) return '';
+
+    // Keep already-hosted storage URLs untouched.
+    if (source.includes('/storage/v1/object/public/')) return source;
+
+    try {
+      const resp = await fetch('/api/store-product-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl: source, productName: nomeProduto || novoProdNome }),
+      });
+
+      const body = await resp.json().catch(() => ({}));
+      if (resp.ok && body?.publicUrl) {
+        return body.publicUrl;
+      }
+
+      console.warn('[IMAGEM] Falha ao salvar no Storage, mantendo URL original:', body?.error || resp.status);
+      return source;
+    } catch (err) {
+      console.warn('[IMAGEM] Erro ao enviar imagem para Storage, mantendo URL original:', err);
+      return source;
+    }
+  };
+
   const handleSalvar = async () => {
     if (!novoProdNome.trim()) {
       dispararMensagem('Erro', 'O nome do produto é obrigatório!');
@@ -111,6 +138,8 @@ export const Estoque = ({
     const minFinal = parseFloat(novoProdEstoqueMin) || 0;
     const fatorFinal = parseFloat(fatorConversao) || 1;
 
+    const imagemFinal = await enviarImagemParaStorage(novoProdImagem, novoProdNome);
+
     if (idProdutoSelecionadoEdicao) {
       const prodAtualizado = {
         nome: novoProdNome,
@@ -118,7 +147,7 @@ export const Estoque = ({
         precoCusto: custoFinal,
         preco: vendaFinal,
         estoqueMinimo: minFinal,
-        imagem: novoProdImagem,
+        imagem: imagemFinal,
         fatorConversao: fatorFinal,
         apelidos: apelidos
       };
@@ -142,7 +171,7 @@ export const Estoque = ({
         preco: vendaFinal,
         estoque: 0,
         estoqueMinimo: minFinal,
-        imagem: novoProdImagem,
+        imagem: imagemFinal,
         fatorConversao: fatorFinal,
         apelidos: apelidos,
         dataUltimaCompra: new Date().toISOString().split('T')[0]
