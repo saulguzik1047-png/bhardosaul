@@ -137,12 +137,13 @@ export const Estoque = ({
     const minFinal = parseFloat(novoProdEstoqueMin) || 0;
     const fatorFinal = parseFloat(fatorConversao) || 1;
 
-    let imagemFinal;
+    let imagemFinal = String(novoProdImagem || '').trim();
+    let erroImagem = null;
     try {
       imagemFinal = await enviarImagemParaStorage(novoProdImagem, novoProdNome);
     } catch (err) {
-      dispararMensagem('Erro ao salvar imagem', `A imagem não foi armazenada no Supabase. ${err?.message || 'Verifique o bucket e as variáveis do deploy.'}`);
-      return;
+      console.warn('[IMAGEM] Produto será salvo sem migrar a imagem para o Storage:', err);
+      erroImagem = err;
     }
 
     if (idProdutoSelecionadoEdicao) {
@@ -171,7 +172,9 @@ export const Estoque = ({
         dispararMensagem('Aviso', 'Produto atualizado apenas neste dispositivo. Não foi possível salvar no Supabase.');
         return;
       }
-      dispararMensagem('Sucesso', 'Produto atualizado com sucesso!');
+      dispararMensagem(erroImagem ? 'Aviso' : 'Sucesso', erroImagem
+        ? 'Produto atualizado, mas a imagem ficou no link original e não foi copiada para o Storage.'
+        : 'Produto atualizado com sucesso!');
     } else {
       const novoProduto = {
         id: Date.now(),
@@ -202,7 +205,9 @@ export const Estoque = ({
         dispararMensagem('Aviso', 'Produto salvo apenas neste dispositivo. Não foi possível salvar no Supabase.');
         return;
       }
-      dispararMensagem('Sucesso', 'Novo produto cadastrado!');
+      dispararMensagem(erroImagem ? 'Aviso' : 'Sucesso', erroImagem
+        ? 'Novo produto cadastrado, mas a imagem ficou no link original e não foi copiada para o Storage.'
+        : 'Novo produto cadastrado!');
     }
   };
 
