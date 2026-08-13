@@ -119,11 +119,10 @@ export const Estoque = ({
         return body.publicUrl;
       }
 
-      console.warn('[IMAGEM] Falha ao salvar no Storage, mantendo URL original:', body?.error || resp.status);
-      return source;
+      throw new Error(body?.error || `Falha ao salvar no Storage (${resp.status})`);
     } catch (err) {
-      console.warn('[IMAGEM] Erro ao enviar imagem para Storage, mantendo URL original:', err);
-      return source;
+      console.error('[IMAGEM] Erro ao enviar imagem para Storage:', err);
+      throw err;
     }
   };
 
@@ -138,7 +137,13 @@ export const Estoque = ({
     const minFinal = parseFloat(novoProdEstoqueMin) || 0;
     const fatorFinal = parseFloat(fatorConversao) || 1;
 
-    const imagemFinal = await enviarImagemParaStorage(novoProdImagem, novoProdNome);
+    let imagemFinal;
+    try {
+      imagemFinal = await enviarImagemParaStorage(novoProdImagem, novoProdNome);
+    } catch (err) {
+      dispararMensagem('Erro ao salvar imagem', `A imagem não foi armazenada no Supabase. ${err?.message || 'Verifique o bucket e as variáveis do deploy.'}`);
+      return;
+    }
 
     if (idProdutoSelecionadoEdicao) {
       const prodAtualizado = {
@@ -153,14 +158,19 @@ export const Estoque = ({
       };
       setProdutos(prev => prev.map(p => p.id === idProdutoSelecionadoEdicao ? { ...p, ...prodAtualizado } : p));
       try {
-        await supabaseClient?.from('produtos').upsert({
+        const { error } = await supabaseClient?.from('produtos').upsert({
           id: idProdutoSelecionadoEdicao, nome: prodAtualizado.nome, category: prodAtualizado.category,
           preco: prodAtualizado.preco, preco_custo: prodAtualizado.precoCusto,
           estoque: (produtos.find(p => p.id === idProdutoSelecionadoEdicao)?.estoque || 0),
           estoque_minimo: prodAtualizado.estoqueMinimo, imagem: prodAtualizado.imagem,
           fator_conversao: prodAtualizado.fatorConversao, apelidos: prodAtualizado.apelidos
         });
-      } catch (err) { console.warn('Nuvem offline:', err); }
+        if (error) throw error;
+      } catch (err) {
+        console.warn('Nuvem offline:', err);
+        dispararMensagem('Aviso', 'Produto atualizado apenas neste dispositivo. Não foi possível salvar no Supabase.');
+        return;
+      }
       dispararMensagem('Sucesso', 'Produto atualizado com sucesso!');
     } else {
       const novoProduto = {
@@ -179,14 +189,19 @@ export const Estoque = ({
       setProdutos(prev => [...prev, novoProduto]);
       setIdProdutoSelecionadoEdicao(novoProduto.id);
       try {
-        await supabaseClient?.from('produtos').upsert({
+        const { error } = await supabaseClient?.from('produtos').upsert({
           id: novoProduto.id, nome: novoProduto.nome, category: novoProduto.category,
           preco: novoProduto.preco, preco_custo: novoProduto.precoCusto,
           estoque: novoProduto.estoque, estoque_minimo: novoProduto.estoqueMinimo,
           imagem: novoProduto.imagem, fator_conversao: novoProduto.fatorConversao,
           apelidos: novoProduto.apelidos, data_ultima_compra: novoProduto.dataUltimaCompra
         });
-      } catch (err) { console.warn('Nuvem offline:', err); }
+        if (error) throw error;
+      } catch (err) {
+        console.warn('Nuvem offline:', err);
+        dispararMensagem('Aviso', 'Produto salvo apenas neste dispositivo. Não foi possível salvar no Supabase.');
+        return;
+      }
       dispararMensagem('Sucesso', 'Novo produto cadastrado!');
     }
   };

@@ -684,7 +684,22 @@ function App() {
             const mapaMerge = new Map();
 
             for (const p of produtosNuvem) mapaMerge.set(String(p.id), p);
-            for (const p of produtosLocais) mapaMerge.set(String(p.id), p);
+            for (const p of produtosLocais) {
+              const produtoNuvem = mapaMerge.get(String(p.id));
+              if (!produtoNuvem) {
+                mapaMerge.set(String(p.id), p);
+                continue;
+              }
+
+              const imagemNuvem = String(produtoNuvem.imagem || '');
+              const imagemLocal = String(p.imagem || '');
+              const imagemNuvemHospedada = imagemNuvem.includes('/storage/v1/object/public/');
+              const imagemLocalHospedada = imagemLocal.includes('/storage/v1/object/public/');
+
+              mapaMerge.set(String(p.id), imagemNuvemHospedada && !imagemLocalHospedada
+                ? { ...p, imagem: produtoNuvem.imagem }
+                : p);
+            }
 
             const produtosMesclados = Array.from(mapaMerge.values());
 
