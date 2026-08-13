@@ -169,11 +169,11 @@ export const Estoque = ({
         if (error) throw error;
       } catch (err) {
         console.warn('Nuvem offline:', err);
-        dispararMensagem('Aviso', 'Produto atualizado apenas neste dispositivo. Não foi possível salvar no Supabase.');
+        dispararMensagem('Aviso', `Produto atualizado apenas neste dispositivo. Não foi possível salvar no Supabase. ${err?.message || ''}`);
         return;
       }
       dispararMensagem(erroImagem ? 'Aviso' : 'Sucesso', erroImagem
-        ? 'Produto atualizado, mas a imagem ficou no link original e não foi copiada para o Storage.'
+        ? `Produto atualizado, mas a imagem ficou no link original e não foi copiada para o Storage. ${erroImagem.message || ''}`
         : 'Produto atualizado com sucesso!');
     } else {
       const novoProduto = {
@@ -202,11 +202,11 @@ export const Estoque = ({
         if (error) throw error;
       } catch (err) {
         console.warn('Nuvem offline:', err);
-        dispararMensagem('Aviso', 'Produto salvo apenas neste dispositivo. Não foi possível salvar no Supabase.');
+        dispararMensagem('Aviso', `Produto salvo apenas neste dispositivo. Não foi possível salvar no Supabase. ${err?.message || ''}`);
         return;
       }
       dispararMensagem(erroImagem ? 'Aviso' : 'Sucesso', erroImagem
-        ? 'Novo produto cadastrado, mas a imagem ficou no link original e não foi copiada para o Storage.'
+        ? `Novo produto cadastrado, mas a imagem ficou no link original e não foi copiada para o Storage. ${erroImagem.message || ''}`
         : 'Novo produto cadastrado!');
     }
   };

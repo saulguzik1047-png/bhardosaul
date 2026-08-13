@@ -73,6 +73,18 @@ export default async function handler(req, res) {
     const fileName = `${Date.now()}-${sanitizeName(productName)}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRole, { auth: { persistSession: false } });
+    const { data: bucketData, error: bucketError } = await supabaseAdmin.storage.getBucket(bucket);
+    if (bucketError || !bucketData) {
+      const { error: createBucketError } = await supabaseAdmin.storage.createBucket(bucket, {
+        public: true,
+        fileSizeLimit: '5MB',
+        allowedMimeTypes: ['image/*'],
+      });
+      if (createBucketError && !/already exists/i.test(createBucketError.message || '')) {
+        return res.status(500).json({ error: `Storage bucket "${bucket}" indisponível: ${createBucketError.message}` });
+      }
+    }
+
     const { error: uploadError } = await supabaseAdmin.storage.from(bucket).upload(fileName, buffer, {
       contentType,
       upsert: false,
