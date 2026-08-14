@@ -65,7 +65,7 @@ export function PDV({
     ...new Set([
       ...categoriasCustomizadas,
       ...produtos.map((p) => p.category),
-    ]),
+    ].filter((categoria) => categoria && categoria !== 'Geral')),
   ];
 
   let produtosFiltrados =

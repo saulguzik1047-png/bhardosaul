@@ -54,7 +54,10 @@ export const Estoque = ({
   };
 
   const listaCategorias = [
-    ...new Set([...categoriasCustomizadas, ...produtos.map((p) => p.category)])
+    ...new Set([
+      ...categoriasCustomizadas,
+      ...produtos.map((p) => p.category)
+    ].filter((categoria) => categoria && categoria !== 'Geral'))
   ];
 
   const custo = parseMoedaBR(precoCusto);

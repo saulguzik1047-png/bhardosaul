@@ -1607,6 +1607,7 @@ function App() {
           categoriasDivisiveis={categoriasDivisiveis}
           imagemAutomaticaProduto={imagemAutomaticaProduto}
           addItemNaComanda={addItemNaComanda}
+          abrirComandaPorNomePronto={abrirComandaPorNomePronto}
           iniciarDivisaoItem={iniciarDivisaoItem}
           usuarioLogado={usuarioLogado}
           logoutSistema={logoutSistema}

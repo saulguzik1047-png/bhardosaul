@@ -10,12 +10,14 @@ export function Garcom({
   categoriasDivisiveis,
   imagemAutomaticaProduto,
   addItemNaComanda,
+  abrirComandaPorNomePronto,
   iniciarDivisaoItem,
   usuarioLogado,
   logoutSistema,
 }) {
   const [categoriaAtiva, setCategoriaAtiva] = useState('Todos');
   const [busca, setBusca] = useState('');
+  const [nomeNovaComanda, setNomeNovaComanda] = useState('');
   const [comandaSelecionada, setComandaSelecionada] = useState(null);
 
   const iosBlue = '#007aff';
@@ -42,7 +44,7 @@ export function Garcom({
     ...new Set([
       ...categoriasCustomizadas,
       ...produtos.map((p) => p.category),
-    ]),
+    ].filter((categoria) => categoria && categoria !== 'Geral')),
   ];
 
   let produtosFiltrados =
@@ -105,13 +107,47 @@ export function Garcom({
           </button>
         </div>
 
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            abrirComandaPorNomePronto(nomeNovaComanda);
+            setNomeNovaComanda('');
+          }}
+          style={{
+            display: 'flex', gap: '8px', marginBottom: '18px',
+            padding: '12px', background: 'rgba(255, 255, 255, 0.72)',
+            borderRadius: radiusMd, border: '0.5px solid rgba(255,255,255,0.6)'
+          }}
+        >
+          <input
+            type="text"
+            value={nomeNovaComanda}
+            onChange={(e) => setNomeNovaComanda(e.target.value)}
+            placeholder="Nome e sobrenome do cliente"
+            aria-label="Nome e sobrenome do cliente"
+            style={{
+              flex: 1, minWidth: 0, padding: '11px 12px', border: 'none',
+              borderRadius: radiusSm, background: fillBg, color: textPrimary,
+              fontSize: '15px', outline: 'none', fontFamily: 'inherit'
+            }}
+          />
+          <button type="submit" style={{
+            background: iosBlue, color: 'white', border: 'none',
+            padding: '0 14px', borderRadius: radiusSm, fontSize: '15px',
+            fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit',
+            display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0
+          }}>
+            <i className="fas fa-plus"></i> Abrir
+          </button>
+        </form>
+
         {comandas.length === 0 ? (
           <div style={{
             textAlign: 'center', padding: '60px 20px', color: labelColor
           }}>
             <i className="fas fa-utensils" style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.3 }}></i>
             <p style={{ fontSize: '17px', fontWeight: '500' }}>Nenhuma comanda aberta no momento.</p>
-            <p style={{ fontSize: '14px' }}>Aguarde o operador abrir uma mesa.</p>
+            <p style={{ fontSize: '14px' }}>Use o campo acima para abrir uma nova comanda.</p>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflowY: 'auto' }}>
