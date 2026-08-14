@@ -616,10 +616,122 @@ function App() {
       return salvas ? JSON.parse(salvas) : [];
     } catch (e) { return []; }
   });
+  const [comandasSincronizadas, setComandasSincronizadas] = React.useState(false);
 
   React.useEffect(() => {
     localStorage.setItem('bhar_comandas_v1', JSON.stringify(comandas));
   }, [comandas]);
+
+  React.useEffect(() => {
+    let cancelado = false;
+
+    async function carregarComandasDaNuvem() {
+      if (!supabaseClient) {
+        setComandasSincronizadas(true);
+        return;
+      }
+
+      const { data, error } = await supabaseClient
+        .from('comandas')
+        .select('id, nome, status, itens, updated_at')
+        .order('updated_at', { ascending: false });
+
+      if (cancelado) return;
+
+      if (error) {
+        console.warn('Não foi possível carregar comandas da nuvem:', error);
+        setComandasSincronizadas(true);
+        return;
+      }
+
+      if (Array.isArray(data) && data.length > 0) {
+        const comandasNuvem = data.map((comanda) => ({
+          id: comanda.id,
+          nome: comanda.nome,
+          status: comanda.status || 'Aberto',
+          itens: Array.isArray(comanda.itens) ? comanda.itens : [],
+        }));
+        setComandas((locais) => {
+          const idsNuvem = new Set(comandasNuvem.map((comanda) => comanda.id));
+          return [...comandasNuvem, ...locais.filter((comanda) => !idsNuvem.has(comanda.id))];
+        });
+      }
+      setComandasSincronizadas(true);
+    }
+
+    carregarComandasDaNuvem();
+    return () => { cancelado = true; };
+  }, []);
+
+  React.useEffect(() => {
+    if (!comandasSincronizadas || !supabaseClient) return;
+
+    const comandasParaSalvar = comandas.map((comanda) => ({
+      id: comanda.id,
+      nome: comanda.nome,
+      status: comanda.status || 'Aberto',
+      itens: comanda.itens || [],
+      updated_at: new Date().toISOString(),
+    }));
+
+    if (comandasParaSalvar.length === 0) return;
+
+    supabaseClient
+      .from('comandas')
+      .upsert(comandasParaSalvar, { onConflict: 'id' })
+      .then(({ error }) => {
+        if (error) console.warn('Não foi possível sincronizar comandas:', error);
+      });
+  }, [comandas, comandasSincronizadas]);
+
+  React.useEffect(() => {
+    if (!comandasSincronizadas || !supabaseClient) return undefined;
+
+    const atualizarComandasDaNuvem = async () => {
+      const { data, error } = await supabaseClient
+        .from('comandas')
+        .select('id, nome, status, itens, updated_at')
+        .order('updated_at', { ascending: false });
+
+      if (error || !Array.isArray(data)) return;
+
+      const comandasNuvem = data.map((comanda) => ({
+        id: comanda.id,
+        nome: comanda.nome,
+        status: comanda.status || 'Aberto',
+        itens: Array.isArray(comanda.itens) ? comanda.itens : [],
+      }));
+
+      setComandas((atuais) => JSON.stringify(atuais) === JSON.stringify(comandasNuvem)
+        ? atuais
+        : comandasNuvem);
+    };
+
+    const intervalo = window.setInterval(atualizarComandasDaNuvem, 4000);
+    return () => window.clearInterval(intervalo);
+  }, [comandasSincronizadas]);
+
+  async function removerComandaDaNuvem(id) {
+    if (!supabaseClient) return;
+    const { error } = await supabaseClient.from('comandas').delete().eq('id', id);
+    if (error) console.warn('Não foi possível remover a comanda da nuvem:', error);
+  }
+
+  React.useEffect(() => {
+    function atualizarComandasDeOutraAba(evento) {
+      if (evento.key !== 'bhar_comandas_v1' || !evento.newValue) return;
+
+      try {
+        const comandasAtualizadas = JSON.parse(evento.newValue);
+        if (Array.isArray(comandasAtualizadas)) setComandas(comandasAtualizadas);
+      } catch (erro) {
+        console.warn('Não foi possível atualizar as comandas de outra aba:', erro);
+      }
+    }
+
+    window.addEventListener('storage', atualizarComandasDeOutraAba);
+    return () => window.removeEventListener('storage', atualizarComandasDeOutraAba);
+  }, []);
 
   const [comandaAtivaId, setComandaAtivaId] = React.useState(null);
   const [busca, setBusca] = React.useState('');
@@ -1154,6 +1266,7 @@ function App() {
         ]);
 
         setComandas((prev) => prev.filter((c) => c.id !== comanda.id));
+        await removerComandaDaNuvem(comanda.id);
 
         if (comandaAtivaId === comanda.id) {
           setComandaAtivaId(null);
@@ -1313,6 +1426,7 @@ function App() {
 
         setComandaRecemPaga({ ...comandaAtual });
         setComandas((prev) => prev.filter((x) => x.id !== comandaAtivaId));
+        await removerComandaDaNuvem(comandaAtivaId);
         setComandaAtivaId(null);
         setModoPagamento(false);
         setMostrarMultiFormas(false);
@@ -1371,6 +1485,7 @@ function App() {
         // 🛠️ FIX CEO: Removido o código super duplicado que estava aqui limpando as mesas 2 vezes seguidas
         setComandaRecemPaga({ ...comandaAtual });
         setComandas((prev) => prev.filter((x) => x.id !== comandaAtivaId));
+        await removerComandaDaNuvem(comandaAtivaId);
         setComandaAtivaId(null);
         setModoPagamento(false);
         setMostrarMultiFormas(false);
