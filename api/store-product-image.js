@@ -23,18 +23,38 @@ function extFromContentType(contentType) {
   return ext.split(';')[0].replace('jpeg', 'jpg');
 }
 
+function normalizeSecret(value) {
+  return String(value || '')
+    .trim()
+    .replace(/^Bearer\s+/i, '')
+    .replace(/^['"]|['"]$/g, '')
+    .trim();
+}
+
+function describeSecret(value) {
+  if (value.startsWith('sb_secret_')) return 'new Supabase secret key';
+  if (value.split('.').length === 3) return 'JWT-shaped key';
+  return 'invalid key format';
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || process.env.URL_SUPABASE;
-    const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_KEY;
-    const bucket = process.env.VITE_SUPABASE_STORAGE_BUCKET || process.env.SUPABASE_STORAGE_BUCKET || 'produtos';
+    const supabaseUrl = normalizeSecret(process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || process.env.URL_SUPABASE);
+    const serviceRole = normalizeSecret(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_KEY);
+    const bucket = normalizeSecret(process.env.VITE_SUPABASE_STORAGE_BUCKET || process.env.SUPABASE_STORAGE_BUCKET || 'produtos');
 
     if (!supabaseUrl || !serviceRole) {
       return res.status(500).json({ error: 'Missing SUPABASE URL or service role key in environment' });
+    }
+
+    if (!serviceRole.startsWith('sb_secret_') && serviceRole.split('.').length !== 3) {
+      return res.status(500).json({
+        error: `Credencial do Supabase inválida (${describeSecret(serviceRole)}). Use a chave service_role JWT ou uma chave sb_secret_ em SUPABASE_SERVICE_ROLE_KEY.`
+      });
     }
 
     const { imageUrl, productName } = req.body || {};
@@ -73,18 +93,6 @@ export default async function handler(req, res) {
     const fileName = `${Date.now()}-${sanitizeName(productName)}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRole, { auth: { persistSession: false } });
-    const { data: bucketData, error: bucketError } = await supabaseAdmin.storage.getBucket(bucket);
-    if (bucketError || !bucketData) {
-      const { error: createBucketError } = await supabaseAdmin.storage.createBucket(bucket, {
-        public: true,
-        fileSizeLimit: '5MB',
-        allowedMimeTypes: ['image/*'],
-      });
-      if (createBucketError && !/already exists/i.test(createBucketError.message || '')) {
-        return res.status(500).json({ error: `Storage bucket "${bucket}" indisponível: ${createBucketError.message}` });
-      }
-    }
-
     const { error: uploadError } = await supabaseAdmin.storage.from(bucket).upload(fileName, buffer, {
       contentType,
       upsert: false,
