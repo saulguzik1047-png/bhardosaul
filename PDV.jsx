@@ -787,7 +787,7 @@ export function PDV({
             </span>
           )}
         </h2>
-        <div className="categorias-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(92px, 1fr))', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+        <div className="categorias-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(46px, 1fr))', gap: '5px', marginBottom: '8px', flexWrap: 'wrap' }}>
           {listaCategorias.map((cat) => (
             <button
               key={cat}
@@ -796,11 +796,11 @@ export function PDV({
               }`}
               onClick={() => setCategoriaAtiva(cat)}
               style={{
-                minHeight: '92px',
-                padding: '10px 8px',
+                minHeight: '46px',
+                padding: '5px 4px',
                 fontSize: '12px',
                 fontWeight: '800',
-                borderRadius: '14px',
+                borderRadius: '8px',
                 border: categoriaAtiva === cat ? '1px solid #f97316' : '1px solid #b8cbe3',
                 background: categoriaAtiva === cat ? '#f97316' : '#edf4fc',
                 color: categoriaAtiva === cat ? '#ffffff' : '#334155',
@@ -818,13 +818,13 @@ export function PDV({
           ))}
         </div>
 
-        <div className="grid-produtos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px', alignContent: 'start', overflowY: 'auto', flexGrow: '1' }}>
+        <div className="grid-produtos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(112px, 1fr))', gap: '8px', alignContent: 'start', overflowY: 'auto', flexGrow: '1' }}>
           {produtosFiltrados.map((p) => (
             <div
               key={p.id}
               className="card-prod"
               onClick={() => addItemNaComanda(p)}
-              style={{ position: 'relative', minHeight: '124px', padding: '10px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', borderRadius: '10px', cursor: 'pointer', background: '#ffffff', border: '1px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.14)' }}
+              style={{ position: 'relative', minHeight: '114px', padding: '6px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', gap: '3px', borderRadius: '10px', cursor: 'pointer', background: '#ffffff', border: '1px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.14)' }}
             >
               {p.estoque <= p.estoqueMinimo && (
                 <span
