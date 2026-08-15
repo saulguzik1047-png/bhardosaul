@@ -1335,6 +1335,35 @@ function App() {
     });
   }
 
+  function limparComandasAbertas() {
+    if (comandas.length === 0) return;
+
+    dispararConfirmacao(
+      'Limpar comandas abertas',
+      `Deseja excluir definitivamente as ${comandas.length} comandas abertas? Essa ação não registra vendas e não pode ser desfeita.`,
+      async () => {
+        const comandasParaExcluir = [...comandas];
+        setComandas([]);
+        setComandaAtivaId(null);
+        setModoPagamento(false);
+        setMostrarMultiFormas(false);
+        setComandaRecemPaga(null);
+
+        setLogsAuditoria((prev) => [{
+          id: Date.now(),
+          data: new Date().toISOString(),
+          tipo: 'Limpeza de Comandas',
+          operador: usuarioLogado ? usuarioLogado.usuario : 'Admin',
+          motivo: 'Limpeza manual de comandas abertas',
+          detalhes: { quantidade: comandasParaExcluir.length, ids: comandasParaExcluir.map((c) => c.id) },
+        }, ...prev]);
+
+        await Promise.all(comandasParaExcluir.map((comanda) => removerComandaDaNuvem(comanda.id)));
+        dispararMensagem('Comandas excluídas', `${comandasParaExcluir.length} comandas abertas foram removidas com sucesso.`);
+      }
+    );
+  }
+
   function abrirComandaPorNomePronto(nomeBruto) {
     const validacao = validarENormalizarNome(nomeBruto, true);
     if (!validacao.valido) {
@@ -1820,6 +1849,7 @@ function App() {
           removerItemNaComanda={removerItemNaComanda}
           imprimirComandaConferencia={imprimirComandaConferencia}
           cancelarComanda={cancelarComanda}
+          limparComandasAbertas={limparComandasAbertas}
           buscaContainerRef={buscaContainerRef}
           nomeSoftware={nomeSoftware}
         />
