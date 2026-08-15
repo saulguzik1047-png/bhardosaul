@@ -36,8 +36,7 @@ export function PDV({
   imprimirComandaConferencia,
   cancelarComanda,
   buscaContainerRef,
-  nomeSoftware,
-  limparComandasAbertas
+  nomeSoftware
 }) {
   const [tecladoComandaAberto, setTecladoComandaAberto] = React.useState(false);
 
@@ -141,19 +140,7 @@ export function PDV({
       
       {/* COLUNA 1: COMANDAS (Largura reduzida para 180px) */}
       <div className="col" style={{ flex: '0 0 180px', maxWidth: '180px', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginBottom: '8px' }}>
-          <h2 style={{ fontSize: '14px', margin: 0 }}>Mesas e Comandas</h2>
-          {comandas.length > 0 && (
-            <button
-              type="button"
-              title="Excluir todas as comandas abertas"
-              onClick={limparComandasAbertas}
-              style={{ background: '#fee2e2', color: '#b91c1c', border: '1px solid #fecaca', borderRadius: '6px', padding: '4px 6px', fontSize: '9px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}
-            >
-              <i className="fas fa-trash-alt"></i> Limpar
-            </button>
-          )}
-        </div>
+        <h2 style={{ fontSize: '14px', marginBottom: '8px' }}>Mesas e Comandas</h2>
 
         <div className="busca-container" ref={buscaContainerRef} style={{ marginBottom: '8px', position: 'relative' }}>
         <input

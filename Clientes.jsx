@@ -22,7 +22,9 @@ export const Clientes = ({
       dispararMensagem('Erro', 'Nome e Sobrenome são obrigatórios.');
       return;
     }
-    const nomeCompleto = `${novoClienteNomeInput.trim()} ${novoClienteSobrenomeInput.trim()}`;
+    const nome = novoClienteNomeInput.trim().toUpperCase();
+    const sobrenome = novoClienteSobrenomeInput.trim().toUpperCase();
+    const nomeCompleto = `${nome} ${sobrenome}`;
     if (
       clientesCadastrados.some(
         (c) => c.nome.toLowerCase() === nomeCompleto.toLowerCase()
@@ -33,7 +35,7 @@ export const Clientes = ({
     }
     const novoCli = {
       nome: nomeCompleto,
-      sobrenome: novoClienteSobrenomeInput.trim(),
+      sobrenome,
       telefone: novoClienteTelefoneInput.trim(),
       foto: '',
     };

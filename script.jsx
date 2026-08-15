@@ -628,9 +628,33 @@ function App() {
   }, [comandas]);
 
   React.useEffect(() => {
+    const chaveLimpezaInicial = 'bhar_inicio_zero_clientes_v1';
+    if (localStorage.getItem(chaveLimpezaInicial) === 'concluido') return;
+
+    localStorage.setItem(chaveLimpezaInicial, 'limpando');
+    localStorage.removeItem('bhar_clientes_v2');
+    localStorage.removeItem('bhar_comandas_v1');
+    setClientesCadastrados([]);
+    setComandas([]);
+    setComandaAtivaId(null);
+
+    Promise.all([
+      supabaseClient?.from('clientes').delete().neq('nome', ''),
+      supabaseClient?.from('comandas').delete().not('id', 'is', null),
+    ])
+      .catch((erro) => console.warn('Não foi possível limpar clientes e comandas da nuvem:', erro))
+      .finally(() => localStorage.setItem(chaveLimpezaInicial, 'concluido'));
+  }, []);
+
+  React.useEffect(() => {
     let cancelado = false;
 
     async function carregarComandasDaNuvem() {
+      if (localStorage.getItem('bhar_inicio_zero_clientes_v1') === 'limpando') {
+        setComandasSincronizadas(true);
+        return;
+      }
+
       if (!supabaseClient) {
         setComandasSincronizadas(true);
         return;
@@ -783,8 +807,11 @@ function App() {
   React.useEffect(() => {
     async function carregarDadosDaNuvem() {
       try {
-        const { data: clis } = (await supabaseClient?.from('clientes').select('*')) || {};
-        if (clis && clis.length > 0) setClientesCadastrados(clis);
+        const dadosForamZerados = localStorage.getItem('bhar_inicio_zero_clientes_v1') === 'limpando';
+        if (!dadosForamZerados) {
+          const { data: clis } = (await supabaseClient?.from('clientes').select('*')) || {};
+          if (clis && clis.length > 0) setClientesCadastrados(clis);
+        }
 
         const { data: prods } = (await supabaseClient?.from('produtos').select('*')) || {};
         if (prods && prods.length > 0) {
@@ -1017,7 +1044,7 @@ function App() {
 
   function validarENormalizarNome(nomeBruto, ignorarDuplicadoBanco = false) {
     if (!nomeBruto) return { valido: false, erro: 'O nome não pode ficar em branco.' };
-    const nomeFormatado = nomeBruto.trim().replace(/\s+/g, ' ');
+    const nomeFormatado = nomeBruto.trim().replace(/\s+/g, ' ').toUpperCase();
     const partes = nomeFormatado.split(' ');
 
     if (partes.length < 2 || partes[1].length < 2) {
@@ -1333,35 +1360,6 @@ function App() {
         dispararMensagem('Sucesso', `Comanda #${comanda.id} cancelada e registrada na auditoria.`);
       },
     });
-  }
-
-  function limparComandasAbertas() {
-    if (comandas.length === 0) return;
-
-    dispararConfirmacao(
-      'Limpar comandas abertas',
-      `Deseja excluir definitivamente as ${comandas.length} comandas abertas? Essa ação não registra vendas e não pode ser desfeita.`,
-      async () => {
-        const comandasParaExcluir = [...comandas];
-        setComandas([]);
-        setComandaAtivaId(null);
-        setModoPagamento(false);
-        setMostrarMultiFormas(false);
-        setComandaRecemPaga(null);
-
-        setLogsAuditoria((prev) => [{
-          id: Date.now(),
-          data: new Date().toISOString(),
-          tipo: 'Limpeza de Comandas',
-          operador: usuarioLogado ? usuarioLogado.usuario : 'Admin',
-          motivo: 'Limpeza manual de comandas abertas',
-          detalhes: { quantidade: comandasParaExcluir.length, ids: comandasParaExcluir.map((c) => c.id) },
-        }, ...prev]);
-
-        await Promise.all(comandasParaExcluir.map((comanda) => removerComandaDaNuvem(comanda.id)));
-        dispararMensagem('Comandas excluídas', `${comandasParaExcluir.length} comandas abertas foram removidas com sucesso.`);
-      }
-    );
   }
 
   function abrirComandaPorNomePronto(nomeBruto) {
@@ -1849,7 +1847,6 @@ function App() {
           removerItemNaComanda={removerItemNaComanda}
           imprimirComandaConferencia={imprimirComandaConferencia}
           cancelarComanda={cancelarComanda}
-          limparComandasAbertas={limparComandasAbertas}
           buscaContainerRef={buscaContainerRef}
           nomeSoftware={nomeSoftware}
         />
