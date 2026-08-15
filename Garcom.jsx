@@ -44,7 +44,7 @@ export function Garcom({
   const listaCategorias = [
     'Todos',
     ...new Set([
-      ...categoriasCustomizadas,
+      ...categoriasCustomizadas.map((categoria) => String(categoria || '').trim()),
       ...produtos.map((p) => String(p.category || '').trim()),
     ].map((categoria) => String(categoria || '').trim())
       .filter((categoria) => categoria && categoria !== 'Geral')),

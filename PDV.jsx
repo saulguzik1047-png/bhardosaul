@@ -64,14 +64,15 @@ export function PDV({
     'Todos',
     ...new Set([
       ...categoriasCustomizadas,
-      ...produtos.map((p) => p.category),
-    ].filter((categoria) => categoria && categoria !== 'Geral')),
+      ...produtos.map((p) => String(p.category || '').trim()),
+    ].map((categoria) => String(categoria || '').trim())
+      .filter((categoria) => categoria && categoria !== 'Geral')),
   ];
 
   let produtosFiltrados =
     categoriaAtiva === 'Todos'
       ? produtos
-      : produtos.filter((p) => p.category === categoriaAtiva);
+      : produtos.filter((p) => String(p.category || '').trim() === categoriaAtiva);
 
   const vendasPorProduto = relatorioProdutos.reduce((acc, rp) => {
     acc[rp.nome] = (acc[rp.nome] || 0) + (rp.qtd || 0);
