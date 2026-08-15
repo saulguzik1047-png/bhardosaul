@@ -137,6 +137,69 @@ export const Estoque = ({
     });
   };
 
+  const abrirGerenciamentoCategorias = () => {
+    const categorias = [...new Set([
+      ...categoriasCustomizadas,
+      ...produtos.map((produto) => produto.category)
+    ])].filter((categoria) => categoria && categoria !== 'Geral');
+
+    if (categorias.length === 0) {
+      dispararMensagem('Categorias', 'Não há categorias cadastradas para editar.');
+      return;
+    }
+
+    setCaixaDialogo({
+      titulo: 'Gerenciar Categorias',
+      mensagem: 'Selecione uma categoria para renomear ou excluir:',
+      tipo: 'gerenciar_categoria',
+      categorias,
+      categoriaInicial: categorias[0],
+      onConfirm: async (categoriaAtual, novoNome, acao) => {
+        const categoriaSelecionada = String(categoriaAtual || '').trim();
+        if (!categoriaSelecionada || categoriaSelecionada === 'Geral') return;
+
+        if (acao === 'excluir') {
+          const quantidadeProdutos = produtos.filter((produto) => produto.category === categoriaSelecionada).length;
+          if (quantidadeProdutos > 0) {
+            dispararMensagem('Categoria em uso', `Não é possível excluir "${categoriaSelecionada}" porque ${quantidadeProdutos} produto(s) ainda usam essa categoria. Edite esses produtos primeiro.`);
+            return;
+          }
+
+          setCategoriasCustomizadas((prev) => prev.filter((categoria) => categoria !== categoriaSelecionada));
+          setCategoriasDivisiveis((prev) => prev.filter((categoria) => categoria !== categoriaSelecionada));
+          setFiltroCategoria('Todos');
+          dispararMensagem('Categoria Excluída', `A categoria "${categoriaSelecionada}" foi excluída.`);
+          return;
+        }
+
+        const categoriaRenomeada = String(novoNome || '').trim();
+        if (!categoriaRenomeada || categoriaRenomeada === 'Geral') {
+          dispararMensagem('Nome inválido', 'Digite um nome válido para a categoria.');
+          return;
+        }
+        if (categoriaRenomeada !== categoriaSelecionada && categorias.includes(categoriaRenomeada)) {
+          dispararMensagem('Categoria duplicada', 'Já existe uma categoria com esse nome.');
+          return;
+        }
+
+        setCategoriasCustomizadas((prev) => prev.map((categoria) => categoria === categoriaSelecionada ? categoriaRenomeada : categoria));
+        setCategoriasDivisiveis((prev) => prev.map((categoria) => categoria === categoriaSelecionada ? categoriaRenomeada : categoria));
+        setProdutos((prev) => prev.map((produto) => produto.category === categoriaSelecionada
+          ? { ...produto, category: categoriaRenomeada }
+          : produto));
+        const { error } = await supabaseClient?.from('produtos')
+          .update({ category: categoriaRenomeada })
+          .eq('category', categoriaSelecionada) || {};
+        if (error) {
+          dispararMensagem('Aviso', `A categoria foi renomeada neste dispositivo, mas não foi atualizada no Supabase: ${error.message}`);
+          return;
+        }
+        setFiltroCategoria((atual) => atual === categoriaSelecionada ? categoriaRenomeada : atual);
+        dispararMensagem('Categoria Renomeada', `A categoria "${categoriaSelecionada}" agora se chama "${categoriaRenomeada}".`);
+      }
+    });
+  };
+
   const enviarImagemParaStorage = async (imagemOrigem, nomeProduto) => {
     const source = String(imagemOrigem || '').trim();
     if (!source) return '';
@@ -356,14 +419,7 @@ export const Estoque = ({
         </button>
 
         <button
-          onClick={() => {
-            const produtoSelecionado = produtos.find(p => p.id === idProdutoSelecionadoEdicao);
-            if (!produtoSelecionado) {
-              dispararMensagem('Atenção', 'Selecione um produto primeiro para editar a categoria.');
-              return;
-            }
-            abrirEdicaoCategoria(produtoSelecionado);
-          }}
+          onClick={abrirGerenciamentoCategorias}
           style={{ ...btnBase, background: '#ff9500' }}
         >
           <i className="fas fa-edit" style={{ marginRight: '6px' }}></i>Editar Categoria
