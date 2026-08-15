@@ -902,7 +902,7 @@ export function PDV({
               key={p.id}
               className="card-prod"
               onClick={() => addItemNaComanda(p)}
-              style={{ position: 'relative', minHeight: '114px', padding: '6px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', gap: '3px', borderRadius: '10px', cursor: 'pointer', background: '#ffffff', border: '1px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.14)' }}
+              style={{ position: 'relative', minHeight: '132px', padding: '6px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', gap: '3px', borderRadius: '10px', cursor: 'pointer', background: '#ffffff', border: '1px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.14)', boxSizing: 'border-box' }}
             >
               {p.estoque <= p.estoqueMinimo && (
                 <span
@@ -933,7 +933,7 @@ export function PDV({
                 style={{ width: '59px', height: '59px', objectFit: 'cover', borderRadius: '8px' }}
               />
               
-              <span className="prod-nome" style={{ fontSize: '10px', lineHeight: '1.15', textAlign: 'center', fontWeight: 'bold', color: '#1e293b', whiteSpace: 'normal', overflow: 'visible', overflowWrap: 'break-word', width: '100%', minHeight: '23px', padding: '0 2px' }}>{p.nome}</span>
+              <span className="prod-nome" style={{ fontSize: '10px', lineHeight: '1.15', textAlign: 'center', fontWeight: 'bold', color: '#1e293b', whiteSpace: 'normal', overflow: 'hidden', textOverflow: 'ellipsis', overflowWrap: 'break-word', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', width: '100%', height: '23px', padding: '0 2px', boxSizing: 'border-box' }}>{p.nome}</span>
               
               <span className="prod-preco" style={{ fontSize: '10px', color: '#16a34a', fontWeight: 'bold' }}>{formatarMoeda(p.preco)}</span>
             </div>
