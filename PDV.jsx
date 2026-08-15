@@ -858,7 +858,7 @@ export function PDV({
             </span>
           )}
         </h2>
-        <div className="categorias-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))', gap: '5px', marginBottom: '8px', flexWrap: 'wrap' }}>
+        <div className="categorias-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(54px, 1fr))', gap: '5px', marginBottom: '8px', flexWrap: 'wrap' }}>
           {listaCategorias.map((cat) => (
             <button
               key={cat}
