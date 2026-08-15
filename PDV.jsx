@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatarMoeda, calcularTotal } from './formatadores.js';
+import { formatarMoeda, calcularTotal, listarCategoriasProdutos, normalizarCategoria } from './formatadores.js';
 
 export function PDV({
   comandaAtual,
@@ -60,19 +60,12 @@ export function PDV({
   };
 
   let subtotal = comandaAtual ? calcularTotal(comandaAtual.itens) : 0;
-  const listaCategorias = [
-    'Todos',
-    ...new Set([
-      ...categoriasCustomizadas,
-      ...produtos.map((p) => String(p.category || '').trim()),
-    ].map((categoria) => String(categoria || '').trim())
-      .filter((categoria) => categoria && categoria !== 'Geral')),
-  ];
+  const listaCategorias = listarCategoriasProdutos(categoriasCustomizadas, produtos);
 
   let produtosFiltrados =
     categoriaAtiva === 'Todos'
       ? produtos
-      : produtos.filter((p) => String(p.category || '').trim() === categoriaAtiva);
+      : produtos.filter((p) => normalizarCategoria(p.category) === normalizarCategoria(categoriaAtiva));
 
   const vendasPorProduto = relatorioProdutos.reduce((acc, rp) => {
     acc[rp.nome] = (acc[rp.nome] || 0) + (rp.qtd || 0);
@@ -794,7 +787,7 @@ export function PDV({
             </span>
           )}
         </h2>
-        <div className="categorias-container" style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
+        <div className="categorias-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(92px, 1fr))', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
           {listaCategorias.map((cat) => (
             <button
               key={cat}
@@ -803,16 +796,21 @@ export function PDV({
               }`}
               onClick={() => setCategoriaAtiva(cat)}
               style={{
-                padding: '10px 12px',
+                minHeight: '92px',
+                padding: '10px 8px',
                 fontSize: '12px',
                 fontWeight: '800',
-                borderRadius: '8px',
+                borderRadius: '14px',
                 border: categoriaAtiva === cat ? '1px solid #f97316' : '1px solid #cbd5e1',
                 background: categoriaAtiva === cat ? '#f97316' : '#ffffff',
                 color: categoriaAtiva === cat ? '#ffffff' : '#334155',
                 boxShadow: categoriaAtiva === cat ? '0 4px 10px rgba(249, 115, 22, 0.28)' : '0 2px 4px rgba(0,0,0,0.08)',
-                transform: 'scale(1.02)',
-                letterSpacing: '0.2px'
+                letterSpacing: '0.2px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center'
               }}
             >
               {cat}
@@ -820,13 +818,13 @@ export function PDV({
           ))}
         </div>
 
-        <div className="grid-produtos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))', gap: '12px 12px', alignContent: 'start', overflowY: 'auto', flexGrow: '1' }}>
+        <div className="grid-produtos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px', alignContent: 'start', overflowY: 'auto', flexGrow: '1' }}>
           {produtosFiltrados.map((p) => (
             <div
               key={p.id}
               className="card-prod"
               onClick={() => addItemNaComanda(p)}
-              style={{ position: 'relative', minHeight: '155px', padding: '12px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', borderRadius: '10px', cursor: 'pointer', background: '#ffffff', border: '1px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.14)' }}
+              style={{ position: 'relative', minHeight: '124px', padding: '10px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', borderRadius: '10px', cursor: 'pointer', background: '#ffffff', border: '1px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.14)' }}
             >
               {p.estoque <= p.estoqueMinimo && (
                 <span
@@ -854,7 +852,7 @@ export function PDV({
                   e.currentTarget.onerror = null;
                   e.currentTarget.src = imagemAutomaticaProduto(p.nome, p.category);
                 }}
-                style={{ width: '74px', height: '74px', objectFit: 'cover', borderRadius: '10px' }}
+                style={{ width: '59px', height: '59px', objectFit: 'cover', borderRadius: '8px' }}
               />
               
               <span className="prod-nome" style={{ fontSize: '12px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', padding: '0 2px' }}>{p.nome}</span>

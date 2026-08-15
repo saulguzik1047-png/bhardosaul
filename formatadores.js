@@ -14,3 +14,21 @@ export const calcularTotal = (itens) => {
     0
   );
 };
+
+export const normalizarCategoria = (categoria) =>
+  String(categoria || '').trim().toLocaleLowerCase('pt-BR');
+
+export const listarCategoriasProdutos = (categoriasCustomizadas, produtos) => {
+  const categorias = [...(categoriasCustomizadas || []), ...(produtos || []).map((produto) => produto.category)];
+  const categoriasUnicas = new Map();
+
+  categorias.forEach((categoria) => {
+    const nome = String(categoria || '').trim();
+    const chave = normalizarCategoria(nome);
+    if (nome && chave !== 'geral' && !categoriasUnicas.has(chave)) {
+      categoriasUnicas.set(chave, nome);
+    }
+  });
+
+  return ['Todos', ...categoriasUnicas.values()];
+};

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { formatarMoeda, calcularTotal } from './formatadores.js';
+import { formatarMoeda, calcularTotal, listarCategoriasProdutos, normalizarCategoria } from './formatadores.js';
 
 export function Garcom({
   comandas,
@@ -41,17 +41,10 @@ export function Garcom({
 
   const comandaAtual = comandas.find((c) => c.id === comandaAtivaId) || null;
 
-  const listaCategorias = [
-    'Todos',
-    ...new Set([
-      ...categoriasCustomizadas.map((categoria) => String(categoria || '').trim()),
-      ...produtos.map((p) => String(p.category || '').trim()),
-    ].map((categoria) => String(categoria || '').trim())
-      .filter((categoria) => categoria && categoria !== 'Geral')),
-  ];
+  const listaCategorias = listarCategoriasProdutos(categoriasCustomizadas, produtos);
 
   let produtosFiltrados = categoriaSelecionada
-    ? produtos.filter((p) => String(p.category || '').trim() === categoriaSelecionada)
+    ? produtos.filter((p) => normalizarCategoria(p.category) === normalizarCategoria(categoriaSelecionada))
     : [];
 
   if (busca.trim() !== '') {
@@ -345,13 +338,16 @@ export function Garcom({
       )}
 
       {!categoriaSelecionada ? (
-        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 16px 16px' }}>
+        <div style={{
+          flex: 1, minHeight: 0, overflowY: 'auto', padding: '4px 16px 16px',
+          maxHeight: 'calc(100vh - 190px)', WebkitOverflowScrolling: 'touch'
+        }}>
           <div style={{ marginBottom: '12px', color: textSecondary, fontSize: '15px', fontWeight: '600' }}>
             Escolha uma categoria
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
             {listaCategorias.filter((cat) => cat !== 'Todos').map((cat) => {
-              const quantidade = produtos.filter((produto) => String(produto.category || '').trim() === cat).length;
+              const quantidade = produtos.filter((produto) => normalizarCategoria(produto.category) === normalizarCategoria(cat)).length;
               return (
                 <button
                   key={cat}
