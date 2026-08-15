@@ -275,6 +275,7 @@ export const Estoque = ({
       dispararMensagem(erroImagem ? 'Aviso' : 'Sucesso', erroImagem
         ? `Produto atualizado, mas a imagem ficou no link original e não foi copiada para o Storage. ${erroImagem.message || ''}`
         : 'Produto atualizado com sucesso!');
+      handleLimpar();
     } else {
       const novoProduto = {
         id: Date.now(),
@@ -308,6 +309,7 @@ export const Estoque = ({
       dispararMensagem(erroImagem ? 'Aviso' : 'Sucesso', erroImagem
         ? `Novo produto cadastrado, mas a imagem ficou no link original e não foi copiada para o Storage. ${erroImagem.message || ''}`
         : 'Novo produto cadastrado!');
+      handleLimpar();
     }
   };
 
@@ -344,9 +346,25 @@ export const Estoque = ({
     setFatorConversao('');
   };
 
+  const handleAlterarEstoqueRelatorio = async (produto, valor) => {
+    const novoEstoque = Math.max(0, parseFloat(valor) || 0);
+    setProdutos((prev) => prev.map((p) => p.id === produto.id ? { ...p, estoque: novoEstoque } : p));
+
+    try {
+      const { error } = await supabaseClient?.from('produtos')
+        .update({ estoque: novoEstoque })
+        .eq('id', produto.id) || {};
+      if (error) throw error;
+    } catch (err) {
+      console.warn('Estoque atualizado apenas neste dispositivo:', err);
+      dispararMensagem('Aviso', `O estoque de "${produto.nome}" foi alterado localmente, mas não foi salvo no Supabase. ${err?.message || ''}`);
+    }
+  };
+
   const handleLimpar = () => {
     setIdProdutoSelecionadoEdicao(null);
     setNovoProdNome('');
+    setNovoProdCategoria('');
     setPrecoCusto('');
     setPrecoVenda('');
     setNovoProdEstoqueMin('');
@@ -769,11 +787,15 @@ export const Estoque = ({
                   <td style={{ color: textSecondary }}>{p.category}</td>
                   <td style={{ color: iosRed }}>{formatarMoeda(p.precoCusto)}</td>
                   <td style={{ color: iosGreen, fontWeight: 'bold' }}>{formatarMoeda(p.preco)}</td>
-                  <td style={{
-                    color: p.estoque <= p.estoqueMinimo ? iosRed : iosBlue,
-                    fontWeight: 'bold', fontSize: '16px'
-                  }}>
-                    {p.estoque}
+                  <td style={{ padding: '6px' }}>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={p.estoque}
+                      onChange={(e) => handleAlterarEstoqueRelatorio(p, e.target.value)}
+                      style={{ width: '76px', padding: '6px 8px', textAlign: 'center', border: '1px solid #cbd5e1', borderRadius: radiusSm, color: p.estoque <= p.estoqueMinimo ? iosRed : iosBlue, fontWeight: 'bold', fontSize: '16px', background: 'rgba(255,255,255,0.8)', boxSizing: 'border-box' }}
+                    />
                   </td>
                   <td style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <button onClick={() => abrirEdicaoCategoria(p)} style={{
