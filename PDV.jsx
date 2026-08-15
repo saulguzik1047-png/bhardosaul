@@ -787,7 +787,7 @@ export function PDV({
             </span>
           )}
         </h2>
-        <div className="categorias-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(46px, 1fr))', gap: '5px', marginBottom: '8px', flexWrap: 'wrap' }}>
+        <div className="categorias-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(48.3px, 1fr))', gap: '5px', marginBottom: '8px', flexWrap: 'wrap' }}>
           {listaCategorias.map((cat) => (
             <button
               key={cat}
@@ -804,7 +804,7 @@ export function PDV({
                 borderRadius: '8px',
                 border: categoriaAtiva === cat ? '1px solid #f97316' : '1px solid #b8cbe3',
                 background: categoriaAtiva === cat ? '#f97316' : '#edf4fc',
-                color: categoriaAtiva === cat ? '#ffffff' : '#334155',
+                color: categoriaAtiva === cat ? '#ffffff' : '#0f2a5f',
                 boxShadow: categoriaAtiva === cat ? '0 5px 12px rgba(249, 115, 22, 0.28)' : '0 5px 10px rgba(62, 110, 170, 0.22), 0 2px 3px rgba(62, 110, 170, 0.12)',
                 letterSpacing: '0.1px',
                 cursor: 'pointer',
