@@ -902,7 +902,7 @@ export function PDV({
               key={p.id}
               className="card-prod"
               onClick={() => addItemNaComanda(p)}
-              style={{ position: 'relative', minHeight: '116px', padding: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', gap: '2px', borderRadius: '10px', cursor: 'pointer', background: '#ffffff', border: '1px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.14)', boxSizing: 'border-box' }}
+              style={{ position: 'relative', minHeight: '116px', padding: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', gap: 0, borderRadius: '10px', cursor: 'pointer', background: '#ffffff', border: '1px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.14)', boxSizing: 'border-box' }}
             >
               {p.estoque <= p.estoqueMinimo && (
                 <span
@@ -930,7 +930,7 @@ export function PDV({
                   e.currentTarget.onerror = null;
                   e.currentTarget.src = imagemAutomaticaProduto(p.nome, p.category);
                 }}
-                style={{ width: '52px', height: '52px', objectFit: 'cover', borderRadius: '8px' }}
+                style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '8px' }}
               />
               
               <span className="prod-nome" style={{ fontSize: '10px', lineHeight: '1.15', textAlign: 'center', fontWeight: 'bold', color: '#1e293b', whiteSpace: 'normal', overflow: 'hidden', textOverflow: 'ellipsis', overflowWrap: 'break-word', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', width: '100%', height: '23px', padding: '0 2px', boxSizing: 'border-box' }}>{p.nome}</span>
