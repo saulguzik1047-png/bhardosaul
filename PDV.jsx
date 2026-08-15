@@ -38,6 +38,8 @@ export function PDV({
   buscaContainerRef,
   nomeSoftware
 }) {
+  const [tecladoComandaAberto, setTecladoComandaAberto] = React.useState(false);
+
   const parseMoedaBR = (valor) => {
     if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
     const texto = String(valor || '').trim();
@@ -57,6 +59,29 @@ export function PDV({
 
   const handleChangeMoedaInput = (setter) => (e) => {
     setter(formatarMoedaInput(e.target.value));
+  };
+
+  const adicionarTeclaComanda = (tecla) => {
+    setBusca((valorAtual) => `${valorAtual}${tecla}`.replace(/\s+/g, ' ').slice(0, 40));
+    setMostrarSugestoes(true);
+  };
+
+  const apagarTeclaComanda = () => {
+    setBusca((valorAtual) => valorAtual.slice(0, -1));
+    setMostrarSugestoes(true);
+  };
+
+  const fecharTecladoComanda = () => {
+    setTecladoComandaAberto(false);
+    setMostrarSugestoes(false);
+  };
+
+  const confirmarComandaPeloTeclado = () => {
+    if (ehNomeInedito) {
+      abrirComandaPorNomePronto(busca);
+      setComandaRecemPaga(null);
+      fecharTecladoComanda();
+    }
   };
 
   let subtotal = comandaAtual ? calcularTotal(comandaAtual.itens) : 0;
@@ -125,24 +150,65 @@ export function PDV({
           autoComplete="off"
           spellCheck="false"
           className="search-box"
+          readOnly
           placeholder="🔍 Nome ou apelido..."
           value={busca}
-          onChange={(e) => {
-            setBusca(e.target.value);
+          onFocus={() => {
+            setTecladoComandaAberto(true);
             setMostrarSugestoes(true);
           }}
-          onFocus={() => setMostrarSugestoes(true)}
           onKeyDown={(e) => {
             if (e.key === 'Escape') setMostrarSugestoes(false);
           }}
           style={{ padding: '6px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
         />
+        {tecladoComandaAberto && (
+          <div
+            role="group"
+            aria-label="Teclado para criar comanda"
+            style={{
+              position: 'absolute',
+              top: 'calc(100% + 4px)',
+              left: 0,
+              width: '100%',
+              padding: '5px',
+              boxSizing: 'border-box',
+              background: '#dbeafe',
+              border: '1px solid #93c5fd',
+              borderRadius: '10px',
+              boxShadow: '0 8px 18px rgba(15, 42, 95, 0.2)',
+              zIndex: 10000
+            }}
+          >
+            {['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'].map((linha) => (
+              <div key={linha} style={{ display: 'grid', gridTemplateColumns: `repeat(${linha.length}, 1fr)`, gap: '3px', marginBottom: '3px' }}>
+                {[...linha].map((tecla) => (
+                  <button
+                    key={tecla}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => adicionarTeclaComanda(tecla)}
+                    style={{ minWidth: 0, minHeight: '27px', padding: 0, border: '1px solid #93c5fd', borderRadius: '5px', background: '#ffffff', color: '#0f2a5f', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
+                  >
+                    {tecla}
+                  </button>
+                ))}
+              </div>
+            ))}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1.4fr', gap: '3px' }}>
+              <button type="button" onClick={() => adicionarTeclaComanda(' ')} style={{ minHeight: '27px', padding: 0, border: '1px solid #93c5fd', borderRadius: '5px', background: '#ffffff', color: '#0f2a5f', fontSize: '10px', fontWeight: '700', cursor: 'pointer' }}>Espaço</button>
+              <button type="button" onClick={apagarTeclaComanda} style={{ minHeight: '27px', padding: 0, border: '1px solid #fca5a5', borderRadius: '5px', background: '#fff1f2', color: '#be123c', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}>⌫</button>
+              <button type="button" onClick={() => { setBusca(''); setMostrarSugestoes(true); }} style={{ minHeight: '27px', padding: 0, border: '1px solid #cbd5e1', borderRadius: '5px', background: '#f8fafc', color: '#334155', fontSize: '9px', fontWeight: '700', cursor: 'pointer' }}>Limpar</button>
+              <button type="button" onClick={confirmarComandaPeloTeclado} disabled={!ehNomeInedito} style={{ minHeight: '27px', padding: 0, border: '1px solid #60a5fa', borderRadius: '5px', background: ehNomeInedito ? '#007aff' : '#bfdbfe', color: '#ffffff', fontSize: '10px', fontWeight: '700', cursor: ehNomeInedito ? 'pointer' : 'not-allowed' }}>Abrir</button>
+            </div>
+          </div>
+        )}
         {mostrarSugestoes && (
           <div
             className="sugestoes-box"
             style={{
               position: 'absolute',
-              top: '100%',
+              top: tecladoComandaAberto ? '140px' : '100%',
               left: 0,
               background: '#ffffff',
               border: '2px solid #cbd5e1',
@@ -205,7 +271,7 @@ export function PDV({
                         setComandaAtivaId(c.id);
                         setModoPagamento(false);
                         setComandaRecemPaga(null);
-                        setMostrarSugestoes(false);
+                        fecharTecladoComanda();
                       }}
                     >
                       <span>
@@ -249,7 +315,7 @@ export function PDV({
                   onClick={() => {
                     abrirComandaPorNomePronto(c.nome);
                     setComandaRecemPaga(null);
-                    setMostrarSugestoes(false);
+                    fecharTecladoComanda();
                   }}
                 >
                   <span>👤 <span style={{ fontWeight: '600', color: '#0f172a' }}>{c.nome}</span></span>
@@ -290,7 +356,7 @@ export function PDV({
                   onClick={() => {
                     abrirComandaPorNomePronto(busca);
                     setComandaRecemPaga(null);
-                    setMostrarSugestoes(false);
+                    fecharTecladoComanda();
                   }}
                 >
                   <span>
