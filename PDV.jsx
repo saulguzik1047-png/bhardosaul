@@ -856,7 +856,7 @@ export function PDV({
             <span style={{ fontSize: '11px', color: 'var(--orange)' }}>
               (Mais Consumidos)
             </span>
-      botoes10    )}
+          )}
         </h2>
         <div className="categorias-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(48.6px, 1fr))', gap: '5px', marginBottom: '8px', flexWrap: 'wrap' }}>
           {listaCategorias.map((cat) => (
