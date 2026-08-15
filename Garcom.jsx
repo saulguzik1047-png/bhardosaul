@@ -220,9 +220,9 @@ export function Garcom({
   // --- CARDÁPIO + CONSUMO ---
   return (
     <div style={{
-      minHeight: 'calc(100vh - 56px)', background: '#f2f2f7',
-      display: 'flex', flexDirection: 'column', maxWidth: '500px',
-      margin: '0 auto', boxSizing: 'border-box'
+      height: 'calc(100vh - 56px)', minHeight: 0, overflow: 'hidden',
+      background: '#f2f2f7', display: 'flex', flexDirection: 'column',
+      maxWidth: '500px', margin: '0 auto', boxSizing: 'border-box'
     }}>
       {/* HEADER DA COMANDA */}
       <div style={{
@@ -369,7 +369,7 @@ export function Garcom({
           </div>
         </div>
       ) : (
-        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 16px 16px', WebkitOverflowScrolling: 'touch' }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '4px 16px 16px', WebkitOverflowScrolling: 'touch' }}>
           <button onClick={() => { setCategoriaSelecionada(null); setBusca(''); }} style={{
             border: 'none', background: 'transparent', color: iosBlue, padding: '4px 0 12px',
             fontSize: '15px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit'
