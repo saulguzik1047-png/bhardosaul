@@ -798,14 +798,15 @@ export function PDV({
               style={{
                 minHeight: '46px',
                 padding: '5px 4px',
-                fontSize: '12px',
+                fontSize: '9px',
+                lineHeight: '1.1',
                 fontWeight: '800',
                 borderRadius: '8px',
                 border: categoriaAtiva === cat ? '1px solid #f97316' : '1px solid #b8cbe3',
                 background: categoriaAtiva === cat ? '#f97316' : '#edf4fc',
                 color: categoriaAtiva === cat ? '#ffffff' : '#334155',
                 boxShadow: categoriaAtiva === cat ? '0 5px 12px rgba(249, 115, 22, 0.28)' : '0 5px 10px rgba(62, 110, 170, 0.22), 0 2px 3px rgba(62, 110, 170, 0.12)',
-                letterSpacing: '0.2px',
+                letterSpacing: '0.1px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -855,9 +856,9 @@ export function PDV({
                 style={{ width: '59px', height: '59px', objectFit: 'cover', borderRadius: '8px' }}
               />
               
-              <span className="prod-nome" style={{ fontSize: '12px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', padding: '0 2px' }}>{p.nome}</span>
+              <span className="prod-nome" style={{ fontSize: '10px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', padding: '0 2px' }}>{p.nome}</span>
               
-              <span className="prod-preco" style={{ fontSize: '11px', color: '#16a34a', fontWeight: 'bold' }}>{formatarMoeda(p.preco)}</span>
+              <span className="prod-preco" style={{ fontSize: '9px', color: '#16a34a', fontWeight: 'bold' }}>{formatarMoeda(p.preco)}</span>
             </div>
           ))}
         </div>
