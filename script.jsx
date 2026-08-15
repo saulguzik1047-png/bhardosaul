@@ -387,9 +387,14 @@ function App() {
       const categoriaInicial = caixaDialogo.categoriaInicial || caixaDialogo.categorias?.[0] || '';
       setCategoriaGerenciarSelecionada(categoriaInicial);
       setNovoNomeCategoriaGerenciar(categoriaInicial);
+    } else if (caixaDialogo?.tipo === 'prompt_categoria') {
+      setPromptVal(caixaDialogo.valorInicial || '');
+      setPromptValDivisivel(false);
     } else if (!caixaDialogo) {
       setCategoriaGerenciarSelecionada('');
       setNovoNomeCategoriaGerenciar('');
+      setPromptVal('');
+      setPromptValDivisivel(false);
     }
   }, [caixaDialogo]);
 

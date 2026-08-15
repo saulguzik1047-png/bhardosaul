@@ -103,6 +103,40 @@ export const Estoque = ({
     }
   };
 
+  const abrirEdicaoCategoria = (produto) => {
+    setCaixaDialogo({
+      titulo: 'Editar Categoria',
+      mensagem: `Escolha a nova categoria para "${produto.nome}":`,
+      tipo: 'prompt_categoria',
+      valorInicial: produto.category || '',
+      onConfirm: async (nomeCat, divisivel) => {
+        const novaCategoria = String(nomeCat || '').trim();
+        if (!novaCategoria || novaCategoria === 'Geral') return;
+
+        setProdutos(prev => prev.map(p => p.id === produto.id
+          ? { ...p, category: novaCategoria }
+          : p));
+        setNovoProdCategoria(novaCategoria);
+
+        if (!categoriasCustomizadas.includes(novaCategoria)) {
+          setCategoriasCustomizadas(prev => [...prev, novaCategoria]);
+        }
+        if (divisivel && !categoriasDivisiveis.includes(novaCategoria)) {
+          setCategoriasDivisiveis(prev => [...prev, novaCategoria]);
+        }
+
+        const { error } = await supabaseClient?.from('produtos')
+          .update({ category: novaCategoria })
+          .eq('id', produto.id) || {};
+        if (error) {
+          dispararMensagem('Erro', `A categoria foi alterada localmente, mas não foi salva no Supabase: ${error.message}`);
+          return;
+        }
+        dispararMensagem('Categoria Atualizada', `"${produto.nome}" agora está em "${novaCategoria}".`);
+      }
+    });
+  };
+
   const enviarImagemParaStorage = async (imagemOrigem, nomeProduto) => {
     const source = String(imagemOrigem || '').trim();
     if (!source) return '';
@@ -323,26 +357,12 @@ export const Estoque = ({
 
         <button
           onClick={() => {
-            if (!idProdutoSelecionadoEdicao) {
+            const produtoSelecionado = produtos.find(p => p.id === idProdutoSelecionadoEdicao);
+            if (!produtoSelecionado) {
               dispararMensagem('Atenção', 'Selecione um produto primeiro para editar a categoria.');
               return;
             }
-            setCaixaDialogo({
-              titulo: 'Editar Categoria',
-              mensagem: 'Digite a nova categoria para o produto selecionado:',
-              tipo: 'prompt_categoria',
-              onConfirm: (nomeCat, divisivel) => {
-                if (!nomeCat) return;
-                setNovoProdCategoria(nomeCat);
-                if (!categoriasCustomizadas.includes(nomeCat)) {
-                  setCategoriasCustomizadas([...categoriasCustomizadas, nomeCat]);
-                }
-                if (divisivel && !categoriasDivisiveis.includes(nomeCat)) {
-                  setCategoriasDivisiveis([...categoriasDivisiveis, nomeCat]);
-                }
-                dispararMensagem('Categoria Atualizada', `Categoria alterada para ${nomeCat}.`);
-              }
-            });
+            abrirEdicaoCategoria(produtoSelecionado);
           }}
           style={{ ...btnBase, background: '#ff9500' }}
         >
@@ -700,7 +720,7 @@ export const Estoque = ({
                     {p.estoque}
                   </td>
                   <td style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <button onClick={() => carregarProdutoParaEdicao(p.id)} style={{
+                    <button onClick={() => abrirEdicaoCategoria(p)} style={{
                       background: 'rgba(52, 199, 89, 0.12)', color: iosGreen, border: 'none',
                       padding: '8px 14px', borderRadius: radiusSm, cursor: 'pointer',
                       transition, fontSize: '14px', minWidth: '120px'
