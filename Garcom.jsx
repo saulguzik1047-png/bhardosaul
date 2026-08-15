@@ -19,6 +19,8 @@ export function Garcom({
   const [busca, setBusca] = useState('');
   const [nomeNovaComanda, setNomeNovaComanda] = useState('');
   const [comandaSelecionada, setComandaSelecionada] = useState(null);
+  const [categoriaSelecionada, setCategoriaSelecionada] = useState(null);
+  const [mostrarConsumoAtualizado, setMostrarConsumoAtualizado] = useState(false);
 
   const iosBlue = '#007aff';
   const iosGreen = '#34c759';
@@ -43,14 +45,14 @@ export function Garcom({
     'Todos',
     ...new Set([
       ...categoriasCustomizadas,
-      ...produtos.map((p) => p.category),
-    ].filter((categoria) => categoria && categoria !== 'Geral')),
+      ...produtos.map((p) => String(p.category || '').trim()),
+    ].map((categoria) => String(categoria || '').trim())
+      .filter((categoria) => categoria && categoria !== 'Geral')),
   ];
 
-  let produtosFiltrados =
-    categoriaAtiva === 'Todos'
-      ? produtos
-      : produtos.filter((p) => p.category === categoriaAtiva);
+  let produtosFiltrados = categoriaSelecionada
+    ? produtos.filter((p) => String(p.category || '').trim() === categoriaSelecionada)
+    : [];
 
   if (busca.trim() !== '') {
     produtosFiltrados = produtosFiltrados.filter((p) =>
@@ -62,16 +64,31 @@ export function Garcom({
     setComandaAtivaId(comanda.id);
     setComandaSelecionada(comanda.id);
     setCategoriaAtiva('Todos');
+    setCategoriaSelecionada(null);
     setBusca('');
   };
 
   const voltarLista = () => {
     setComandaSelecionada(null);
     setComandaAtivaId(null);
+    setCategoriaSelecionada(null);
+    setMostrarConsumoAtualizado(false);
   };
 
-  const handleAddItem = (produto) => {
-    addItemNaComanda(produto);
+  const handleSelecionarCategoria = (categoria) => {
+    setCategoriaSelecionada(categoria);
+    setBusca('');
+  };
+
+  const handleAddItem = async (produto) => {
+    await addItemNaComanda(produto);
+    setMostrarConsumoAtualizado(true);
+    window.setTimeout(() => {
+      setMostrarConsumoAtualizado(false);
+      setComandaSelecionada(null);
+      setComandaAtivaId(null);
+      setCategoriaSelecionada(null);
+    }, 1200);
   };
 
   const handleDividir = (item) => {
@@ -316,121 +333,85 @@ export function Garcom({
         </div>
       )}
 
-      {/* BUSCA + CATEGORIAS */}
-      <div style={{ padding: '0 16px 10px 16px', flexShrink: 0 }}>
-        <div style={{ position: 'relative', marginBottom: '10px' }}>
-          <i className="fas fa-search" style={{
-            position: 'absolute', left: '12px', top: '11px',
-            color: labelColor, fontSize: '14px'
-          }}></i>
-          <input
-            type="text"
-            placeholder="Buscar produto..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            style={{
-              width: '100%', padding: '11px 14px 11px 36px', border: 'none',
-              borderRadius: radiusMd, background: fillBg, color: textPrimary,
-              fontSize: '16px', outline: 'none', boxSizing: 'border-box',
-              fontFamily: 'inherit', transition
-            }}
-          />
-        </div>
+      {mostrarConsumoAtualizado && (
         <div style={{
-          display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px',
-          WebkitOverflowScrolling: 'touch'
+          margin: '0 16px 12px', padding: '12px 14px', borderRadius: radiusMd,
+          background: 'rgba(52, 199, 89, 0.14)', color: iosGreen,
+          fontWeight: '700', textAlign: 'center'
         }}>
-          {listaCategorias.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategoriaAtiva(cat)}
-              style={{
-                background: categoriaAtiva === cat ? iosBlue : fillBg,
-                color: categoriaAtiva === cat ? 'white' : textSecondary,
-                border: 'none', padding: '8px 16px', borderRadius: '20px',
-                fontSize: '14px', fontWeight: '500', cursor: 'pointer',
-                transition, fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0
-              }}
-            >
-              {cat}
-            </button>
-          ))}
+          <i className="fas fa-check-circle" style={{ marginRight: '6px' }}></i>
+          Consumo atualizado. Voltando para as comandas...
         </div>
-      </div>
+      )}
 
-      {/* GRID DE PRODUTOS */}
-      <div style={{
-        flex: 1, overflowY: 'auto', padding: '0 16px 16px 16px',
-        WebkitOverflowScrolling: 'touch'
-      }}>
-        {produtosFiltrados.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 20px', color: labelColor }}>
-            <i className="fas fa-search" style={{ fontSize: '36px', marginBottom: '12px', opacity: 0.3 }}></i>
-            <p style={{ fontSize: '15px' }}>Nenhum produto encontrado.</p>
+      {!categoriaSelecionada ? (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 16px 16px' }}>
+          <div style={{ marginBottom: '12px', color: textSecondary, fontSize: '15px', fontWeight: '600' }}>
+            Escolha uma categoria
           </div>
-        ) : (
-          <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px'
-          }}>
-            {produtosFiltrados.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => handleAddItem(p)}
-                disabled={p.estoque <= 0}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.72)',
-                  backdropFilter: 'blur(20px) saturate(1.6)',
-                  WebkitBackdropFilter: 'blur(20px) saturate(1.6)',
-                  border: '0.5px solid rgba(255,255,255,0.6)',
-                  borderRadius: radiusMd, padding: '10px',
-                  cursor: p.estoque <= 0 ? 'not-allowed' : 'pointer',
-                  transition, fontFamily: 'inherit', textAlign: 'left',
-                  display: 'flex', flexDirection: 'column', gap: '6px',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                  opacity: p.estoque <= 0 ? 0.4 : 1,
-                }}
-              >
-                <img
-                  src={p.imagem || imagemAutomaticaProduto(p.nome, p.category)}
-                  alt={p.nome}
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = imagemAutomaticaProduto(p.nome, p.category);
-                  }}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
+            {listaCategorias.filter((cat) => cat !== 'Todos').map((cat) => {
+              const quantidade = produtos.filter((produto) => String(produto.category || '').trim() === cat).length;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => handleSelecionarCategoria(cat)}
                   style={{
-                    width: '100%', height: '80px', objectFit: 'cover',
-                    borderRadius: radiusSm, background: fillBg
+                    minHeight: '112px', padding: '14px', border: 'none', borderRadius: radiusMd,
+                    background: 'rgba(255, 255, 255, 0.82)', color: textPrimary,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)', cursor: 'pointer',
+                    fontFamily: 'inherit', display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center', gap: '8px'
                   }}
-                />
-                <div style={{
-                  fontSize: '14px', fontWeight: '600', color: textPrimary,
-                  lineHeight: '1.25', overflow: 'hidden', textOverflow: 'ellipsis',
-                  display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'
-                }}>
-                  {p.nome}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '16px', fontWeight: '700', color: iosGreen }}>
-                    {formatarMoeda(p.preco)}
-                  </span>
-                  {p.estoque <= 0 ? (
-                    <span style={{ fontSize: '12px', color: iosRed, fontWeight: '600' }}>Esgotado</span>
-                  ) : (
-                    <span style={{
-                      width: '28px', height: '28px', borderRadius: '50%',
-                      background: iosBlue, color: 'white', display: 'flex',
-                      alignItems: 'center', justifyContent: 'center', fontSize: '14px',
-                      fontWeight: '700', flexShrink: 0
-                    }}>
-                      +
-                    </span>
-                  )}
-                </div>
-              </button>
-            ))}
+                >
+                  <i className="fas fa-layer-group" style={{ fontSize: '26px', color: iosBlue }}></i>
+                  <strong style={{ fontSize: '15px', textAlign: 'center' }}>{cat}</strong>
+                  <span style={{ color: labelColor, fontSize: '12px' }}>{quantidade} {quantidade === 1 ? 'item' : 'itens'}</span>
+                </button>
+              );
+            })}
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 16px 16px', WebkitOverflowScrolling: 'touch' }}>
+          <button onClick={() => { setCategoriaSelecionada(null); setBusca(''); }} style={{
+            border: 'none', background: 'transparent', color: iosBlue, padding: '4px 0 12px',
+            fontSize: '15px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit'
+          }}>
+            <i className="fas fa-chevron-left" style={{ marginRight: '5px' }}></i> Categorias
+          </button>
+          <div style={{ position: 'relative', marginBottom: '12px' }}>
+            <i className="fas fa-search" style={{ position: 'absolute', left: '12px', top: '11px', color: labelColor, fontSize: '14px' }}></i>
+            <input
+              type="text" placeholder={`Buscar em ${categoriaSelecionada}...`} value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              style={{ width: '100%', padding: '11px 14px 11px 36px', border: 'none', borderRadius: radiusMd, background: fillBg, color: textPrimary, fontSize: '16px', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+            />
+          </div>
+          {produtosFiltrados.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: labelColor }}>
+              <i className="fas fa-box-open" style={{ fontSize: '36px', marginBottom: '12px', opacity: 0.3 }}></i>
+              <p style={{ fontSize: '15px' }}>Nenhum produto cadastrado nesta categoria.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
+              {produtosFiltrados.map((p) => (
+                <button key={p.id} onClick={() => handleAddItem(p)} disabled={p.estoque <= 0} style={{
+                  background: 'rgba(255, 255, 255, 0.82)', border: 'none', borderRadius: radiusMd,
+                  padding: '10px', cursor: p.estoque <= 0 ? 'not-allowed' : 'pointer', transition,
+                  fontFamily: 'inherit', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '6px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)', opacity: p.estoque <= 0 ? 0.4 : 1
+                }}>
+                  <img src={p.imagem || imagemAutomaticaProduto(p.nome, p.category)} alt={p.nome} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = imagemAutomaticaProduto(p.nome, p.category); }} style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: radiusSm, background: fillBg }} />
+                  <strong style={{ fontSize: '14px', color: textPrimary, lineHeight: '1.25' }}>{p.nome}</strong>
+                  <span style={{ fontSize: '16px', fontWeight: '700', color: iosGreen }}>{formatarMoeda(p.preco)}</span>
+                  <span style={{ fontSize: '12px', color: p.estoque <= 0 ? iosRed : labelColor }}>{p.estoque <= 0 ? 'Esgotado' : `${p.estoque} disponíveis`}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

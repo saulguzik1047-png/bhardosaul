@@ -847,6 +847,50 @@ function App() {
     carregarDadosDaNuvem();
   }, []);
 
+  React.useEffect(() => {
+    if (!supabaseClient) return undefined;
+
+    let cancelado = false;
+
+    const atualizarProdutosDaNuvem = async () => {
+      const { data, error } = await supabaseClient
+        .from('produtos')
+        .select('*')
+        .order('nome', { ascending: true });
+
+      if (cancelado || error || !Array.isArray(data) || data.length === 0) return;
+
+      const produtosNuvem = data.map((produto) => ({
+        id: produto.id,
+        category: String(produto.category || 'Geral').trim() || 'Geral',
+        nome: produto.nome,
+        precoCusto: produto.preco_custo,
+        preco: produto.preco,
+        estoque: produto.estoque,
+        estoqueMinimo: produto.estoque_minimo,
+        dataUltimaCompra: produto.data_ultima_compra,
+        imagem: produto.imagem,
+        fatorConversao: produto.fator_conversao || 1,
+        apelidos: produto.apelidos || [],
+      }));
+
+      setProdutos((atuais) => {
+        const mapa = new Map(produtosNuvem.map((produto) => [String(produto.id), produto]));
+        for (const produto of atuais) {
+          if (!mapa.has(String(produto.id))) mapa.set(String(produto.id), produto);
+        }
+        return Array.from(mapa.values());
+      });
+    };
+
+    atualizarProdutosDaNuvem();
+    const intervalo = window.setInterval(atualizarProdutosDaNuvem, 5000);
+    return () => {
+      cancelado = true;
+      window.clearInterval(intervalo);
+    };
+  }, []);
+
   const comandaAtual = comandas.find((c) => c.id === comandaAtivaId) || null;
 
   async function sincronizarDadosNuvem() {
