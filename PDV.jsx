@@ -869,9 +869,10 @@ export function PDV({
               style={{
                 minHeight: '46px',
                 padding: '5px 4px',
-                fontSize: '9px',
+                fontSize: '10px',
                 lineHeight: '1.1',
-                fontWeight: '800',
+                fontWeight: '500',
+                fontFamily: '"Arial Narrow", "Roboto Condensed", sans-serif',
                 borderRadius: '8px',
                 border: categoriaAtiva === cat ? '1px solid #f97316' : '1px solid #b8cbe3',
                 background: categoriaAtiva === cat ? '#f97316' : '#edf4fc',
@@ -927,7 +928,7 @@ export function PDV({
                 style={{ width: '59px', height: '59px', objectFit: 'cover', borderRadius: '8px' }}
               />
               
-              <span className="prod-nome" style={{ fontSize: '10px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', padding: '0 2px' }}>{p.nome}</span>
+              <span className="prod-nome" style={{ fontSize: '10px', lineHeight: '1.15', textAlign: 'center', fontWeight: 'bold', color: '#1e293b', whiteSpace: 'normal', overflow: 'visible', overflowWrap: 'break-word', width: '100%', minHeight: '23px', padding: '0 2px' }}>{p.nome}</span>
               
               <span className="prod-preco" style={{ fontSize: '10px', color: '#16a34a', fontWeight: 'bold' }}>{formatarMoeda(p.preco)}</span>
             </div>
