@@ -158,7 +158,7 @@ export function PDV({
             setMostrarSugestoes(true);
           }}
           onKeyDown={(e) => {
-            if (e.key === 'Escape') setMostrarSugestoes(false);
+            if (e.key === 'Escape') fecharTecladoComanda();
           }}
           style={{ padding: '6px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
         />
@@ -167,39 +167,44 @@ export function PDV({
             role="group"
             aria-label="Teclado para criar comanda"
             style={{
-              position: 'absolute',
-              top: 'calc(100% + 4px)',
-              left: 0,
-              width: '100%',
-              padding: '5px',
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 'min(720px, calc(100vw - 24px))',
+              padding: '16px',
               boxSizing: 'border-box',
               background: '#dbeafe',
-              border: '1px solid #93c5fd',
-              borderRadius: '10px',
-              boxShadow: '0 8px 18px rgba(15, 42, 95, 0.2)',
-              zIndex: 10000
+              border: '2px solid #60a5fa',
+              borderRadius: '16px',
+              boxShadow: '0 18px 45px rgba(15, 42, 95, 0.35)',
+              zIndex: 10001
             }}
           >
-            {['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'].map((linha) => (
-              <div key={linha} style={{ display: 'grid', gridTemplateColumns: `repeat(${linha.length}, 1fr)`, gap: '3px', marginBottom: '3px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <strong style={{ color: '#0f2a5f', fontSize: '18px' }}>Criar comanda</strong>
+              <button type="button" onClick={fecharTecladoComanda} style={{ minWidth: '54px', minHeight: '44px', border: '1px solid #f87171', borderRadius: '8px', background: '#fff1f2', color: '#be123c', fontSize: '16px', fontWeight: '700', cursor: 'pointer' }}>Fechar</button>
+            </div>
+            {['1234567890', 'QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'].map((linha) => (
+              <div key={linha} style={{ display: 'grid', gridTemplateColumns: `repeat(${linha.length}, minmax(0, 1fr))`, gap: '6px', marginBottom: '6px' }}>
                 {[...linha].map((tecla) => (
                   <button
                     key={tecla}
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => adicionarTeclaComanda(tecla)}
-                    style={{ minWidth: 0, minHeight: '27px', padding: 0, border: '1px solid #93c5fd', borderRadius: '5px', background: '#ffffff', color: '#0f2a5f', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
+                    style={{ minWidth: 0, minHeight: '80px', padding: 0, border: '2px solid #93c5fd', borderRadius: '10px', background: '#ffffff', color: '#0f2a5f', fontSize: '28px', fontWeight: '700', cursor: 'pointer', touchAction: 'manipulation' }}
                   >
                     {tecla}
                   </button>
                 ))}
               </div>
             ))}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1.4fr', gap: '3px' }}>
-              <button type="button" onClick={() => adicionarTeclaComanda(' ')} style={{ minHeight: '27px', padding: 0, border: '1px solid #93c5fd', borderRadius: '5px', background: '#ffffff', color: '#0f2a5f', fontSize: '10px', fontWeight: '700', cursor: 'pointer' }}>Espaço</button>
-              <button type="button" onClick={apagarTeclaComanda} style={{ minHeight: '27px', padding: 0, border: '1px solid #fca5a5', borderRadius: '5px', background: '#fff1f2', color: '#be123c', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}>⌫</button>
-              <button type="button" onClick={() => { setBusca(''); setMostrarSugestoes(true); }} style={{ minHeight: '27px', padding: 0, border: '1px solid #cbd5e1', borderRadius: '5px', background: '#f8fafc', color: '#334155', fontSize: '9px', fontWeight: '700', cursor: 'pointer' }}>Limpar</button>
-              <button type="button" onClick={confirmarComandaPeloTeclado} disabled={!ehNomeInedito} style={{ minHeight: '27px', padding: 0, border: '1px solid #60a5fa', borderRadius: '5px', background: ehNomeInedito ? '#007aff' : '#bfdbfe', color: '#ffffff', fontSize: '10px', fontWeight: '700', cursor: ehNomeInedito ? 'pointer' : 'not-allowed' }}>Abrir</button>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1.4fr', gap: '6px' }}>
+              <button type="button" onClick={() => adicionarTeclaComanda(' ')} style={{ minHeight: '68px', padding: 0, border: '2px solid #93c5fd', borderRadius: '10px', background: '#ffffff', color: '#0f2a5f', fontSize: '20px', fontWeight: '700', cursor: 'pointer' }}>Espaço</button>
+              <button type="button" onClick={apagarTeclaComanda} style={{ minHeight: '68px', padding: 0, border: '2px solid #fca5a5', borderRadius: '10px', background: '#fff1f2', color: '#be123c', fontSize: '28px', fontWeight: '700', cursor: 'pointer' }}>⌫</button>
+              <button type="button" onClick={() => { setBusca(''); setMostrarSugestoes(true); }} style={{ minHeight: '68px', padding: 0, border: '2px solid #cbd5e1', borderRadius: '10px', background: '#f8fafc', color: '#334155', fontSize: '16px', fontWeight: '700', cursor: 'pointer' }}>Limpar</button>
+              <button type="button" onClick={confirmarComandaPeloTeclado} disabled={!ehNomeInedito} style={{ minHeight: '68px', padding: 0, border: '2px solid #60a5fa', borderRadius: '10px', background: ehNomeInedito ? '#007aff' : '#bfdbfe', color: '#ffffff', fontSize: '20px', fontWeight: '700', cursor: ehNomeInedito ? 'pointer' : 'not-allowed' }}>Enter</button>
             </div>
           </div>
         )}
@@ -208,7 +213,7 @@ export function PDV({
             className="sugestoes-box"
             style={{
               position: 'absolute',
-              top: tecladoComandaAberto ? '140px' : '100%',
+              top: '100%',
               left: 0,
               background: '#ffffff',
               border: '2px solid #cbd5e1',
