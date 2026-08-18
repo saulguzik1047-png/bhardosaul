@@ -622,6 +622,11 @@ function App() {
     } catch (e) { return []; }
   });
   const [comandasSincronizadas, setComandasSincronizadas] = React.useState(false);
+  // Marca quando há alterações locais ainda não confirmadas na nuvem, para que a
+  // sincronização periódica (abaixo) não sobrescreva itens recém-digitados antes
+  // de eles serem salvos (isso acontecia, por exemplo, ao bloquear/desbloquear o
+  // celular: o upsert ficava pendente e o polling apagava as comandas abertas).
+  const upsertComandasPendenteRef = React.useRef(false);
 
   React.useEffect(() => {
     localStorage.setItem('bhar_comandas_v1', JSON.stringify(comandas));
@@ -705,11 +710,15 @@ function App() {
 
     if (comandasParaSalvar.length === 0) return;
 
+    upsertComandasPendenteRef.current = true;
     supabaseClient
       .from('comandas')
       .upsert(comandasParaSalvar, { onConflict: 'id' })
       .then(({ error }) => {
         if (error) console.warn('Não foi possível sincronizar comandas:', error);
+      })
+      .finally(() => {
+        upsertComandasPendenteRef.current = false;
       });
   }, [comandas, comandasSincronizadas]);
 
@@ -717,12 +726,20 @@ function App() {
     if (!comandasSincronizadas || !supabaseClient) return undefined;
 
     const atualizarComandasDaNuvem = async () => {
+      // Se ainda houver alterações locais pendentes de envio para a nuvem
+      // (por exemplo, itens digitados enquanto o celular estava com a tela
+      // bloqueada e o upsert não terminou a tempo), não sobrescreve o estado
+      // local com os dados antigos da nuvem: aguarda o próximo ciclo.
+      if (upsertComandasPendenteRef.current) return;
+
       const { data, error } = await supabaseClient
         .from('comandas')
         .select('id, nome, status, itens, updated_at')
         .order('updated_at', { ascending: false });
 
       if (error || !Array.isArray(data)) return;
+
+      if (upsertComandasPendenteRef.current) return;
 
       const comandasNuvem = data.map((comanda) => ({
         id: comanda.id,
