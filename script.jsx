@@ -1904,8 +1904,11 @@ function App() {
           clientesCadastrados={clientesCadastrados}
           setClientesCadastrados={setClientesCadastrados}
           comandas={comandas}
+          setComandas={setComandas}
           crediarios={crediarios}
+          setCrediarios={setCrediarios}
           vendas={vendas}
+          setVendas={setVendas}
           dispararMensagem={dispararMensagem}
         />
       )}

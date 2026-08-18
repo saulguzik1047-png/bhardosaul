@@ -6,8 +6,11 @@ export const Clientes = ({
   clientesCadastrados,
   setClientesCadastrados,
   comandas,
+  setComandas,
   crediarios,
+  setCrediarios,
   vendas,
+  setVendas,
   dispararMensagem
 }) => {
   const [novoClienteNomeInput, setNovoClienteNomeInput] = React.useState('');
@@ -15,6 +18,90 @@ export const Clientes = ({
   const [novoClienteTelefoneInput, setNovoClienteTelefoneInput] = React.useState('');
   const [pesquisaClienteBase, setPesquisaClienteBase] = React.useState('');
   const [expandedCliente, setExpandedCliente] = React.useState(null);
+  const [clienteEmEdicao, setClienteEmEdicao] = React.useState(null);
+  const [editNomeInput, setEditNomeInput] = React.useState('');
+  const [editSobrenomeInput, setEditSobrenomeInput] = React.useState('');
+  const [editTelefoneInput, setEditTelefoneInput] = React.useState('');
+
+  const abrirEdicaoCliente = (cli) => {
+    setClienteEmEdicao(cli);
+    const partesNome = (cli.nome || '').split(' ');
+    setEditNomeInput(partesNome[0] || '');
+    setEditSobrenomeInput(cli.sobrenome || partesNome.slice(1).join(' '));
+    setEditTelefoneInput(cli.telefone || '');
+  };
+
+  const fecharEdicaoCliente = () => setClienteEmEdicao(null);
+
+  const handleSalvarEdicaoCliente = async (e) => {
+    e.preventDefault();
+    if (!clienteEmEdicao) return;
+    if (!editNomeInput.trim() || !editSobrenomeInput.trim()) {
+      dispararMensagem('Erro', 'Nome e Sobrenome são obrigatórios.');
+      return;
+    }
+
+    const nomeAntigo = clienteEmEdicao.nome;
+    const nome = editNomeInput.trim().toUpperCase();
+    const sobrenome = editSobrenomeInput.trim().toUpperCase();
+    const nomeNovo = `${nome} ${sobrenome}`;
+    const telefone = editTelefoneInput.trim();
+
+    if (
+      nomeNovo.toLowerCase() !== nomeAntigo.toLowerCase() &&
+      clientesCadastrados.some((c) => c.nome.toLowerCase() === nomeNovo.toLowerCase())
+    ) {
+      dispararMensagem('Aviso', 'Já existe outro cliente cadastrado com este nome.');
+      return;
+    }
+
+    setClientesCadastrados((prev) =>
+      prev.map((c) =>
+        c.nome.toLowerCase() === nomeAntigo.toLowerCase()
+          ? { ...c, nome: nomeNovo, sobrenome, telefone }
+          : c
+      )
+    );
+
+    const nomeMudou = nomeNovo.toLowerCase() !== nomeAntigo.toLowerCase();
+    if (nomeMudou) {
+      if (typeof setComandas === 'function') {
+        setComandas((prev) =>
+          prev.map((c) => (c.nome.toLowerCase() === nomeAntigo.toLowerCase() ? { ...c, nome: nomeNovo } : c))
+        );
+      }
+      if (typeof setCrediarios === 'function') {
+        setCrediarios((prev) =>
+          prev.map((c) => (c.cliente.toLowerCase() === nomeAntigo.toLowerCase() ? { ...c, cliente: nomeNovo } : c))
+        );
+      }
+      if (typeof setVendas === 'function') {
+        setVendas((prev) =>
+          prev.map((v) => (v.cliente.toLowerCase() === nomeAntigo.toLowerCase() ? { ...v, cliente: nomeNovo } : v))
+        );
+      }
+    }
+
+    try {
+      await supabaseClient
+        ?.from('clientes')
+        .update({ nome: nomeNovo, sobrenome, telefone })
+        .eq('nome', nomeAntigo);
+
+      if (nomeMudou) {
+        await Promise.all([
+          supabaseClient?.from('comandas').update({ nome: nomeNovo }).eq('nome', nomeAntigo),
+          supabaseClient?.from('crediarios').update({ cliente: nomeNovo }).eq('cliente', nomeAntigo),
+          supabaseClient?.from('vendas').update({ cliente: nomeNovo }).eq('cliente', nomeAntigo),
+        ]);
+      }
+    } catch (err) {
+      console.warn('Nuvem offline:', err);
+    }
+
+    dispararMensagem('Sucesso', 'Cliente atualizado com sucesso!');
+    setClienteEmEdicao(null);
+  };
 
   const handleSalvarCliente = async (e) => {
     e.preventDefault();
@@ -195,6 +282,9 @@ export const Clientes = ({
                     <th style={{ color: 'var(--ios-label-tertiary)', fontSize: '11px', padding: '10px', textAlign: 'center' }}>
                       Pagas
                     </th>
+                    <th style={{ color: 'var(--ios-label-tertiary)', fontSize: '11px', padding: '10px', textAlign: 'center' }}>
+                      Ações
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -249,11 +339,32 @@ export const Clientes = ({
                           <td style={{ padding: '10px', fontSize: '13px', color: pagasQtd > 0 ? '#a3e635' : 'var(--ios-label-quaternary)', textAlign: 'center', fontWeight: 'bold' }}>
                             {pagasQtd}
                           </td>
+                          <td style={{ padding: '10px', textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              title="Editar cliente"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                abrirEdicaoCliente(cli);
+                              }}
+                              style={{
+                                background: 'transparent',
+                                border: '1px solid #38bdf8',
+                                color: '#38bdf8',
+                                borderRadius: '6px',
+                                padding: '5px 8px',
+                                fontSize: '12px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <i className="fas fa-pen"></i> Editar
+                            </button>
+                          </td>
                         </tr>
                         {expandedCliente === cli.nome && (
                           <tr style={{ backgroundColor: 'var(--ios-fill)' }}>
                             <td
-                              colSpan="5"
+                              colSpan="6"
                               style={{
                                 padding: '15px',
                                 borderBottom: '1px solid var(--ios-fill-secondary)',
@@ -462,7 +573,7 @@ export const Clientes = ({
                   {clientesFiltradosPesquisa.length === 0 && (
                     <tr>
                       <td
-                        colSpan="5"
+                        colSpan="6"
                         style={{
                           padding: '20px',
                           color: 'var(--ios-label-tertiary)',
@@ -481,6 +592,62 @@ export const Clientes = ({
           </div>
         </div>
       </div>
+
+      {clienteEmEdicao && (
+        <div className="custom-dialog-overlay">
+          <div className="custom-dialog-box" style={{ maxWidth: '420px' }}>
+            <div className="custom-dialog-title" style={{ color: '#38bdf8' }}>
+              <i className="fas fa-user-edit"></i>
+              <span>Editar Cliente</span>
+            </div>
+            <form
+              onSubmit={handleSalvarEdicaoCliente}
+              style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' }}
+            >
+              <div className="dark-form-row">
+                <div className="dark-input-group">
+                  <label>Nome *</label>
+                  <input
+                    type="text"
+                    className="dark-input-field"
+                    value={editNomeInput}
+                    onChange={(e) => setEditNomeInput(e.target.value)}
+                    placeholder="Ex: João"
+                  />
+                </div>
+                <div className="dark-input-group">
+                  <label>Sobrenome *</label>
+                  <input
+                    type="text"
+                    className="dark-input-field"
+                    value={editSobrenomeInput}
+                    onChange={(e) => setEditSobrenomeInput(e.target.value)}
+                    placeholder="Ex: Silva"
+                  />
+                </div>
+              </div>
+              <div className="dark-input-group">
+                <label>Telefone / WhatsApp</label>
+                <input
+                  type="text"
+                  className="dark-input-field"
+                  value={editTelefoneInput}
+                  onChange={(e) => setEditTelefoneInput(e.target.value)}
+                  placeholder="Ex: 31999999999"
+                />
+              </div>
+              <div className="custom-dialog-buttons">
+                <button type="button" className="btn-dialog-cancel" onClick={fecharEdicaoCliente}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn-dialog-confirm" style={{ background: '#0284c7' }}>
+                  Salvar Alterações
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
