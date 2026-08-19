@@ -628,27 +628,6 @@ function App() {
   // celular: o upsert ficava pendente e o polling apagava as comandas abertas).
   const upsertComandasPendenteRef = React.useRef(false);
 
-  // Guarda os ids de comandas que já foram confirmadas na nuvem em algum momento
-  // (seja por já terem sido buscadas de lá, seja por já terem sido enviadas com
-  // sucesso). Isso permite diferenciar uma comanda nova criada offline (que ainda
-  // precisa ser enviada) de uma comanda que já existiu na nuvem e foi fechada/
-  // removida em outro dispositivo (ex.: no PDV). Sem essa distinção, ao reabrir o
-  // app do Garçom o cache local (bhar_comandas_v1) trazia de volta comandas já
-  // fechadas e o efeito de sincronização acabava recriando-as na nuvem.
-  const idsComandasVistasNuvemRef = React.useRef(new Set((() => {
-    try {
-      const salvos = JSON.parse(localStorage.getItem('bhar_comandas_ids_nuvem_v1'));
-      return Array.isArray(salvos) ? salvos : [];
-    } catch (e) { return []; }
-  })()));
-
-  function registrarIdsVistasNaNuvem(ids) {
-    ids.forEach((id) => idsComandasVistasNuvemRef.current.add(id));
-    try {
-      localStorage.setItem('bhar_comandas_ids_nuvem_v1', JSON.stringify([...idsComandasVistasNuvemRef.current]));
-    } catch (e) {}
-  }
-
   React.useEffect(() => {
     localStorage.setItem('bhar_comandas_v1', JSON.stringify(comandas));
   }, [comandas]);
@@ -661,7 +640,6 @@ function App() {
     localStorage.removeItem('bhar_clientes_v2');
     localStorage.removeItem('bhar_comandas_v1');
     localStorage.removeItem('bhar_comandas_ids_nuvem_v1');
-    idsComandasVistasNuvemRef.current = new Set();
     setClientesCadastrados([]);
     setComandas([]);
     setComandaAtivaId(null);
@@ -701,27 +679,31 @@ function App() {
         return;
       }
 
-      const comandasNuvem = Array.isArray(data)
-        ? data.map((comanda) => ({
-            id: comanda.id,
-            nome: comanda.nome,
-            status: comanda.status || 'Aberto',
-            itens: Array.isArray(comanda.itens) ? comanda.itens : [],
-          }))
-        : [];
+      // A nuvem é a fonte da verdade sobre quais comandas existem. Uma comanda
+      // fechada/excluída em outro dispositivo (ex.: no PDV) fica marcada com
+      // status diferente de 'Aberto' (tombstone) em vez de ser apagada na hora -
+      // assim, TODO dispositivo que sincronizar (mesmo que tenha ficado bloqueado
+      // ou fechado por um tempo) descobre que ela não existe mais e não a
+      // recria. Antes disso era controlado só por uma marcação local no
+      // localStorage de cada aparelho, o que falhava quando o app fechava antes
+      // de essa marcação ser gravada.
+      const linhasNuvem = Array.isArray(data) ? data : [];
+      const idsConhecidosNuvem = new Set(linhasNuvem.map((comanda) => comanda.id));
+      const comandasAbertasNuvem = linhasNuvem
+        .filter((comanda) => (comanda.status || 'Aberto') === 'Aberto')
+        .map((comanda) => ({
+          id: comanda.id,
+          nome: comanda.nome,
+          status: comanda.status || 'Aberto',
+          itens: Array.isArray(comanda.itens) ? comanda.itens : [],
+        }));
 
-      const idsNuvem = new Set(comandasNuvem.map((comanda) => comanda.id));
-      registrarIdsVistasNaNuvem(idsNuvem);
-
-      // Roda mesmo quando a nuvem está vazia (comandasNuvem.length === 0): se
-      // todas as comandas foram fechadas em outro dispositivo enquanto este
-      // ficava com a tela bloqueada/fechada, o cache local não pode "reviver"
-      // essas comandas ao reabrir o app.
+      // Roda mesmo quando a nuvem está vazia: se todas as comandas foram
+      // fechadas em outro dispositivo enquanto este ficava com a tela
+      // bloqueada/fechada, o cache local não pode "reviver" essas comandas.
       setComandas((locais) => {
-        const locaisNovas = locais.filter((comanda) =>
-          !idsNuvem.has(comanda.id) && !idsComandasVistasNuvemRef.current.has(comanda.id)
-        );
-        return [...comandasNuvem, ...locaisNovas];
+        const locaisNovas = locais.filter((comanda) => !idsConhecidosNuvem.has(comanda.id));
+        return [...comandasAbertasNuvem, ...locaisNovas];
       });
 
       setComandasSincronizadas(true);
@@ -750,7 +732,6 @@ function App() {
       .upsert(comandasParaSalvar, { onConflict: 'id' })
       .then(({ error }) => {
         if (error) console.warn('Não foi possível sincronizar comandas:', error);
-        else registrarIdsVistasNaNuvem(comandasParaSalvar.map((comanda) => comanda.id));
       })
       .finally(() => {
         upsertComandasPendenteRef.current = false;
@@ -776,18 +757,24 @@ function App() {
 
       if (upsertComandasPendenteRef.current) return;
 
-      const comandasNuvem = data.map((comanda) => ({
-        id: comanda.id,
-        nome: comanda.nome,
-        status: comanda.status || 'Aberto',
-        itens: Array.isArray(comanda.itens) ? comanda.itens : [],
-      }));
+      // Mesma lógica de tombstone do carregamento inicial: uma comanda que
+      // sumiu da lista "Aberto" da nuvem foi fechada/excluída em outro
+      // dispositivo e não deve ser mantida (nem reenviada) por este.
+      const idsConhecidosNuvem = new Set(data.map((comanda) => comanda.id));
+      const comandasAbertasNuvem = data
+        .filter((comanda) => (comanda.status || 'Aberto') === 'Aberto')
+        .map((comanda) => ({
+          id: comanda.id,
+          nome: comanda.nome,
+          status: comanda.status || 'Aberto',
+          itens: Array.isArray(comanda.itens) ? comanda.itens : [],
+        }));
 
-      registrarIdsVistasNaNuvem(comandasNuvem.map((comanda) => comanda.id));
-
-      setComandas((atuais) => JSON.stringify(atuais) === JSON.stringify(comandasNuvem)
-        ? atuais
-        : comandasNuvem);
+      setComandas((atuais) => {
+        const locaisNovas = atuais.filter((comanda) => !idsConhecidosNuvem.has(comanda.id));
+        const combinadas = [...comandasAbertasNuvem, ...locaisNovas];
+        return JSON.stringify(atuais) === JSON.stringify(combinadas) ? atuais : combinadas;
+      });
     };
 
     const intervalo = window.setInterval(atualizarComandasDaNuvem, 4000);
@@ -795,14 +782,29 @@ function App() {
   }, [comandasSincronizadas]);
 
   async function removerComandaDaNuvem(id) {
-    idsComandasVistasNuvemRef.current.delete(id);
-    try {
-      localStorage.setItem('bhar_comandas_ids_nuvem_v1', JSON.stringify([...idsComandasVistasNuvemRef.current]));
-    } catch (e) {}
-
     if (!supabaseClient) return;
-    const { error } = await supabaseClient.from('comandas').delete().eq('id', id);
+    // Em vez de apagar a linha na hora, marcamos como tombstone (status
+    // diferente de 'Aberto'). Isso garante que qualquer dispositivo que
+    // sincronizar depois - mesmo que tenha ficado com a tela bloqueada ou
+    // fechado o app antes de "ver" a exclusão - descubra pela própria nuvem
+    // que a comanda não existe mais e não a recrie ao reabrir.
+    const { error } = await supabaseClient
+      .from('comandas')
+      .update({ status: 'Removida', updated_at: new Date().toISOString() })
+      .eq('id', id);
     if (error) console.warn('Não foi possível remover a comanda da nuvem:', error);
+
+    // Limpeza best-effort de tombstones antigos (> 24h) para o registro não
+    // crescer indefinidamente. Falhas aqui não afetam a exclusão em si.
+    const umDiaAtras = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    supabaseClient
+      .from('comandas')
+      .delete()
+      .neq('status', 'Aberto')
+      .lt('updated_at', umDiaAtras)
+      .then(({ error: erroLimpeza }) => {
+        if (erroLimpeza) console.warn('Não foi possível limpar comandas antigas removidas:', erroLimpeza);
+      });
   }
 
   React.useEffect(() => {
