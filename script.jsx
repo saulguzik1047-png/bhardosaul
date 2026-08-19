@@ -1910,6 +1910,7 @@ function App() {
           vendas={vendas}
           setVendas={setVendas}
           dispararMensagem={dispararMensagem}
+          dispararConfirmacao={dispararConfirmacao}
         />
       )}
       {telaAtual === 'financeiro' && autenticado && (

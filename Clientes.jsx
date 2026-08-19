@@ -11,7 +11,8 @@ export const Clientes = ({
   setCrediarios,
   vendas,
   setVendas,
-  dispararMensagem
+  dispararMensagem,
+  dispararConfirmacao,
 }) => {
   const [novoClienteNomeInput, setNovoClienteNomeInput] = React.useState('');
   const [novoClienteSobrenomeInput, setNovoClienteSobrenomeInput] = React.useState('');
@@ -32,6 +33,31 @@ export const Clientes = ({
   };
 
   const fecharEdicaoCliente = () => setClienteEmEdicao(null);
+
+  const handleExcluirCliente = (cli) => {
+    const temComandaAberta = comandas.some(
+      (c) => c.nome.toLowerCase() === cli.nome.toLowerCase()
+    );
+    if (temComandaAberta) {
+      dispararMensagem('Aviso', `O cliente "${cli.nome}" possui comanda(s) aberta(s). Finalize-as antes de excluir.`);
+      return;
+    }
+    dispararConfirmacao(
+      'Excluir Cliente',
+      `Deseja realmente excluir o cliente "${cli.nome}"? Esta ação não pode ser desfeita.`,
+      async () => {
+        setClientesCadastrados((prev) =>
+          prev.filter((c) => c.nome.toLowerCase() !== cli.nome.toLowerCase())
+        );
+        try {
+          await supabaseClient?.from('clientes').delete().eq('nome', cli.nome);
+        } catch (err) {
+          console.warn('Nuvem offline ao excluir cliente:', err);
+        }
+        dispararMensagem('Sucesso', `Cliente "${cli.nome}" excluído com sucesso.`);
+      }
+    );
+  };
 
   const handleSalvarEdicaoCliente = async (e) => {
     e.preventDefault();
@@ -355,9 +381,29 @@ export const Clientes = ({
                                 padding: '5px 8px',
                                 fontSize: '12px',
                                 cursor: 'pointer',
+                                marginRight: '6px',
                               }}
                             >
                               <i className="fas fa-pen"></i> Editar
+                            </button>
+                            <button
+                              type="button"
+                              title="Excluir cliente"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleExcluirCliente(cli);
+                              }}
+                              style={{
+                                background: 'transparent',
+                                border: '1px solid #ef4444',
+                                color: '#ef4444',
+                                borderRadius: '6px',
+                                padding: '5px 8px',
+                                fontSize: '12px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <i className="fas fa-trash"></i> Excluir
                             </button>
                           </td>
                         </tr>
