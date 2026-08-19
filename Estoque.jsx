@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { formatarMoeda } from './formatadores.js';
+import { formatarMoeda, normalizarCategoria } from './formatadores.js';
 import LeitorNotaCamera from './LeitorNotaCamera.jsx';
 import { supabaseClient } from './supabase.js';
 
@@ -138,10 +138,15 @@ export const Estoque = ({
   };
 
   const abrirGerenciamentoCategorias = () => {
-    const categorias = [...new Set([
-      ...categoriasCustomizadas,
-      ...produtos.map((produto) => produto.category)
-    ])].filter((categoria) => categoria && categoria !== 'Geral');
+    const categoriasPorChave = new Map();
+    [...categoriasCustomizadas, ...produtos.map((produto) => produto.category)].forEach((categoria) => {
+      const nome = String(categoria || '').trim();
+      const chave = normalizarCategoria(nome);
+      if (nome && chave !== 'geral' && !categoriasPorChave.has(chave)) {
+        categoriasPorChave.set(chave, nome);
+      }
+    });
+    const categorias = [...categoriasPorChave.values()];
 
     if (categorias.length === 0) {
       dispararMensagem('Categorias', 'Não há categorias cadastradas para editar.');
@@ -157,16 +162,17 @@ export const Estoque = ({
       onConfirm: async (categoriaAtual, novoNome, acao) => {
         const categoriaSelecionada = String(categoriaAtual || '').trim();
         if (!categoriaSelecionada || categoriaSelecionada === 'Geral') return;
+        const chaveSelecionada = normalizarCategoria(categoriaSelecionada);
 
         if (acao === 'excluir') {
-          const quantidadeProdutos = produtos.filter((produto) => produto.category === categoriaSelecionada).length;
+          const quantidadeProdutos = produtos.filter((produto) => normalizarCategoria(produto.category) === chaveSelecionada).length;
           if (quantidadeProdutos > 0) {
             dispararMensagem('Categoria em uso', `Não é possível excluir "${categoriaSelecionada}" porque ${quantidadeProdutos} produto(s) ainda usam essa categoria. Edite esses produtos primeiro.`);
             return;
           }
 
-          setCategoriasCustomizadas((prev) => prev.filter((categoria) => categoria !== categoriaSelecionada));
-          setCategoriasDivisiveis((prev) => prev.filter((categoria) => categoria !== categoriaSelecionada));
+          setCategoriasCustomizadas((prev) => prev.filter((categoria) => normalizarCategoria(categoria) !== chaveSelecionada));
+          setCategoriasDivisiveis((prev) => prev.filter((categoria) => normalizarCategoria(categoria) !== chaveSelecionada));
           setFiltroCategoria('Todos');
           dispararMensagem('Categoria Excluída', `A categoria "${categoriaSelecionada}" foi excluída.`);
           return;
@@ -177,14 +183,14 @@ export const Estoque = ({
           dispararMensagem('Nome inválido', 'Digite um nome válido para a categoria.');
           return;
         }
-        if (categoriaRenomeada !== categoriaSelecionada && categorias.includes(categoriaRenomeada)) {
+        if (normalizarCategoria(categoriaRenomeada) !== chaveSelecionada && categorias.some((categoria) => normalizarCategoria(categoria) === normalizarCategoria(categoriaRenomeada))) {
           dispararMensagem('Categoria duplicada', 'Já existe uma categoria com esse nome.');
           return;
         }
 
-        setCategoriasCustomizadas((prev) => prev.map((categoria) => categoria === categoriaSelecionada ? categoriaRenomeada : categoria));
-        setCategoriasDivisiveis((prev) => prev.map((categoria) => categoria === categoriaSelecionada ? categoriaRenomeada : categoria));
-        setProdutos((prev) => prev.map((produto) => produto.category === categoriaSelecionada
+        setCategoriasCustomizadas((prev) => prev.map((categoria) => normalizarCategoria(categoria) === chaveSelecionada ? categoriaRenomeada : categoria));
+        setCategoriasDivisiveis((prev) => prev.map((categoria) => normalizarCategoria(categoria) === chaveSelecionada ? categoriaRenomeada : categoria));
+        setProdutos((prev) => prev.map((produto) => normalizarCategoria(produto.category) === chaveSelecionada
           ? { ...produto, category: categoriaRenomeada }
           : produto));
         const { error } = await supabaseClient?.from('produtos')
