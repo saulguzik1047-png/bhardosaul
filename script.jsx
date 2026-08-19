@@ -627,6 +627,10 @@ function App() {
   // de eles serem salvos (isso acontecia, por exemplo, ao bloquear/desbloquear o
   // celular: o upsert ficava pendente e o polling apagava as comandas abertas).
   const upsertComandasPendenteRef = React.useRef(false);
+  // Guarda, por id, a última "assinatura" (nome/status/itens) de cada comanda
+  // já confirmada na nuvem, para o efeito de sincronização abaixo reenviar
+  // somente o que realmente mudou neste aparelho.
+  const comandasEnviadasRef = React.useRef(new Map());
 
   React.useEffect(() => {
     localStorage.setItem('bhar_comandas_v1', JSON.stringify(comandas));
@@ -716,13 +720,37 @@ function App() {
   React.useEffect(() => {
     if (!comandasSincronizadas || !supabaseClient) return;
 
-    const comandasParaSalvar = comandas.map((comanda) => ({
-      id: comanda.id,
-      nome: comanda.nome,
-      status: comanda.status || 'Aberto',
-      itens: comanda.itens || [],
-      updated_at: new Date().toISOString(),
-    }));
+    // 🛠️ FIX CEO: reenviar só quem realmente mudou neste aparelho desde a
+    // última confirmação da nuvem. Antes, QUALQUER alteração em qualquer
+    // comanda (ex.: mexer na comanda da mesa 2) fazia este efeito reenviar
+    // TODAS as comandas em memória - inclusive uma comanda X que o garçom
+    // nem tocou. Isso é um problema porque, ao suspender/fechar o app no
+    // celular (comum em iOS/Android, que costuma só congelar o processo em
+    // vez de matá-lo), a comanda X pode continuar em memória com status
+    // "Aberto" mesmo depois de o PDV excluí-la (tombstone na nuvem). Ao
+    // reabrir o app e mexer em QUALQUER outra comanda antes do polling de 4s
+    // rodar, X era reenviada com um updated_at mais novo que o do tombstone,
+    // sobrescrevendo a exclusão feita no PDV e "ressuscitando" a comanda.
+    // Agora só entra no upsert quem tem uma assinatura (nome/status/itens)
+    // diferente da última que já sabemos estar confirmada na nuvem.
+    const comandasParaSalvar = [];
+    const assinaturasEnviadas = [];
+    comandas.forEach((comanda) => {
+      const assinatura = JSON.stringify({
+        nome: comanda.nome,
+        status: comanda.status || 'Aberto',
+        itens: comanda.itens || [],
+      });
+      if (comandasEnviadasRef.current.get(comanda.id) === assinatura) return;
+      comandasParaSalvar.push({
+        id: comanda.id,
+        nome: comanda.nome,
+        status: comanda.status || 'Aberto',
+        itens: comanda.itens || [],
+        updated_at: new Date().toISOString(),
+      });
+      assinaturasEnviadas.push([comanda.id, assinatura]);
+    });
 
     if (comandasParaSalvar.length === 0) return;
 
@@ -731,7 +759,11 @@ function App() {
       .from('comandas')
       .upsert(comandasParaSalvar, { onConflict: 'id' })
       .then(({ error }) => {
-        if (error) console.warn('Não foi possível sincronizar comandas:', error);
+        if (error) {
+          console.warn('Não foi possível sincronizar comandas:', error);
+          return;
+        }
+        assinaturasEnviadas.forEach(([id, assinatura]) => comandasEnviadasRef.current.set(id, assinatura));
       })
       .finally(() => {
         upsertComandasPendenteRef.current = false;
