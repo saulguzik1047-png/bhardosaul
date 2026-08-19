@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import LeitorNotaCamera from './LeitorNotaCamera.jsx';
 import { supabaseClient } from './supabase.js';  
-import { formatarMoeda, calcularTotal } from './formatadores.js';
+import { formatarMoeda, calcularTotal, normalizarCategoria } from './formatadores.js';
 import { criptografarSenha } from './seguranca.js';
 
 import { Header } from './Header.jsx';
@@ -1232,7 +1232,12 @@ function App() {
       })
     );
 
-    if (produto.category === 'Porções' || categoriasDivisiveis.includes(produto.category)) {
+    const categoriaProdutoNormalizada = normalizarCategoria(produto.category);
+    const deveImprimirCozinha = categoriaProdutoNormalizada === 'porções'
+      || categoriaProdutoNormalizada === 'cozinha'
+      || categoriasDivisiveis.includes(produto.category);
+
+    if (deveImprimirCozinha) {
       dispararMensagem('⚠️ IMPRESSÃO COZINHA ⚠️', `Mesa/Comanda: ${comandaAtual.nome}\nItem: 1x ${produto.nome}\nEnviado direto para o atendente levar até a cozinha!`);
   
       const htmlCozinha = `
