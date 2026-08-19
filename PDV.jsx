@@ -858,7 +858,7 @@ export function PDV({
             </span>
           )}
         </h2>
-        <div className="categorias-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(58.3px, 1fr))', gap: '5px', marginBottom: '8px', flexWrap: 'wrap' }}>
+        <div className="categorias-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64.1px, 1fr))', gap: '5px', marginBottom: '8px', flexWrap: 'wrap' }}>
           {listaCategorias.map((cat) => (
             <button
               key={cat}
@@ -868,15 +868,17 @@ export function PDV({
               onClick={() => setCategoriaAtiva(cat)}
               style={{
                 minWidth: 0,
-                minHeight: '55.2px',
-                padding: '6px 5px',
-                fontSize: '12px',
+                minHeight: '60.7px',
+                padding: '7px 6px',
+                fontSize: '13px',
                 lineHeight: '1.1',
                 fontWeight: '500',
                 fontFamily: '"Arial Narrow", "Roboto Condensed", sans-serif',
                 overflow: 'hidden',
                 whiteSpace: 'normal',
                 overflowWrap: 'break-word',
+                wordBreak: 'break-word',
+                hyphens: 'auto',
                 boxSizing: 'border-box',
                 borderRadius: '8px',
                 border: categoriaAtiva === cat ? '1px solid #f97316' : '1px solid #b8cbe3',

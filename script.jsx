@@ -2120,8 +2120,8 @@ function App() {
                     type="button"
                     style={{ flex: 1, background: '#2563eb', color: 'white', padding: '10px 14px', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
                     onClick={() => {
+                      // onConfirm decide o próximo diálogo (mensagem de sucesso/erro), então não fechamos aqui.
                       caixaDialogo.onConfirm?.(categoriaGerenciarSelecionada, novoNomeCategoriaGerenciar, 'renomear');
-                      setCaixaDialogo(null);
                       setCategoriaGerenciarSelecionada('');
                       setNovoNomeCategoriaGerenciar('');
                     }}
@@ -2133,7 +2133,6 @@ function App() {
                     style={{ flex: 1, background: '#ef4444', color: 'white', padding: '10px 14px', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
                     onClick={() => {
                       caixaDialogo.onConfirm?.(categoriaGerenciarSelecionada, '', 'excluir');
-                      setCaixaDialogo(null);
                       setCategoriaGerenciarSelecionada('');
                       setNovoNomeCategoriaGerenciar('');
                     }}
