@@ -15,6 +15,7 @@ export function Garcom({
   usuarioLogado,
   logoutSistema,
 }) {
+  const mesmoComandaId = (a, b) => String(a ?? '') === String(b ?? '');
   const [categoriaAtiva, setCategoriaAtiva] = useState('Todos');
   const [busca, setBusca] = useState('');
   const [nomeNovaComanda, setNomeNovaComanda] = useState('');
@@ -39,7 +40,7 @@ export function Garcom({
   const radiusLg = '18px';
   const transition = '0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
 
-  const comandaAtual = comandas.find((c) => c.id === comandaAtivaId) || null;
+  const comandaAtual = comandas.find((c) => mesmoComandaId(c.id, comandaAtivaId)) || null;
 
   const listaCategorias = listarCategoriasProdutos(categoriasCustomizadas, produtos);
   const categoriasVisiveis = listaCategorias.filter((categoria) => {

@@ -38,6 +38,7 @@ export function PDV({
   buscaContainerRef,
   nomeSoftware
 }) {
+  const mesmoComandaId = (a, b) => String(a ?? '') === String(b ?? '');
   const [tecladoComandaAberto, setTecladoComandaAberto] = React.useState(false);
 
   const parseMoedaBR = (valor) => {
@@ -389,7 +390,7 @@ export function PDV({
         <div style={{ flexGrow: 1, overflowY: 'auto', paddingRight: '4px' }}>
           {comandas.map((c) => {
             const totalComanda = calcularTotal(c.itens);
-            const isAtiva = comandaAtivaId === c.id;
+            const isAtiva = mesmoComandaId(comandaAtivaId, c.id);
             return (
               <div
                 key={c.id}

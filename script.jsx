@@ -627,6 +627,12 @@ function App() {
   // de eles serem salvos (isso acontecia, por exemplo, ao bloquear/desbloquear o
   // celular: o upsert ficava pendente e o polling apagava as comandas abertas).
   const upsertComandasPendenteRef = React.useRef(false);
+  const normalizarComandaId = (id) => String(id ?? '');
+  const mesmoComandaId = (a, b) => normalizarComandaId(a) === normalizarComandaId(b);
+  const idComandaParaBanco = (id) => {
+    const n = Number(id);
+    return Number.isFinite(n) ? Math.trunc(n) : id;
+  };
 
   React.useEffect(() => {
     localStorage.setItem('bhar_comandas_v1', JSON.stringify(comandas));
@@ -680,14 +686,14 @@ function App() {
 
       if (Array.isArray(data) && data.length > 0) {
         const comandasNuvem = data.map((comanda) => ({
-          id: comanda.id,
+          id: normalizarComandaId(comanda.id),
           nome: comanda.nome,
           status: comanda.status || 'Aberto',
           itens: Array.isArray(comanda.itens) ? comanda.itens : [],
         }));
         setComandas((locais) => {
-          const idsNuvem = new Set(comandasNuvem.map((comanda) => comanda.id));
-          return [...comandasNuvem, ...locais.filter((comanda) => !idsNuvem.has(comanda.id))];
+          const idsNuvem = new Set(comandasNuvem.map((comanda) => normalizarComandaId(comanda.id)));
+          return [...comandasNuvem, ...locais.filter((comanda) => !idsNuvem.has(normalizarComandaId(comanda.id)))];
         });
       }
       setComandasSincronizadas(true);
@@ -701,7 +707,7 @@ function App() {
     if (!comandasSincronizadas || !supabaseClient) return;
 
     const comandasParaSalvar = comandas.map((comanda) => ({
-      id: comanda.id,
+      id: idComandaParaBanco(comanda.id),
       nome: comanda.nome,
       status: comanda.status || 'Aberto',
       itens: comanda.itens || [],
@@ -742,7 +748,7 @@ function App() {
       if (upsertComandasPendenteRef.current) return;
 
       const comandasNuvem = data.map((comanda) => ({
-        id: comanda.id,
+        id: normalizarComandaId(comanda.id),
         nome: comanda.nome,
         status: comanda.status || 'Aberto',
         itens: Array.isArray(comanda.itens) ? comanda.itens : [],
@@ -759,7 +765,7 @@ function App() {
 
   async function removerComandaDaNuvem(id) {
     if (!supabaseClient) return;
-    const { error } = await supabaseClient.from('comandas').delete().eq('id', id);
+    const { error } = await supabaseClient.from('comandas').delete().eq('id', idComandaParaBanco(id));
     if (error) console.warn('Não foi possível remover a comanda da nuvem:', error);
   }
 
@@ -935,7 +941,7 @@ function App() {
     };
   }, []);
 
-  const comandaAtual = comandas.find((c) => c.id === comandaAtivaId) || null;
+  const comandaAtual = comandas.find((c) => mesmoComandaId(c.id, comandaAtivaId)) || null;
 
   async function sincronizarDadosNuvem() {
     setCaixaDialogo({
@@ -1220,7 +1226,7 @@ function App() {
     try { await supabaseClient?.from('produtos').update({ estoque: novoEstoque }).eq('id', produto.id); } catch (err) { console.warn('Nuvem offline:', err); }
     setComandas((prev) =>
       prev.map((c) => {
-        if (c.id !== comandaAtivaId) return c;
+        if (!mesmoComandaId(c.id, comandaAtivaId)) return c;
         const itensAlterados = [...c.itens];
         
         // 🛠️ FIX CEO: Ignora itens "Rachados/Divididos" na hora de somar. Garante que se dividir a cerveja, pedir outra vem como item novo
@@ -1282,7 +1288,7 @@ function App() {
           return prev.map((p) => p.id === idProd ? { ...p, estoque: novoEst } : p);
         });
         setComandas((prev) => prev.map((c) => {
-            if (c.id !== comandaAtivaId) return c;
+          if (!mesmoComandaId(c.id, comandaAtivaId)) return c;
             return { ...c, itens: c.itens.filter((i) => i.idProd !== idProd) };
         }));
       },
@@ -1319,7 +1325,7 @@ function App() {
     });
 
     return prev.map((c) => {
-        if (c.id === comandaDonoId) {
+        if (mesmoComandaId(c.id, comandaDonoId)) {
           return {
             ...c,
             itens: c.itens.map((it) => {
@@ -1358,10 +1364,10 @@ function App() {
           }, ...prev,
         ]);
 
-        setComandas((prev) => prev.filter((c) => c.id !== comanda.id));
-        await removerComandaDaNuvem(comanda.id);
+        setComandas((prev) => prev.filter((c) => !mesmoComandaId(c.id, comanda.id)));
+        removerComandaDaNuvem(comanda.id);
 
-        if (comandaAtivaId === comanda.id) {
+        if (mesmoComandaId(comandaAtivaId, comanda.id)) {
           setComandaAtivaId(null);
           setModoPagamento(false);
         }
@@ -1385,7 +1391,7 @@ function App() {
       dispararMensagem('Validação', validacao.erro);
       return;
     }
-    const novoId = Date.now() + Math.floor(Math.random() * 1000);
+    const novoId = String(Date.now() + Math.floor(Math.random() * 1000));
     registrarNovoClienteNaBase(validacao.nome);
     setComandas(prev => [...prev, { id: novoId, nome: validacao.nome, status: 'Aberto', itens: [] }]);
     setComandaAtivaId(novoId);
@@ -1425,21 +1431,21 @@ function App() {
 
   function realizarDivisao(item, comandasSelecionadas) {
     const splitGroupId = 'split_' + Date.now();
-    const todasEnvolvidas = [comandaAtivaId, ...comandasSelecionadas];
+    const todasEnvolvidas = [comandaAtivaId, ...comandasSelecionadas].map(normalizarComandaId);
     const totalPessoas = todasEnvolvidas.length;
     const novaQtd = parseFloat((item.qtd / totalPessoas).toFixed(4));
-    const nomesTexto = comandas.filter((c) => todasEnvolvidas.includes(c.id)).map((c) => c.nome).join(', ');
+    const nomesTexto = comandas.filter((c) => todasEnvolvidas.includes(normalizarComandaId(c.id))).map((c) => c.nome).join(', ');
 
     setComandas((prev) =>
       prev.map((c) => {
-        if (!todasEnvolvidas.includes(c.id)) return c;
+        if (!todasEnvolvidas.includes(normalizarComandaId(c.id))) return c;
         const splitItem = {
           idProd: item.idProd, nome: `${item.nome.split(' (Dividido')[0]} (Dividido entre: ${nomesTexto})`,
           precoCusto: item.precoCusto, preco: item.preco, qtd: novaQtd, splitGroupId: splitGroupId,
         };
 
         const itensCopia = [...c.itens];
-        if (c.id === comandaAtivaId) {
+        if (mesmoComandaId(c.id, comandaAtivaId)) {
           const idx = itensCopia.findIndex((it) => it.idProd === item.idProd && !it.splitGroupId);
           if (idx >= 0) itensCopia[idx] = splitItem;
         } else {
@@ -1518,8 +1524,8 @@ function App() {
         } catch (error) { console.error(error); }
 
         setComandaRecemPaga({ ...comandaAtual });
-        setComandas((prev) => prev.filter((x) => x.id !== comandaAtivaId));
-        await removerComandaDaNuvem(comandaAtivaId);
+        setComandas((prev) => prev.filter((x) => !mesmoComandaId(x.id, comandaAtivaId)));
+        removerComandaDaNuvem(comandaAtivaId);
         setComandaAtivaId(null);
         setModoPagamento(false);
         setMostrarMultiFormas(false);
@@ -1577,8 +1583,8 @@ function App() {
 
         // 🛠️ FIX CEO: Removido o código super duplicado que estava aqui limpando as mesas 2 vezes seguidas
         setComandaRecemPaga({ ...comandaAtual });
-        setComandas((prev) => prev.filter((x) => x.id !== comandaAtivaId));
-        await removerComandaDaNuvem(comandaAtivaId);
+        setComandas((prev) => prev.filter((x) => !mesmoComandaId(x.id, comandaAtivaId)));
+        removerComandaDaNuvem(comandaAtivaId);
         setComandaAtivaId(null);
         setModoPagamento(false);
         setMostrarMultiFormas(false);
@@ -2194,17 +2200,17 @@ function App() {
             </div>
 
             <div style={{ maxHeight: '180px', overflowY: 'auto', background: '#090f17', padding: '12px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #1e293b' }}>
-              {comandas.filter((c) => c.id !== comandaAtual.id).length === 0 ? (
+              {comandas.filter((c) => !mesmoComandaId(c.id, comandaAtual.id)).length === 0 ? (
                 <span style={{ color: '#64748b', fontSize: '13px', display: 'block', textAlign: 'center', padding: '15px' }}>Nenhuma outra comanda ativa aberta para realizar a divisão.</span>
               ) : (
-                comandas.filter((c) => c.id !== comandaAtual.id).map((c) => (
+                comandas.filter((c) => !mesmoComandaId(c.id, comandaAtual.id)).map((c) => (
                     <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', cursor: 'pointer', color: '#cbd5e1', fontSize: '14px', borderBottom: '1px dashed #1e293b' }}>
                       <input
                         type="checkbox" value={c.id} style={{ width: 'auto', margin: 0 }}
-                        checked={comandasSelecionadasSplit.includes(c.id)}
+                        checked={comandasSelecionadasSplit.includes(normalizarComandaId(c.id))}
                         onChange={(e) => {
-                          const val = Number(e.target.value);
-                          setComandasSelecionadasSplit((prev) => e.target.checked ? [...prev, val] : prev.filter((id) => id !== val) );
+                          const val = normalizarComandaId(e.target.value);
+                          setComandasSelecionadasSplit((prev) => e.target.checked ? [...prev, val] : prev.filter((id) => !mesmoComandaId(id, val)));
                         }}
                       />
                       <span>{c.nome} (Mesa #{c.id})</span>
