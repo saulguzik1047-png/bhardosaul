@@ -12,6 +12,7 @@ export function PDV({
   categoriaAtiva,
   setCategoriaAtiva,
   relatorioProdutos,
+  vendas,
   busca,
   setBusca,
   mostrarSugestoes,
@@ -39,6 +40,11 @@ export function PDV({
   nomeSoftware
 }) {
   const mesmoComandaId = (a, b) => String(a ?? '') === String(b ?? '');
+  const normalizarNomeProduto = (nome) => String(nome || '')
+    .replace(/\s*\(Dividido entre:.*\)$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
   const [tecladoComandaAberto, setTecladoComandaAberto] = React.useState(false);
 
   const parseMoedaBR = (valor) => {
@@ -93,14 +99,31 @@ export function PDV({
       ? produtos
       : produtos.filter((p) => normalizarCategoria(p.category) === normalizarCategoria(categoriaAtiva));
 
-  const vendasPorProduto = relatorioProdutos.reduce((acc, rp) => {
-    acc[rp.nome] = (acc[rp.nome] || 0) + (rp.qtd || 0);
-    return acc;
-  }, {});
+  const vendasPorProduto = {};
+
+  (vendas || []).forEach((venda) => {
+    const itens = Array.isArray(venda?.itensConsumidos) ? venda.itensConsumidos : [];
+    itens.forEach((item) => {
+      const chave = normalizarNomeProduto(item?.nome);
+      if (!chave) return;
+      const qtd = Number(item?.qtd || 0);
+      vendasPorProduto[chave] = (vendasPorProduto[chave] || 0) + (Number.isFinite(qtd) ? qtd : 0);
+    });
+  });
+
+  (relatorioProdutos || []).forEach((rp) => {
+    const chave = normalizarNomeProduto(rp?.nome);
+    if (!chave) return;
+    const qtd = Number(rp?.qtd || 0);
+    vendasPorProduto[chave] = (vendasPorProduto[chave] || 0) + (Number.isFinite(qtd) ? qtd : 0);
+  });
 
   if (categoriaAtiva === 'Todos') {
     produtosFiltrados = [...produtosFiltrados].sort((a, b) => {
-      return (vendasPorProduto[b.nome] || 0) - (vendasPorProduto[a.nome] || 0);
+      const totalB = vendasPorProduto[normalizarNomeProduto(b.nome)] || 0;
+      const totalA = vendasPorProduto[normalizarNomeProduto(a.nome)] || 0;
+      if (totalB !== totalA) return totalB - totalA;
+      return a.nome.localeCompare(b.nome, 'pt-BR');
     });
   }
 

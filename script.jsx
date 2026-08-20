@@ -1840,6 +1840,7 @@ function App() {
           categoriaAtiva={categoriaAtiva}
           setCategoriaAtiva={setCategoriaAtiva}
           relatorioProdutos={relatorioProdutos}
+          vendas={vendas}
           busca={busca}
           setBusca={setBusca}
           mostrarSugestoes={mostrarSugestoes}
