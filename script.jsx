@@ -765,8 +765,16 @@ function App() {
 
   async function removerComandaDaNuvem(id) {
     if (!supabaseClient) return;
-    const { error } = await supabaseClient.from('comandas').delete().eq('id', idComandaParaBanco(id));
-    if (error) console.warn('Não foi possível remover a comanda da nuvem:', error);
+    // 🛠️ FIX CEO: Marca como pendente para o polling periódico (a cada 4s) não
+    // buscar a comanda antiga na nuvem antes da exclusão terminar e "ressuscitá-la"
+    // localmente (era o motivo de comandas fechadas/pagas voltarem a aparecer).
+    upsertComandasPendenteRef.current = true;
+    try {
+      const { error } = await supabaseClient.from('comandas').delete().eq('id', idComandaParaBanco(id));
+      if (error) console.warn('Não foi possível remover a comanda da nuvem:', error);
+    } finally {
+      upsertComandasPendenteRef.current = false;
+    }
   }
 
   React.useEffect(() => {
