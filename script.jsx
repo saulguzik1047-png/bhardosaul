@@ -381,6 +381,8 @@ function App() {
   const [novoNomeCategoriaGerenciar, setNovoNomeCategoriaGerenciar] = React.useState('');
   const [modalDividir, setModalDividir] = React.useState(null);
   const [comandasSelecionadasSplit, setComandasSelecionadasSplit] = React.useState([]);
+  const [modalPagamentoParcial, setModalPagamentoParcial] = React.useState(null);
+  const [itensPagamentoParcial, setItensPagamentoParcial] = React.useState({});
 
   React.useEffect(() => {
     if (caixaDialogo?.tipo === 'gerenciar_categoria') {
@@ -1295,8 +1297,159 @@ function App() {
     });
   }
 
-  function tratarRemoverSplit(item, comandaDono) {
-    setCaixaDialogo({
+  async function diminuirQtdItemNaComanda(item) {
+    if (!comandaAtual || !item) return;
+    const qtdAtual = Number(item.qtd || 0);
+    if (item.splitGroupId) return;
+    if (qtdAtual <= 1) {
+      removerItemNaComanda(item.idProd);
+      return;
+    }
+
+    setProdutos((prev) => {
+      const prodAtual = prev.find((p) => p.id === item.idProd);
+      if (!prodAtual) return prev;
+      const novoEst = (prodAtual.estoque || 0) + 1;
+      try { supabaseClient?.from('produtos').update({ estoque: novoEst }).eq('id', item.idProd); } catch (err) { console.warn('Nuvem offline:', err); }
+      return prev.map((p) => p.id === item.idProd ? { ...p, estoque: novoEst } : p);
+    });
+
+    setComandas((prev) => prev.map((c) => {
+      if (!mesmoComandaId(c.id, comandaAtivaId)) return c;
+      return {
+        ...c,
+        itens: c.itens.map((i) => (i.idProd === item.idProd && !i.splitGroupId) ? { ...i, qtd: i.qtd - 1 } : i),
+      };
+    }));
+
+    const detalhes = { id_comanda: comandaAtual.id, nome_cliente: comandaAtual.nome, produto: item.nome, quantidade: 1 };
+
+    setLogsAuditoria((prev) => [{
+      id: Date.now(), data: new Date().toISOString(), tipo: 'Ajuste de Quantidade',
+      operador: usuarioLogado ? usuarioLogado.usuario : 'Admin', motivo: 'Baixa de 1 unidade', detalhes,
+    }, ...prev]);
+
+    try {
+      await supabaseClient?.from('auditoria_cancelamentos').insert([{
+        operador: usuarioLogado ? usuarioLogado.usuario : 'Admin', tipo: 'Ajuste de Quantidade',
+        motivo: 'Baixa de 1 unidade', data: new Date().toISOString(), detalhes,
+      }]);
+    } catch (err) { console.warn('Nuvem offline:', err); }
+  }
+
+  function iniciarPagamentoParcial() {
+    if (!comandaAtual || comandaAtual.itens.length === 0) return;
+    setItensPagamentoParcial({});
+    setModalPagamentoParcial({ comandaId: comandaAtual.id });
+  }
+
+  function ajustarQtdPagamentoParcial(index, delta) {
+    const item = comandaAtual?.itens?.[index];
+    if (!item) return;
+    const max = Number(item.qtd || 0);
+    // itens divididos não podem ser fracionados de novo: paga tudo ou nada
+    const passo = Number.isInteger(max) ? 1 : max;
+    setItensPagamentoParcial((prev) => {
+      const novo = Math.min(max, Math.max(0, Number(prev[index] || 0) + delta * passo));
+      return { ...prev, [index]: parseFloat(novo.toFixed(4)) };
+    });
+  }
+
+  function obterItensPagamentoParcial() {
+    if (!comandaAtual) return [];
+    return comandaAtual.itens
+      .map((item, idx) => ({ ...item, qtd: Number(itensPagamentoParcial[idx] || 0) }))
+      .filter((item) => item.qtd > 0);
+  }
+
+  async function confirmarPagamentoParcial(tipo) {
+    const selecionados = obterItensPagamentoParcial();
+    if (!comandaAtual || selecionados.length === 0) return;
+
+    const comandaAlvo = comandaAtual;
+    const totalParcial = calcularTotal(selecionados);
+    const itensFormatados = selecionados.map((i) => ({ nome: i.nome, qtd: i.qtd, preco: i.preco }));
+    const rotuloPagamento = `${tipo.toUpperCase()} (PARCIAL)`;
+
+    const restantes = comandaAlvo.itens
+      .map((item, idx) => ({ ...item, qtd: parseFloat((Number(item.qtd || 0) - Number(itensPagamentoParcial[idx] || 0)).toFixed(4)) }))
+      .filter((item) => item.qtd > 0.0001);
+
+    setModalPagamentoParcial(null);
+    setItensPagamentoParcial({});
+
+    registrarProdutosVendidos(selecionados);
+
+    if (tipo === 'fiado') {
+      const idCredGerado = Date.now();
+      setCrediarios((prev) => [...prev, {
+        idCred: idCredGerado, data: new Date().toLocaleString('pt-BR'), cliente: comandaAlvo.nome,
+        total: totalParcial, status: 'Pendente', itensConsumidos: itensFormatados,
+      }]);
+      try {
+        await supabaseClient?.from('crediarios').insert([{
+          id_cred: idCredGerado, data: new Date().toLocaleString('pt-BR'), cliente: comandaAlvo.nome,
+          total: totalParcial, status: 'Pendente', itens_consumidos: itensFormatados,
+        }]);
+      } catch (err) { console.warn('Fiado parcial salvo apenas localmente:', err); }
+    }
+
+    setVendas((prev) => [...prev, {
+      idVenda: Date.now(), data: new Date().toLocaleString('pt-BR'), cliente: comandaAlvo.nome,
+      total: totalParcial, pagamento: rotuloPagamento, itensConsumidos: itensFormatados,
+    }]);
+
+    try {
+      await supabaseClient?.from('vendas').insert([{
+        data: new Date().toLocaleString('pt-BR'), cliente: comandaAlvo.nome, total: totalParcial,
+        pagamento: rotuloPagamento, itens_consumidos: itensFormatados,
+      }]);
+    } catch (err) { console.warn('Venda parcial registrada apenas localmente:', err); }
+
+    imprimirReciboParcial(comandaAlvo, selecionados, totalParcial, rotuloPagamento, calcularTotal(restantes));
+
+    if (restantes.length === 0) {
+      setComandaRecemPaga({ ...comandaAlvo, itens: selecionados });
+      setComandas((prev) => prev.filter((c) => !mesmoComandaId(c.id, comandaAlvo.id)));
+      removerComandaDaNuvem(comandaAlvo.id);
+      setComandaAtivaId(null);
+      setModoPagamento(false);
+      setMostrarMultiFormas(false);
+      dispararMensagem('Sucesso', `Último pagamento parcial recebido (${formatarMoeda(totalParcial)}). A comanda foi encerrada e a mesa liberada.`);
+      return;
+    }
+
+    setComandas((prev) => prev.map((c) => mesmoComandaId(c.id, comandaAlvo.id) ? { ...c, itens: restantes } : c));
+    dispararMensagem('Pagamento Parcial', `Recebido ${formatarMoeda(totalParcial)} via ${tipo.toUpperCase()}.\nRestam ${formatarMoeda(calcularTotal(restantes))} na comanda de ${comandaAlvo.nome}.`);
+  }
+
+  function imprimirReciboParcial(comanda, itensPagos, totalPago, rotuloPagamento, saldoRestante) {
+    let htmlCupom = `
+      <div class="center">
+        <div class="title">${nomeSoftware}</div>
+        <div>DOCUMENTO NÃO FISCAL</div>
+        <div>PAGAMENTO PARCIAL</div>
+        <div class="linha"></div>
+      </div>
+      <div><strong>Data:</strong> ${new Date().toLocaleString('pt-BR')}</div>
+      <div><strong>Cliente:</strong> ${comanda.nome} (Mesa #${comanda.id})</div>
+      <div class="linha"></div>
+      <div><strong>ITENS PAGOS:</strong></div><div style="margin-top: 5px;">
+    `;
+    itensPagos.forEach((i) => {
+      htmlCupom += `<div class="flex item"><span>${i.qtd}x ${i.nome}</span><span>${formatarMoeda(i.preco * i.qtd)}</span></div>`;
+    });
+    htmlCupom += `
+      </div><div class="linha"></div>
+      <div class="flex bold" style="font-size: 15px;"><span>TOTAL PAGO:</span><span>${formatarMoeda(totalPago)}</span></div>
+      <div class="flex"><span>Forma:</span><span>${rotuloPagamento}</span></div>
+      <div class="flex bold"><span>SALDO NA COMANDA:</span><span>${formatarMoeda(saldoRestante)}</span></div>
+      <div class="linha"></div><div class="center" style="margin-top: 15px;">-</div>
+    `;
+    gerarImpressaoTermica(htmlCupom);
+  }
+
+  function tratarRemoverSplit(item, comandaDono) {    setCaixaDialogo({
       titulo: 'Estorno de Item Dividido',
       mensagem: `O item "${item.nome}" foi compartilhado entre comandas.\n\nEscolha como deseja prosseguir com a exclusão:`,
       confirmTxt: 'Excluir de todas as comandas',
@@ -1869,6 +2022,8 @@ function App() {
           iniciarDivisaoItem={iniciarDivisaoItem}
           tratarRemoverSplit={tratarRemoverSplit}
           removerItemNaComanda={removerItemNaComanda}
+          diminuirQtdItemNaComanda={diminuirQtdItemNaComanda}
+          iniciarPagamentoParcial={iniciarPagamentoParcial}
           imprimirComandaConferencia={imprimirComandaConferencia}
           cancelarComanda={cancelarComanda}
           buscaContainerRef={buscaContainerRef}
@@ -2225,6 +2380,71 @@ function App() {
               <button type="button" className="btn-dialog-confirm" style={{ background: '#0284c7' }} disabled={comandasSelecionadasSplit.length === 0} onClick={() => realizarDivisao(modalDividir.item, comandasSelecionadasSplit)}>
                 Confirmar Rateio ({comandasSelecionadasSplit.length + 1} partes)
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalPagamentoParcial && comandaAtual && (
+        <div className="custom-dialog-overlay">
+          <div className="custom-dialog-box" style={{ maxWidth: '520px' }}>
+            <div className="custom-dialog-title" style={{ color: '#22c55e' }}>
+              <i className="fas fa-hand-holding-usd"></i>
+              <span>Pagamento Parcial: {comandaAtual.nome}</span>
+            </div>
+            <div className="custom-dialog-message" style={{ marginBottom: '15px' }}>
+              Selecione a quantidade de cada item que este cliente vai pagar agora. O restante continua na comanda.
+            </div>
+
+            <div style={{ maxHeight: '260px', overflowY: 'auto', background: '#090f17', padding: '12px', borderRadius: '8px', marginBottom: '15px', border: '1px solid #1e293b' }}>
+              {comandaAtual.itens.map((item, idx) => {
+                const selecionada = Number(itensPagamentoParcial[idx] || 0);
+                return (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px dashed #1e293b', color: '#cbd5e1', fontSize: '14px' }}>
+                    <div style={{ flex: 1 }}>
+                      <div>{item.nome}</div>
+                      <small style={{ color: '#64748b' }}>Na comanda: {item.qtd} • {formatarMoeda(item.preco)} un.</small>
+                    </div>
+                    <button type="button" onClick={() => ajustarQtdPagamentoParcial(idx, -1)} disabled={selecionada <= 0}
+                      style={{ width: '38px', height: '38px', borderRadius: '8px', border: '1px solid #475569', background: '#1e293b', color: '#f8fafc', fontSize: '18px', fontWeight: 'bold', cursor: selecionada <= 0 ? 'not-allowed' : 'pointer' }}>−</button>
+                    <strong style={{ minWidth: '34px', textAlign: 'center', color: selecionada > 0 ? '#22c55e' : '#64748b' }}>{selecionada}</strong>
+                    <button type="button" onClick={() => ajustarQtdPagamentoParcial(idx, 1)} disabled={selecionada >= Number(item.qtd)}
+                      style={{ width: '38px', height: '38px', borderRadius: '8px', border: '1px solid #475569', background: '#1e293b', color: '#f8fafc', fontSize: '18px', fontWeight: 'bold', cursor: selecionada >= Number(item.qtd) ? 'not-allowed' : 'pointer' }}>+</button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '17px', fontWeight: 'bold', color: '#f8fafc', marginBottom: '12px' }}>
+              <span>Total selecionado:</span>
+              <span style={{ color: '#22c55e' }}>{formatarMoeda(calcularTotal(obterItensPagamentoParcial()))}</span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '15px' }}>
+              {[
+                { tipo: 'dinheiro', rotulo: '💵 Dinheiro' },
+                { tipo: 'pix', rotulo: '⚡ Pix' },
+                { tipo: 'cartão', rotulo: '💳 Cartão' },
+                { tipo: 'fiado', rotulo: '📙 Fiado' },
+              ].map(({ tipo, rotulo }) => (
+                <button
+                  key={tipo}
+                  type="button"
+                  disabled={obterItensPagamentoParcial().length === 0}
+                  onClick={() => confirmarPagamentoParcial(tipo)}
+                  style={{
+                    padding: '14px 10px', fontSize: '14px', fontWeight: 'bold', borderRadius: '8px', border: 'none',
+                    background: obterItensPagamentoParcial().length === 0 ? '#334155' : '#0f766e', color: '#f8fafc',
+                    cursor: obterItensPagamentoParcial().length === 0 ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {rotulo}
+                </button>
+              ))}
+            </div>
+
+            <div className="custom-dialog-buttons">
+              <button type="button" className="btn-dialog-cancel" onClick={() => { setModalPagamentoParcial(null); setItensPagamentoParcial({}); }}>Cancelar</button>
             </div>
           </div>
         </div>

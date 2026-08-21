@@ -34,6 +34,8 @@ export function PDV({
   iniciarDivisaoItem,
   tratarRemoverSplit,
   removerItemNaComanda,
+  diminuirQtdItemNaComanda,
+  iniciarPagamentoParcial,
   imprimirComandaConferencia,
   cancelarComanda,
   buscaContainerRef,
@@ -519,6 +521,22 @@ export function PDV({
                                 {formatarMoeda(item.preco * item.qtd)}
                               </span>
   
+                              {!item.splitGroupId && item.qtd > 1 && (
+                                <button
+                                  className="btn-remove-item"
+                                  style={{
+                                    color: 'var(--blue)',
+                                    marginRight: '4px',
+                                    padding: '1px 5px',
+                                    fontWeight: 'bold'
+                                  }}
+                                  onClick={() => diminuirQtdItemNaComanda(item)}
+                                  title="Remover 1 unidade"
+                                >
+                                  <i className="fas fa-minus" style={{ fontSize: '10px' }}></i>
+                                </button>
+                              )}
+
                               {podeDividir && !item.splitGroupId && (
                                 <button
                                   className="btn-remove-item"
@@ -594,16 +612,25 @@ export function PDV({
                       <i className="fas fa-trash-alt"></i> Excluir Comanda
                     </button>
                   ) : (
-                    <button
-                      className="btn-finalizar"
-                      style={{ padding: '10px', fontSize: '13px', borderRadius: '6px', width: '100%' }}
-                      onClick={() => {
-                        setModoPagamento(true);
-                        setBusca('');
-                      }}
-                    >
-                      <i className="fas fa-cash-register"></i> Fechar Comanda
-                    </button>
+                    <>
+                      <button
+                        className="btn-finalizar"
+                        style={{ padding: '10px', fontSize: '13px', borderRadius: '6px', width: '100%' }}
+                        onClick={() => {
+                          setModoPagamento(true);
+                          setBusca('');
+                        }}
+                      >
+                        <i className="fas fa-cash-register"></i> Fechar Comanda
+                      </button>
+                      <button
+                        className="btn-finalizar"
+                        style={{ background: '#0f766e', padding: '10px', fontSize: '13px', borderRadius: '6px', width: '100%', marginTop: '6px' }}
+                        onClick={iniciarPagamentoParcial}
+                      >
+                        <i className="fas fa-hand-holding-usd"></i> Pagamento Parcial
+                      </button>
+                    </>
                   )
                 ) : (
                   <div
