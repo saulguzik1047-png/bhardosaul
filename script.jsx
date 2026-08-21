@@ -1815,6 +1815,36 @@ function App() {
     }, 2500);
   }
 
+  async function adicionarLancamentoCrediario(cliente, valor, descricao) {
+    const nomeCliente = String(cliente || '').trim();
+    const valorLancado = Number(valor) || 0;
+    if (!nomeCliente || valorLancado <= 0) {
+      dispararMensagem('Dados inválidos', 'Informe o nome do cliente e um valor maior que zero.');
+      return;
+    }
+
+    const textoDescricao = String(descricao || '').trim() || 'Saldo devedor em dinheiro';
+    const idCredGerado = Date.now();
+    const itens = [{ nome: textoDescricao, qtd: 1, preco: valorLancado }];
+    const dataFormatada = new Date().toLocaleString('pt-BR');
+
+    setCrediarios((prev) => [...prev, {
+      idCred: idCredGerado, data: dataFormatada, cliente: nomeCliente,
+      total: valorLancado, status: 'Pendente', itensConsumidos: itens,
+    }]);
+
+    registrarNovoClienteNaBase(nomeCliente);
+
+    try {
+      await supabaseClient?.from('crediarios').insert([{
+        id_cred: idCredGerado, data: dataFormatada, cliente: nomeCliente,
+        total: valorLancado, status: 'Pendente', itens_consumidos: itens,
+      }]);
+    } catch (err) { console.warn('Lançamento salvo apenas localmente:', err); }
+
+    dispararMensagem('Lançamento Adicionado', `${formatarMoeda(valorLancado)} (${textoDescricao}) foi adicionado à conta de ${nomeCliente}.`);
+  }
+
   function liquidarVáriasComandasCrediario(comandasArray, cliente, metodo) {
     let totalDivida = comandasArray.reduce((acc, c) => acc + c.total, 0);
 
@@ -2090,6 +2120,8 @@ function App() {
           crediarios={crediarios}
           setCaixaDialogo={setCaixaDialogo}
           liquidarVáriasComandasCrediario={liquidarVáriasComandasCrediario}
+          adicionarLancamentoCrediario={adicionarLancamentoCrediario}
+          clientesCadastrados={clientesCadastrados}
         />
       )}
       {telaAtual === 'seguranca' && autenticado && usuarioLogado && usuarioLogado.perfil === 'admin' && (

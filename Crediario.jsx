@@ -4,11 +4,30 @@ import { formatarMoeda } from './formatadores.js';
 export function Crediario({
   crediarios,
   setCaixaDialogo,
-  liquidarVáriasComandasCrediario
+  liquidarVáriasComandasCrediario,
+  adicionarLancamentoCrediario,
+  clientesCadastrados = []
 }) {
   const [buscaCrediario, setBuscaCrediario] = React.useState('');
   const [expandedCliente, setExpandedCliente] = React.useState(null);
   const [expandedClientePago, setExpandedClientePago] = React.useState(null);
+  const [modalLancamento, setModalLancamento] = React.useState(null);
+
+  const parseMoedaBR = (valor) => {
+    const somenteNumeros = String(valor || '').replace(/[^\d]/g, '');
+    return somenteNumeros ? Number(somenteNumeros) / 100 : 0;
+  };
+
+  const abrirLancamento = (cliente = '') => {
+    setModalLancamento({ cliente, valor: '', descricao: '' });
+  };
+
+  const confirmarLancamento = () => {
+    const valor = parseMoedaBR(modalLancamento.valor);
+    if (!modalLancamento.cliente.trim() || valor <= 0) return;
+    adicionarLancamentoCrediario(modalLancamento.cliente, valor, modalLancamento.descricao);
+    setModalLancamento(null);
+  };
 
   const pendentes = crediarios.filter((c) => c.status === 'Pendente');
   const pagas = crediarios.filter((c) => c.status === 'Pago');
@@ -75,6 +94,14 @@ export function Crediario({
   return (
     <div className="single-container">
       <h2>Livro Negro de Penduras (Controle de Crediário)</h2>
+
+      <button
+        type="button"
+        onClick={() => abrirLancamento()}
+        style={{ background: '#d97706', color: 'white', border: 'none', padding: '12px 18px', fontSize: '14px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer', marginBottom: '12px' }}
+      >
+        <i className="fas fa-plus-circle" style={{ marginRight: '6px' }}></i>Adicionar Saldo Devedor
+      </button>
 
       <input
         type="text"
@@ -205,6 +232,23 @@ export function Crediario({
                         onClick={() => abrirOpcoesPagamento(g)}
                       >
                         <i className="fas fa-hand-holding-usd"></i> Quitar Conta
+                      </button>
+                      <button
+                        style={{
+                          background: '#d97706',
+                          color: 'white',
+                          border: 'none',
+                          padding: '10px',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          width: '100%',
+                          marginTop: '8px'
+                        }}
+                        onClick={() => abrirLancamento(g.cliente)}
+                      >
+                        <i className="fas fa-plus"></i> Adicionar Saldo
                       </button>
                     </td>
                   </tr>
@@ -361,6 +405,71 @@ export function Crediario({
           </table>
         </div>
       </div>
+
+      {modalLancamento && (
+        <div className="custom-dialog-overlay">
+          <div className="custom-dialog-box" style={{ maxWidth: '460px' }}>
+            <div className="custom-dialog-title" style={{ color: '#f59e0b' }}>
+              <i className="fas fa-plus-circle"></i>
+              <span>Adicionar Saldo Devedor</span>
+            </div>
+            <div className="custom-dialog-message" style={{ marginBottom: '15px' }}>
+              Lance um valor avulso na conta do cliente (dinheiro retirado, taxa, ajuste).
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+              <input
+                type="text"
+                className="dark-input-field"
+                list="clientes-crediario"
+                placeholder="Nome do cliente..."
+                style={{ textAlign: 'left', background: '#ffffff', color: '#111827', border: '1px solid #cbd5e1' }}
+                value={modalLancamento.cliente}
+                onChange={(e) => setModalLancamento((prev) => ({ ...prev, cliente: e.target.value }))}
+                autoFocus
+              />
+              <datalist id="clientes-crediario">
+                {clientesCadastrados.map((c) => <option key={c.nome} value={c.nome} />)}
+              </datalist>
+
+              <input
+                type="text"
+                inputMode="decimal"
+                className="dark-input-field"
+                placeholder="R$ 0,00"
+                style={{ textAlign: 'left', background: '#ffffff', color: '#111827', border: '1px solid #cbd5e1' }}
+                value={modalLancamento.valor}
+                onChange={(e) => {
+                  const numero = parseMoedaBR(e.target.value);
+                  setModalLancamento((prev) => ({ ...prev, valor: numero ? numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '' }));
+                }}
+              />
+
+              <input
+                type="text"
+                className="dark-input-field"
+                placeholder="Descrição (ex: Saldo devedor em dinheiro)"
+                style={{ textAlign: 'left', background: '#ffffff', color: '#111827', border: '1px solid #cbd5e1' }}
+                value={modalLancamento.descricao}
+                onChange={(e) => setModalLancamento((prev) => ({ ...prev, descricao: e.target.value }))}
+              />
+            </div>
+
+            <div className="custom-dialog-buttons">
+              <button type="button" className="btn-dialog-cancel" onClick={() => setModalLancamento(null)}>Cancelar</button>
+              <button
+                type="button"
+                className="btn-dialog-confirm"
+                style={{ background: '#d97706' }}
+                disabled={!modalLancamento.cliente.trim() || parseMoedaBR(modalLancamento.valor) <= 0}
+                onClick={confirmarLancamento}
+              >
+                Adicionar Saldo Devedor
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
