@@ -892,6 +892,22 @@ function App() {
 
         const { data: logs } = (await supabaseClient?.from('auditoria_cancelamentos').select('*').order('data', { ascending: false })) || {};
         if (logs) setLogsAuditoria(logs);
+
+        const { data: creds } = (await supabaseClient?.from('crediarios').select('*')) || {};
+        if (creds && creds.length > 0) {
+          const crediariosNuvem = creds.map((c) => ({
+            idCred: c.id_cred, data: c.data, cliente: c.cliente,
+            total: Number(c.total || 0), status: c.status || 'Pendente',
+            itensConsumidos: c.itens_consumidos || [], pagamentos: c.pagamentos || [],
+          }));
+
+          setCrediarios((prev) => {
+            const mapa = new Map();
+            for (const c of Array.isArray(prev) ? prev : []) mapa.set(String(c.idCred), c);
+            for (const c of crediariosNuvem) mapa.set(String(c.idCred), c);
+            return Array.from(mapa.values());
+          });
+        }
       } catch (err) {
         console.error('Erro ao carregar dados da nuvem, rodando local offline:', err);
       }

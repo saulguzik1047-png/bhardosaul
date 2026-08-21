@@ -29,21 +29,33 @@ export function Crediario({
     setModalLancamento(null);
   };
 
-  const pendentes = crediarios.filter((c) => c.status === 'Pendente');
-  const pagas = crediarios.filter((c) => c.status === 'Pago');
+  // registros antigos/da nuvem podem vir sem status ou com grafia diferente
+  const statusNormalizado = (c) => {
+    const bruto = String(c?.status || '').trim().toLowerCase();
+    if (bruto === 'pago' || bruto === 'quitado') return 'Pago';
+    if (bruto === 'pendente' || bruto === 'aberto') return 'Pendente';
+    return Number(c?.total || 0) > 0 ? 'Pendente' : 'Pago';
+  };
+
+  const nomeDoCliente = (c) => String(c?.cliente || '').trim() || 'Sem nome';
+
+  const listaCrediarios = Array.isArray(crediarios) ? crediarios : [];
+  const pendentes = listaCrediarios.filter((c) => statusNormalizado(c) === 'Pendente');
+  const pagas = listaCrediarios.filter((c) => statusNormalizado(c) === 'Pago');
 
   const pendentesAgrupados = [];
   pendentes.forEach((c) => {
+    const cliente = nomeDoCliente(c);
     const existente = pendentesAgrupados.find(
-      (g) => g.cliente.toLowerCase() === c.cliente.toLowerCase()
+      (g) => g.cliente.toLowerCase() === cliente.toLowerCase()
     );
     if (existente) {
-      existente.total += c.total;
+      existente.total += Number(c.total || 0);
       existente.comandas.push(c);
     } else {
       pendentesAgrupados.push({
-        cliente: c.cliente,
-        total: c.total,
+        cliente,
+        total: Number(c.total || 0),
         comandas: [c],
       });
     }
@@ -51,19 +63,20 @@ export function Crediario({
 
   const pagasAgrupadas = [];
   pagas.forEach((c) => {
-    const valorPago = c.pagamentos
-      ? c.pagamentos.reduce((acc, p) => acc + p.valor, 0)
+    const cliente = nomeDoCliente(c);
+    const valorPago = Array.isArray(c.pagamentos)
+      ? c.pagamentos.reduce((acc, p) => acc + Number(p?.valor || 0), 0)
       : 0;
 
     const existente = pagasAgrupadas.find(
-      (g) => g.cliente.toLowerCase() === c.cliente.toLowerCase()
+      (g) => g.cliente.toLowerCase() === cliente.toLowerCase()
     );
     if (existente) {
       existente.total += valorPago;
       existente.comandas.push({ ...c, valorPagoTotal: valorPago });
     } else {
       pagasAgrupadas.push({
-        cliente: c.cliente,
+        cliente,
         total: valorPago,
         comandas: [{ ...c, valorPagoTotal: valorPago }],
       });
