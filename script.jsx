@@ -389,7 +389,7 @@ function App() {
       const categoriaInicial = caixaDialogo.categoriaInicial || caixaDialogo.categorias?.[0] || '';
       setCategoriaGerenciarSelecionada(categoriaInicial);
       setNovoNomeCategoriaGerenciar(categoriaInicial);
-    } else if (caixaDialogo?.tipo === 'prompt_categoria') {
+    } else if (caixaDialogo?.tipo === 'prompt_categoria' || caixaDialogo?.tipo === 'selecionar_categoria') {
       setPromptVal(caixaDialogo.valorInicial || '');
       setPromptValDivisivel(false);
     } else if (!caixaDialogo) {
@@ -2238,6 +2238,41 @@ function App() {
               </div>
             )}
 
+            {caixaDialogo.tipo === 'selecionar_categoria' && (
+              <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '8px', maxHeight: '240px', overflowY: 'auto', background: '#090f17', padding: '10px', borderRadius: '8px', border: '1px solid #1e293b' }}>
+                  {(caixaDialogo.categorias || []).map((categoria) => {
+                    const ativa = String(categoria).trim().toLowerCase() === String(promptVal).trim().toLowerCase();
+                    return (
+                      <button
+                        key={categoria}
+                        type="button"
+                        onClick={() => setPromptVal(categoria)}
+                        style={{
+                          padding: '12px 10px', borderRadius: '8px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer',
+                          border: ativa ? '2px solid #22c55e' : '1px solid #334155',
+                          background: ativa ? '#166534' : '#1e293b', color: '#f8fafc',
+                        }}
+                      >
+                        {categoria}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <input
+                  type="text" className="dark-input-field" placeholder="Ou digite uma nova categoria..."
+                  style={{ textAlign: 'left', background: '#ffffff', color: '#111827', border: '1px solid #cbd5e1' }}
+                  value={promptVal} onChange={(e) => setPromptVal(e.target.value)}
+                />
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', color: '#cbd5e1' }}>
+                  <input type="checkbox" style={{ width: 'auto', margin: 0 }} checked={promptValDivisivel} onChange={(e) => setPromptValDivisivel(e.target.checked)} />
+                  <span>Permitir dividir produtos desta categoria nas mesas?</span>
+                </label>
+              </div>
+            )}
+
             {caixaDialogo.tipo === 'motivos_botoes' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
                 {caixaDialogo.botoes.map((motivo) => (
@@ -2330,7 +2365,7 @@ function App() {
                     type="button" className="btn-dialog-confirm"
                     onClick={() => {
                       if (caixaDialogo.tipo === 'prompt' || caixaDialogo.tipo === 'prompt_moeda') caixaDialogo.onConfirm(promptVal);
-                      else if (caixaDialogo.tipo === 'prompt_categoria') caixaDialogo.onConfirm(promptVal, promptValDivisivel);
+                      else if (caixaDialogo.tipo === 'prompt_categoria' || caixaDialogo.tipo === 'selecionar_categoria') caixaDialogo.onConfirm(promptVal, promptValDivisivel);
                       else caixaDialogo.onConfirm();
                       setCaixaDialogo(null);
                     }}

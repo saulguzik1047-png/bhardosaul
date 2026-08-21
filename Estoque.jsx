@@ -107,7 +107,8 @@ export const Estoque = ({
     setCaixaDialogo({
       titulo: 'Editar Categoria',
       mensagem: `Escolha a nova categoria para "${produto.nome}":`,
-      tipo: 'prompt_categoria',
+      tipo: 'selecionar_categoria',
+      categorias: listaCategorias,
       valorInicial: produto.category || '',
       onConfirm: async (nomeCat, divisivel) => {
         const novaCategoria = String(nomeCat || '').trim();
