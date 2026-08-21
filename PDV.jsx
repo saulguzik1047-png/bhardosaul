@@ -195,9 +195,10 @@ export function PDV({
             style={{
               position: 'fixed',
               top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: 'min(720px, calc(100vw - 24px))',
+              right: '16px',
+              left: 'auto',
+              transform: 'translateY(-50%)',
+              width: 'min(720px, calc(100vw - 220px))',
               padding: '16px',
               boxSizing: 'border-box',
               background: '#dbeafe',
