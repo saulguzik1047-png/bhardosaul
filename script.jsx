@@ -477,6 +477,32 @@ function App() {
   const inputBuscaImgRef = React.useRef(null);
   const inputQtdAdicionarRef = React.useRef(null);
 
+  const abrirWhatsAppDireto = React.useCallback((telefone, mensagemTexto) => {
+    const foneLimpo = String(telefone || '').replace(/\D/g, '');
+    if (!foneLimpo) return false;
+
+    const numeroComCodigo = foneLimpo.startsWith('55') ? foneLimpo : `55${foneLimpo}`;
+    const textoCodificado = encodeURIComponent(String(mensagemTexto || ''));
+    const urlApp = `whatsapp://send?phone=${numeroComCodigo}&text=${textoCodificado}`;
+    const urlWeb = `https://api.whatsapp.com/send?phone=${numeroComCodigo}&text=${textoCodificado}`;
+    const userAgent = String(navigator?.userAgent || '').toLowerCase();
+    const isMobile = /android|iphone|ipad|ipod|mobile/.test(userAgent);
+
+    if (isMobile) {
+      const abriuEmApp = Date.now();
+      window.location.href = urlApp;
+      window.setTimeout(() => {
+        if (Date.now() - abriuEmApp < 1800) {
+          window.open(urlWeb, '_blank', 'noopener,noreferrer');
+        }
+      }, 1200);
+      return true;
+    }
+
+    window.open(urlWeb, '_blank', 'noopener,noreferrer');
+    return true;
+  }, []);
+
   const [usuariosSistema, setUsuariosSistema] = React.useState(() => {
     try {
       const salvosUsers = localStorage.getItem('bhar_usuarios_v1');
@@ -1880,11 +1906,10 @@ function App() {
 
           const dadosDoCliente = clientesCadastrados.find((cli) => cli.nome.toLowerCase() === comandaAtual.nome.toLowerCase());
           if (dadosDoCliente && dadosDoCliente.telefone && dadosDoCliente.telefone.trim() !== '') {
-            const foneLimpo = dadosDoCliente.telefone.replace(/\D/g, '');
             const mensagemTexto = `Olá, *${comandaAtual.nome}*! 🍻\nPassando para avisar que uma parte do seu consumo no *${nomeSoftware}* foi lançada no seu Fiado:\n\n` +
               `📙 *Valor no Fiado:* ${formatarMoeda(cr)}\n💰 *Total Geral da Conta:* ${formatarMoeda(totalCobranca)}\n\n_Obrigado e até o próximo rock!_ 🎸`;
-            window.open(`https://api.whatsapp.com/send?phone=55${foneLimpo}&text=${encodeURIComponent(mensagemTexto)}`, '_blank');
-            msgWppStatus = '\n\n📲 Uma aba do WhatsApp foi aberta para enviar o recibo do fiado!';
+            abrirWhatsAppDireto(dadosDoCliente.telefone, mensagemTexto);
+            msgWppStatus = '\n\n📲 O WhatsApp foi aberto para enviar o recibo do fiado!';
           }
         }
 
@@ -1938,11 +1963,10 @@ function App() {
 
           const dadosDoCliente = clientesCadastrados.find((c) => c.nome.toLowerCase() === comandaAtual.nome.toLowerCase());
           if (dadosDoCliente && dadosDoCliente.telefone && dadosDoCliente.telefone.trim() !== '') {
-            const foneLimpo = dadosDoCliente.telefone.replace(/\D/g, '');
             const mensagemTexto = `Olá, *${comandaAtual.nome}*! 🍻\nPassando para avisar que o seu consumo no *${nomeSoftware}* foi fechado e enviado para o seu Fiado:\n\n` +
               `📙 *Valor Adicionado:* ${formatarMoeda(totalCobranca)}\n\n_Qualquer dúvida estamos à disposição! Valeu!_ 🎸`;
-            window.open(`https://api.whatsapp.com/send?phone=55${foneLimpo}&text=${encodeURIComponent(mensagemTexto)}`, '_blank');
-            msgWppStatus = '\n\n📲 Uma aba do WhatsApp foi aberta para notificar o cliente!';
+            abrirWhatsAppDireto(dadosDoCliente.telefone, mensagemTexto);
+            msgWppStatus = '\n\n📲 O WhatsApp foi aberto para notificar o cliente!';
           }
         }
 
@@ -2116,11 +2140,10 @@ function App() {
           let msgWppStatus = '';
 
           if (dadosDoCliente && dadosDoCliente.telefone && dadosDoCliente.telefone.trim() !== '') {
-            const foneLimpo = dadosDoCliente.telefone.replace(/\D/g, '');
             const mensagemTexto = `Olá, *${cliente}*! 🍻\nPassando para confirmar o recebimento do seu pagamento no *${nomeSoftware}*:\n\n` +
               `💰 *Valor Abatido:* ${formatarMoeda(valor)}\n📊 *SITUAÇÃO DA CONTA ATUALIZADA:*\n• Dívida Total Anterior: ${formatarMoeda(totalDivida)}\n• *SALDO DEVEDOR RESTANTE:* *${formatarMoeda(novoSaldoRestante)}*\n\n_Qualquer dúvida, estamos à disposição!_ 🎸`;
-            window.open(`https://api.whatsapp.com/send?phone=55${foneLimpo}&text=${encodeURIComponent(mensagemTexto)}`, '_blank');
-            msgWppStatus = '\n\n📲 Uma aba do WhatsApp Web foi aberta para enviar o recibo parcial!';
+            abrirWhatsAppDireto(dadosDoCliente.telefone, mensagemTexto);
+            msgWppStatus = '\n\n📲 O WhatsApp foi aberto para enviar o recibo parcial!';
           }
 
           setCrediarios(novasComandas);
@@ -2155,11 +2178,10 @@ function App() {
         let msgWppStatus = '';
 
         if (dadosDoCliente && dadosDoCliente.telefone && dadosDoCliente.telefone.trim() !== '') {
-          const foneLimpo = dadosDoCliente.telefone.replace(/\D/g, '');
           const mensagemTexto = `Olá, *${cliente}*! 🍻\nPassando para confirmar o recebimento do seu pagamento no *${nomeSoftware}*:\n\n` +
             `✅ *Valor Pago:* ${formatarMoeda(totalDivida)} (via ${metodo})\n🎉 *SITUAÇÃO DA CONTA:* *TOTALMENTE QUITADA!*\n\n_Seu saldo devedor atual é: R$ 0,00._\n_Obrigado pela preferência, nos vemos no próximo rock!_ 🎸`;
-          window.open(`https://api.whatsapp.com/send?phone=55${foneLimpo}&text=${encodeURIComponent(mensagemTexto)}`, '_blank');
-          msgWppStatus = '\n\n📲 Uma aba do WhatsApp Web foi aberta para notificar a quitação da conta!';
+          abrirWhatsAppDireto(dadosDoCliente.telefone, mensagemTexto);
+          msgWppStatus = '\n\n📲 O WhatsApp foi aberto para notificar a quitação da conta!';
         }
 
         setVendas(prev => [...prev, { idVenda: Date.now(), data: new Date().toLocaleString('pt-BR'), cliente: `Quitação Total Crediário - ${cliente}`, total: totalDivida, pagamento: metodo, itensConsumidos: [{ nome: 'Quitação Total Fiado', qtd: 1, preco: totalDivida }]}]);
