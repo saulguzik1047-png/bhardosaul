@@ -31,6 +31,22 @@ export const Estoque = ({
   const [novoApelido, setNovoApelido] = useState('');
   const [mostrarLeitorCamera, setMostrarLeitorCamera] = useState(false);
   const [filtroCategoria, setFiltroCategoria] = useState('Todos');
+  const uploadNotaDesktopRef = React.useRef(null);
+  const uploadNotaMobileRef = React.useRef(null);
+
+  const abrirImportacaoNota = () => {
+    const userAgent = String(navigator?.userAgent || '').toLowerCase();
+    const isMobile = /android|iphone|ipad|ipod|mobile/.test(userAgent);
+
+    if (isMobile && uploadNotaMobileRef.current) {
+      uploadNotaMobileRef.current.click();
+      return;
+    }
+
+    if (uploadNotaDesktopRef.current) {
+      uploadNotaDesktopRef.current.click();
+    }
+  };
 
   const parseMoedaBR = (valor) => {
     if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
@@ -465,9 +481,23 @@ export const Estoque = ({
           <i className="fas fa-camera"></i> {mostrarLeitorCamera ? 'Fechar Câmera' : 'Abrir Câmera (OCR)'}
         </button>
 
-        <input type="file" id="uploadNotaIA" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={processarNotaComIA} />
+        <input
+          ref={uploadNotaDesktopRef}
+          type="file"
+          accept="image/*,application/pdf"
+          style={{ display: 'none' }}
+          onChange={processarNotaComIA}
+        />
+        <input
+          ref={uploadNotaMobileRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          style={{ display: 'none' }}
+          onChange={processarNotaComIA}
+        />
         <button
-          onClick={() => document.getElementById('uploadNotaIA').click()}
+          onClick={abrirImportacaoNota}
           style={{ ...btnBase, background: iosTeal, display: 'flex', alignItems: 'center', gap: '6px' }}
         >
           <i className="fas fa-file-invoice"></i> Importar Nota
