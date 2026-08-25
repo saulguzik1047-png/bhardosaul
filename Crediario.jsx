@@ -6,7 +6,9 @@ export function Crediario({
   setCaixaDialogo,
   liquidarVáriasComandasCrediario,
   adicionarLancamentoCrediario,
-  clientesCadastrados = []
+  clientesCadastrados = [],
+  imprimirRelatorioDiarioFiados,
+  imprimirRelatorioPendenciaGeralFiados,
 }) {
   const [buscaCrediario, setBuscaCrediario] = React.useState('');
   const [expandedCliente, setExpandedCliente] = React.useState(null);
@@ -114,6 +116,22 @@ export function Crediario({
         style={{ background: '#d97706', color: 'white', border: 'none', padding: '12px 18px', fontSize: '14px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer', marginBottom: '12px' }}
       >
         <i className="fas fa-plus-circle" style={{ marginRight: '6px' }}></i>Adicionar Saldo Devedor
+      </button>
+
+      <button
+        type="button"
+        onClick={() => imprimirRelatorioDiarioFiados && imprimirRelatorioDiarioFiados()}
+        style={{ background: '#1f2937', color: 'white', border: 'none', padding: '12px 18px', fontSize: '14px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer', marginBottom: '12px', marginLeft: '8px' }}
+      >
+        <i className="fas fa-print" style={{ marginRight: '6px' }}></i>Imprimir Ticket Diário Fiados
+      </button>
+
+      <button
+        type="button"
+        onClick={() => imprimirRelatorioPendenciaGeralFiados && imprimirRelatorioPendenciaGeralFiados()}
+        style={{ background: '#334155', color: 'white', border: 'none', padding: '12px 18px', fontSize: '14px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer', marginBottom: '12px', marginLeft: '8px' }}
+      >
+        <i className="fas fa-file-invoice-dollar" style={{ marginRight: '6px' }}></i>Imprimir Pendência Geral
       </button>
 
       <input

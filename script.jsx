@@ -1701,6 +1701,161 @@ function App() {
     gerarImpressaoTermica(htmlCupom);
   }
 
+  function imprimirRelatorioDiarioFiados() {
+    const listaCrediarios = Array.isArray(crediarios) ? crediarios : [];
+    const hoje = new Date();
+    const hojeISO = hoje.toISOString().slice(0, 10);
+    const hojeBR = hoje.toLocaleDateString('pt-BR');
+
+    const extrairDataISO = (valorData) => {
+      const texto = String(valorData || '').trim();
+      if (!texto) return '';
+
+      if (texto.includes(',')) {
+        const parteData = texto.split(',')[0].trim();
+        const [dd, mm, yyyy] = parteData.split('/');
+        if (dd && mm && yyyy) return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+      }
+
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(texto)) {
+        const [dd, mm, yyyy] = texto.split('/');
+        return `${yyyy}-${mm}-${dd}`;
+      }
+
+      if (/^\d{4}-\d{2}-\d{2}/.test(texto)) {
+        return texto.slice(0, 10);
+      }
+
+      return '';
+    };
+
+    const statusPendente = (item) => {
+      const status = String(item?.status || '').trim().toLowerCase();
+      if (status === 'pago' || status === 'quitado') return false;
+      return Number(item?.total || 0) > 0;
+    };
+
+    const fiadosDoDia = listaCrediarios.filter((item) => {
+      const dataItem = extrairDataISO(item?.data);
+      return dataItem === hojeISO && statusPendente(item);
+    });
+
+    if (fiadosDoDia.length === 0) {
+      dispararMensagem('Relatório Diário de Fiados', `Nenhum fiado pendente lançado em ${hojeBR}.`);
+      return;
+    }
+
+    const mapaPorCliente = new Map();
+    fiadosDoDia.forEach((item) => {
+      const cliente = String(item?.cliente || 'Sem nome').trim() || 'Sem nome';
+      const atual = mapaPorCliente.get(cliente) || { cliente, total: 0, qtd: 0 };
+      atual.total += Number(item?.total || 0);
+      atual.qtd += 1;
+      mapaPorCliente.set(cliente, atual);
+    });
+
+    const resumo = Array.from(mapaPorCliente.values())
+      .sort((a, b) => b.total - a.total);
+
+    const totalGeral = resumo.reduce((acc, item) => acc + item.total, 0);
+    const totalRegistros = resumo.reduce((acc, item) => acc + item.qtd, 0);
+
+    let htmlCupom = `
+      <div class="center">
+        <div class="title">${nomeSoftware}</div>
+        <div>RELATORIO DIARIO - FIADOS</div>
+        <div>${hojeBR}</div>
+        <div class="linha"></div>
+      </div>
+      <div><strong>CLIENTES DEVENDO HOJE:</strong> ${resumo.length}</div>
+      <div><strong>LANCAMENTOS:</strong> ${totalRegistros}</div>
+      <div><strong>TOTAL DO DIA:</strong> ${formatarMoeda(totalGeral)}</div>
+      <div class="linha"></div>
+    `;
+
+    resumo.forEach((item) => {
+      htmlCupom += `
+        <div class="flex item">
+          <span>${item.cliente}</span>
+          <span>${formatarMoeda(item.total)}</span>
+        </div>
+      `;
+    });
+
+    htmlCupom += `
+      <div class="linha"></div>
+      <div class="center" style="font-size: 11px;">
+        Ticket resumido para conferencia diaria
+      </div>
+      <div class="center" style="margin-top: 12px;">-</div>
+    `;
+
+    gerarImpressaoTermica(htmlCupom);
+    dispararMensagem('Relatório Impresso', `Ticket diário de fiados (${hojeBR}) enviado para a impressora térmica.`);
+  }
+
+  function imprimirRelatorioPendenciaGeralFiados() {
+    const listaCrediarios = Array.isArray(crediarios) ? crediarios : [];
+    const hojeBR = new Date().toLocaleDateString('pt-BR');
+
+    const statusPendente = (item) => {
+      const status = String(item?.status || '').trim().toLowerCase();
+      if (status === 'pago' || status === 'quitado') return false;
+      return Number(item?.total || 0) > 0;
+    };
+
+    const pendentes = listaCrediarios.filter((item) => statusPendente(item));
+    if (pendentes.length === 0) {
+      dispararMensagem('Pendência Geral de Fiados', 'Não há dívidas em aberto no crediário.');
+      return;
+    }
+
+    const mapaPorCliente = new Map();
+    pendentes.forEach((item) => {
+      const cliente = String(item?.cliente || 'Sem nome').trim() || 'Sem nome';
+      const atual = mapaPorCliente.get(cliente) || { cliente, total: 0, qtd: 0 };
+      atual.total += Number(item?.total || 0);
+      atual.qtd += 1;
+      mapaPorCliente.set(cliente, atual);
+    });
+
+    const resumo = Array.from(mapaPorCliente.values()).sort((a, b) => b.total - a.total);
+    const totalGeral = resumo.reduce((acc, item) => acc + item.total, 0);
+
+    let htmlCupom = `
+      <div class="center">
+        <div class="title">${nomeSoftware}</div>
+        <div>PENDENCIA GERAL - FIADOS</div>
+        <div>${hojeBR}</div>
+        <div class="linha"></div>
+      </div>
+      <div><strong>CLIENTES DEVENDO:</strong> ${resumo.length}</div>
+      <div><strong>LANCAMENTOS ABERTOS:</strong> ${pendentes.length}</div>
+      <div><strong>TOTAL EM ABERTO:</strong> ${formatarMoeda(totalGeral)}</div>
+      <div class="linha"></div>
+    `;
+
+    resumo.forEach((item) => {
+      htmlCupom += `
+        <div class="flex item">
+          <span>${item.cliente}</span>
+          <span>${formatarMoeda(item.total)}</span>
+        </div>
+      `;
+    });
+
+    htmlCupom += `
+      <div class="linha"></div>
+      <div class="center" style="font-size: 11px;">
+        Ticket resumido de pendencias abertas
+      </div>
+      <div class="center" style="margin-top: 12px;">-</div>
+    `;
+
+    gerarImpressaoTermica(htmlCupom);
+    dispararMensagem('Relatório Impresso', 'Ticket de pendência geral enviado para a impressora térmica.');
+  }
+
   function tratarRemoverSplit(item, comandaDono) {    setCaixaDialogo({
       titulo: 'Estorno de Item Dividido',
       mensagem: `O item "${item.nome}" foi compartilhado entre comandas.\n\nEscolha como deseja prosseguir com a exclusão:`,
@@ -2370,6 +2525,8 @@ function App() {
           liquidarVáriasComandasCrediario={liquidarVáriasComandasCrediario}
           adicionarLancamentoCrediario={adicionarLancamentoCrediario}
           clientesCadastrados={clientesCadastrados}
+          imprimirRelatorioDiarioFiados={imprimirRelatorioDiarioFiados}
+          imprimirRelatorioPendenciaGeralFiados={imprimirRelatorioPendenciaGeralFiados}
         />
       )}
       {telaAtual === 'seguranca' && autenticado && usuarioLogado && usuarioLogado.perfil === 'admin' && (
