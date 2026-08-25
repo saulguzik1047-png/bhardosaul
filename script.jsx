@@ -93,6 +93,9 @@ const parseMoedaBR = (valor) => {
   return Number(somenteNumeros) / 100;
 };
 
+const INTERVALO_BACKUP_MS = 10 * 60 * 1000;
+const INTERVALO_MINIMO_ENTRE_BACKUPS_MS = 60 * 1000;
+
 function App() {
   const [nomeSoftware, setNomeSoftware] = React.useState(() => {
     try {
@@ -570,6 +573,68 @@ function App() {
     localStorage.setItem('bhar_produtos_v3', JSON.stringify(produtos));
   }, [produtos]);
 
+  const [produtosExcluidos, setProdutosExcluidos] = React.useState(() => {
+    try {
+      const salvos = localStorage.getItem('bhar_produtos_excluidos_v1');
+      const parsed = salvos ? JSON.parse(salvos) : [];
+      return Array.isArray(parsed) ? parsed.map((id) => String(id)) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const produtosExcluidosSet = React.useMemo(
+    () => new Set((Array.isArray(produtosExcluidos) ? produtosExcluidos : []).map((id) => String(id))),
+    [produtosExcluidos]
+  );
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('bhar_produtos_excluidos_v1', JSON.stringify(produtosExcluidos));
+    } catch (e) {}
+  }, [produtosExcluidos]);
+
+  const idProdutoParaBanco = React.useCallback((id) => {
+    const n = Number(id);
+    return Number.isFinite(n) ? Math.trunc(n) : id;
+  }, []);
+
+  React.useEffect(() => {
+    if (!supabaseClient || produtosExcluidos.length === 0) return undefined;
+
+    let cancelado = false;
+
+    const tentarExcluirPendentes = async () => {
+      if (cancelado) return;
+
+      const ids = [...produtosExcluidos];
+      if (ids.length === 0) return;
+
+      const idsExcluidosComSucesso = [];
+
+      for (const id of ids) {
+        const { error } = await supabaseClient
+          .from('produtos')
+          .delete()
+          .eq('id', idProdutoParaBanco(id));
+
+        if (!error) idsExcluidosComSucesso.push(String(id));
+      }
+
+      if (idsExcluidosComSucesso.length > 0) {
+        setProdutosExcluidos((prev) => prev.filter((id) => !idsExcluidosComSucesso.includes(String(id))));
+      }
+    };
+
+    tentarExcluirPendentes();
+    const intervalo = window.setInterval(tentarExcluirPendentes, 8000);
+
+    return () => {
+      cancelado = true;
+      window.clearInterval(intervalo);
+    };
+  }, [produtosExcluidos, idProdutoParaBanco]);
+
   React.useEffect(() => {
     window.produtosSistema = produtos; 
 
@@ -615,7 +680,7 @@ function App() {
       dispararMensagem('Estoque Atualizado!', `Entrada processada com sucesso!\n\n• ${itensNota.length - novosCriados} item(ns) existente(s) tiveram o estoque somado.\n• ${novosCriados} novo(s) produto(s) foram Pré-Cadastrados.`);
       setMostrarLeitorCamera(false);
     };
-  }, [produtos]);
+  }, [produtos, idProdutoParaBanco]);
 
   const [comandas, setComandas] = React.useState(() => {
     try {
@@ -623,6 +688,7 @@ function App() {
       return salvas ? JSON.parse(salvas) : [];
     } catch (e) { return []; }
   });
+  const [clientesSincronizados, setClientesSincronizados] = React.useState(false);
   const [comandasSincronizadas, setComandasSincronizadas] = React.useState(false);
   // Marca quando há alterações locais ainda não confirmadas na nuvem, para que a
   // sincronização periódica (abaixo) não sobrescreva itens recém-digitados antes
@@ -640,34 +706,167 @@ function App() {
     localStorage.setItem('bhar_comandas_v1', JSON.stringify(comandas));
   }, [comandas]);
 
+  const dadosBackupRef = React.useRef({
+    clientes: [],
+    comandas: [],
+  });
+  const ultimoBackupHashRef = React.useRef('');
+  const ultimoBackupAtRef = React.useRef(0);
+  const restauracaoBackupTentadaRef = React.useRef(false);
+
   React.useEffect(() => {
-    const chaveLimpezaInicial = 'bhar_inicio_zero_clientes_v1';
-    if (localStorage.getItem(chaveLimpezaInicial) === 'concluido') return;
+    const clientesNormalizados = [...(Array.isArray(clientesCadastrados) ? clientesCadastrados : [])]
+      .map((cliente) => ({
+        nome: String(cliente?.nome || '').trim(),
+        sobrenome: String(cliente?.sobrenome || '').trim(),
+        telefone: String(cliente?.telefone || '').trim(),
+        foto: String(cliente?.foto || ''),
+      }))
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
-    localStorage.setItem(chaveLimpezaInicial, 'limpando');
-    localStorage.removeItem('bhar_clientes_v2');
-    localStorage.removeItem('bhar_comandas_v1');
-    setClientesCadastrados([]);
-    setComandas([]);
-    setComandaAtivaId(null);
+    const comandasNormalizadas = [...(Array.isArray(comandas) ? comandas : [])]
+      .map((comanda) => ({
+        id: String(comanda?.id ?? ''),
+        nome: String(comanda?.nome || '').trim(),
+        status: String(comanda?.status || 'Aberto'),
+        itens: Array.isArray(comanda?.itens) ? comanda.itens : [],
+      }))
+      .sort((a, b) => a.id.localeCompare(b.id, 'pt-BR'));
 
-    Promise.all([
-      supabaseClient?.from('clientes').delete().neq('nome', ''),
-      supabaseClient?.from('comandas').delete().not('id', 'is', null),
-    ])
-      .catch((erro) => console.warn('Não foi possível limpar clientes e comandas da nuvem:', erro))
-      .finally(() => localStorage.setItem(chaveLimpezaInicial, 'concluido'));
+    dadosBackupRef.current = {
+      versao: 1,
+      gerado_em: new Date().toISOString(),
+      clientes: clientesNormalizados,
+      comandas: comandasNormalizadas,
+    };
+  }, [clientesCadastrados, comandas]);
+
+  React.useEffect(() => {
+    if (!supabaseClient) return undefined;
+
+    let cancelado = false;
+    let backupsDisponiveis = true;
+
+    const enviarBackup = async (origem = 'periodico', forcar = false) => {
+      if (cancelado || !backupsDisponiveis) return;
+
+      const dados = dadosBackupRef.current || { clientes: [], comandas: [] };
+      const hashAtual = JSON.stringify(dados);
+      const agora = Date.now();
+
+      if (!forcar) {
+        if (hashAtual === ultimoBackupHashRef.current) return;
+        if ((agora - ultimoBackupAtRef.current) < INTERVALO_MINIMO_ENTRE_BACKUPS_MS) return;
+      }
+
+      const { error } = await supabaseClient.from('backups_pdv').insert({
+        tipo: 'clientes_comandas',
+        origem,
+        quantidade_clientes: Array.isArray(dados.clientes) ? dados.clientes.length : 0,
+        quantidade_comandas: Array.isArray(dados.comandas) ? dados.comandas.length : 0,
+        payload: dados,
+      });
+
+      if (error) {
+        if (String(error?.message || '').toLowerCase().includes('backups_pdv')) {
+          backupsDisponiveis = false;
+          console.warn('Tabela backups_pdv não encontrada. Aplique a migration para ativar o backup automático.');
+          return;
+        }
+        console.warn('Não foi possível registrar backup automático:', error);
+        return;
+      }
+
+      ultimoBackupHashRef.current = hashAtual;
+      ultimoBackupAtRef.current = agora;
+    };
+
+    enviarBackup('inicio_app', true);
+
+    const intervalo = window.setInterval(() => {
+      enviarBackup('periodico');
+    }, INTERVALO_BACKUP_MS);
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        enviarBackup('app_background', true);
+      }
+      if (document.visibilityState === 'visible') {
+        enviarBackup('app_retornou');
+      }
+    };
+
+    const onPageHide = () => {
+      enviarBackup('pagehide', true);
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('pagehide', onPageHide);
+
+    return () => {
+      cancelado = true;
+      window.clearInterval(intervalo);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('pagehide', onPageHide);
+    };
   }, []);
+
+  React.useEffect(() => {
+    if (!supabaseClient) return;
+    if (!clientesSincronizados || !comandasSincronizadas) return;
+    if (restauracaoBackupTentadaRef.current) return;
+
+    const semClientes = !Array.isArray(clientesCadastrados) || clientesCadastrados.length === 0;
+    const semComandas = !Array.isArray(comandas) || comandas.length === 0;
+    if (!semClientes || !semComandas) return;
+
+    restauracaoBackupTentadaRef.current = true;
+
+    const restaurarBackupMaisRecente = async () => {
+      const { data, error } = await supabaseClient
+        .from('backups_pdv')
+        .select('payload, created_at')
+        .eq('tipo', 'clientes_comandas')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('Não foi possível consultar backup automático:', error);
+        return;
+      }
+
+      const payload = data?.payload;
+      const clientesBackup = Array.isArray(payload?.clientes) ? payload.clientes : [];
+      const comandasBackup = Array.isArray(payload?.comandas) ? payload.comandas : [];
+      if (clientesBackup.length === 0 && comandasBackup.length === 0) return;
+
+      if (clientesBackup.length > 0) {
+        setClientesCadastrados(clientesBackup);
+        try {
+          localStorage.setItem('bhar_clientes_v2', JSON.stringify(clientesBackup));
+        } catch (e) {}
+      }
+
+      if (comandasBackup.length > 0) {
+        setComandas(comandasBackup.map((comanda) => ({
+          id: normalizarComandaId(comanda.id),
+          nome: String(comanda.nome || '').trim(),
+          status: String(comanda.status || 'Aberto'),
+          itens: Array.isArray(comanda.itens) ? comanda.itens : [],
+        })));
+      }
+
+      console.log(`[RESTORE] backup restaurado de ${data?.created_at || 'data desconhecida'} com ${clientesBackup.length} cliente(s) e ${comandasBackup.length} comanda(s).`);
+    };
+
+    restaurarBackupMaisRecente();
+  }, [supabaseClient, clientesSincronizados, comandasSincronizadas, clientesCadastrados, comandas]);
 
   React.useEffect(() => {
     let cancelado = false;
 
     async function carregarComandasDaNuvem() {
-      if (localStorage.getItem('bhar_inicio_zero_clientes_v1') === 'limpando') {
-        setComandasSincronizadas(true);
-        return;
-      }
-
       if (!supabaseClient) {
         setComandasSincronizadas(true);
         return;
@@ -832,11 +1031,8 @@ function App() {
   React.useEffect(() => {
     async function carregarDadosDaNuvem() {
       try {
-        const dadosForamZerados = localStorage.getItem('bhar_inicio_zero_clientes_v1') === 'limpando';
-        if (!dadosForamZerados) {
-          const { data: clis } = (await supabaseClient?.from('clientes').select('*')) || {};
-          if (clis && clis.length > 0) setClientesCadastrados(clis);
-        }
+        const { data: clis } = (await supabaseClient?.from('clientes').select('*')) || {};
+        if (clis && clis.length > 0) setClientesCadastrados(clis);
 
         const { data: prods } = (await supabaseClient?.from('produtos').select('*')) || {};
         if (prods && prods.length > 0) {
@@ -846,7 +1042,7 @@ function App() {
             estoqueMinimo: p.estoque_minimo, dataUltimaCompra: p.data_ultima_compra, imagem: p.imagem,
             fatorConversao: p.fator_conversao || 1,
             apelidos: p.apelidos || [],
-          }));
+          })).filter((p) => !produtosExcluidosSet.has(String(p.id)));
 
           setProdutos((prev) => {
             const produtosLocais = Array.isArray(prev) ? prev : [];
@@ -854,6 +1050,7 @@ function App() {
 
             for (const p of produtosNuvem) mapaMerge.set(String(p.id), p);
             for (const p of produtosLocais) {
+              if (produtosExcluidosSet.has(String(p.id))) continue;
               const produtoNuvem = mapaMerge.get(String(p.id));
               if (!produtoNuvem) {
                 mapaMerge.set(String(p.id), p);
@@ -910,10 +1107,12 @@ function App() {
         }
       } catch (err) {
         console.error('Erro ao carregar dados da nuvem, rodando local offline:', err);
+      } finally {
+        setClientesSincronizados(true);
       }
     }
     carregarDadosDaNuvem();
-  }, []);
+  }, [produtosExcluidosSet]);
 
   React.useEffect(() => {
     if (!supabaseClient) return undefined;
@@ -940,11 +1139,12 @@ function App() {
         imagem: produto.imagem,
         fatorConversao: produto.fator_conversao || 1,
         apelidos: produto.apelidos || [],
-      }));
+      })).filter((produto) => !produtosExcluidosSet.has(String(produto.id)));
 
       setProdutos((atuais) => {
         const mapa = new Map(produtosNuvem.map((produto) => [String(produto.id), produto]));
         for (const produto of atuais) {
+          if (produtosExcluidosSet.has(String(produto.id))) continue;
           if (!mapa.has(String(produto.id))) mapa.set(String(produto.id), produto);
         }
         return Array.from(mapa.values());
@@ -957,7 +1157,7 @@ function App() {
       cancelado = true;
       window.clearInterval(intervalo);
     };
-  }, []);
+  }, [produtosExcluidosSet]);
 
   const comandaAtual = comandas.find((c) => mesmoComandaId(c.id, comandaAtivaId)) || null;
 
@@ -986,6 +1186,9 @@ function App() {
           console.warn('Erro lendo localStorage para sincronizar:', e);
         }
       }
+
+      produtosParaSincronizar = (Array.isArray(produtosParaSincronizar) ? produtosParaSincronizar : [])
+        .filter((p) => !produtosExcluidosSet.has(String(p?.id)));
 
       let produtosSincronizados = false;
 
@@ -1221,8 +1424,15 @@ function App() {
 
   function excluirProdutoDoEstoque(id, nome) {
     dispararConfirmacao('Excluir Produto', `Deseja realmente EXCLUIR permanentemente o produto "${nome}"?`, async () => {
+        const idProdutoNormalizado = String(id ?? '');
+        setProdutosExcluidos((prev) => prev.includes(idProdutoNormalizado) ? prev : [...prev, idProdutoNormalizado]);
         setProdutos(prev => prev.filter((p) => p.id !== id));
-        try { await supabaseClient?.from('produtos').delete().eq('id', id); } catch (err) { console.warn('Nuvem offline:', err); }
+        try {
+          const { error } = await supabaseClient?.from('produtos').delete().eq('id', idProdutoParaBanco(id));
+          if (!error) {
+            setProdutosExcluidos((prev) => prev.filter((item) => String(item) !== idProdutoNormalizado));
+          }
+        } catch (err) { console.warn('Nuvem offline:', err); }
         dispararMensagem('Estoque', `Produto "${nome}" foi removido do estoque.`);
         const restantes = produtos.filter((p) => p.id !== id);
         if (restantes.length > 0) setIdProdutoSelecionadoEdicao(restantes[0].id);
