@@ -189,7 +189,7 @@ function App() {
             content: [
               {
                 type: "text",
-                text: `Você é um sistema inteligente de leitura de notas fiscais de um bar/restaurante.\n\nAqui está a NOSSA LISTA OFICIAL DE PRODUTOS: [${nomesOficiais}].\n\nSua missão:\n1. Extraia os produtos, quantidades e o valor total de cada item desta imagem.\n2. DE/PARA AUTOMÁTICO: Compare o nome lido na nota com a nossa lista oficial. Se for uma variação, erro de digitação ou apelido (ex: 'brasilberger' = 'Aperitivo Brasilberg', 'conhaque dimel' = 'Conhaque de Mel'), troque e USE O NOSSO NOME OFICIAL.\n3. Se o produto da nota for totalmente novo e não estiver na lista, mande o nome original da nota.\n\nRetorne ESTRITAMENTE o seguinte formato JSON:\n{\n  "descricao": "Resumo do que leu",\n  "itens": [\n    {\n      "nome": "Nome Oficial do Produto (ou nome original se for novo)",\n      "quantidade": 1,\n      "custoTotal": 15.50\n    }\n  ]\n}`
+                text: `Você é um sistema de leitura de nota fiscal e deve ser CONSERVADOR.\n\nLISTA DE REFERÊNCIA DE PRODUTOS DO SISTEMA: [${nomesOficiais}]\n\nREGRAS OBRIGATÓRIAS (NÃO QUEBRE):\n1. NUNCA invente item que não esteja visualmente na nota.\n2. Se estiver em dúvida, mantenha o nome exatamente como lido na nota (mesmo com erro de OCR).\n3. Só sugira nome do sistema se a semelhança for clara.\n4. Não use conhecimento prévio de bar para adivinhar produtos.\n5. Quantidade e custoTotal devem refletir apenas o que aparece no documento.\n\nRetorne APENAS JSON válido neste formato:\n{\n  "descricao": "Resumo curto",\n  "itens": [\n    {\n      "nomeLido": "texto cru lido na nota",\n      "nomeSugeridoSistema": "nome da lista somente se alta confiança, senão vazio",\n      "quantidade": 1,\n      "custoTotal": 15.50,\n      "confianca": 0.0\n    }\n  ]\n}`
               },
               {
                 type: "image_url",
@@ -279,25 +279,43 @@ function App() {
     }
     const notaConvertida = typeof respostaIA === 'string' ? JSON.parse(respostaIA) : respostaIA;
 
-      const itensProntos = (notaConvertida.itens || []).map(item => {
-        const nomeItem = (item.nome || '').toLowerCase();
-        const produtoSalvo = produtos.find(p => {
-          if (p.nome.toLowerCase() === nomeItem) return true;
-          if (p.apelidos && p.apelidos.some(a => a.toLowerCase() === nomeItem)) return true;
-          return false;
-        });
-        const fatorReal = (produtoSalvo && produtoSalvo.fatorConversao > 1) ? produtoSalvo.fatorConversao : 1;
-        const formatoReal = fatorReal > 1 ? 'fracionado' : 'padrao';
+      const normalizarNome = (valor) => String(valor || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
 
-        return {
-          idTemp: Math.random().toString(),
-          nome: item.nome || 'Produto Sem Nome',
-          formato: formatoReal,
-          qtdComprada: item.quantidade || 1,
-          fator: fatorReal,
-          custoTotal: item.custoTotal || 0,
-        };
-      });
+      const itensProntos = (notaConvertida.itens || [])
+        .map(item => {
+          const nomeLido = String(item.nomeLido || item.nome || '').trim();
+          const nomeSugerido = String(item.nomeSugeridoSistema || '').trim();
+          const confianca = Number(item.confianca || 0);
+          const nomeBase = nomeLido || nomeSugerido;
+
+          const nomeNormalizado = normalizarNome(nomeBase);
+          const produtoSalvo = produtos.find(p => {
+            const nomeProduto = normalizarNome(p.nome);
+            if (nomeProduto === nomeNormalizado) return true;
+            if (p.apelidos && p.apelidos.some(a => normalizarNome(a) === nomeNormalizado)) return true;
+            return false;
+          });
+
+          const usarFatorDoProduto = !!produtoSalvo && confianca >= 0.75;
+          const fatorReal = usarFatorDoProduto && produtoSalvo.fatorConversao > 1 ? produtoSalvo.fatorConversao : 1;
+          const formatoReal = fatorReal > 1 ? 'fracionado' : 'padrao';
+
+          return {
+            idTemp: Math.random().toString(),
+            nome: nomeBase || 'Produto Sem Nome',
+            formato: formatoReal,
+            qtdComprada: Number(item.quantidade || 1),
+            fator: fatorReal,
+            custoTotal: Number(item.custoTotal || 0),
+          };
+        })
+        .filter((item) => item.nome && item.qtdComprada > 0 && item.custoTotal > 0);
 
       setItensNotaIA(itensProntos);
     } catch (erro) {
