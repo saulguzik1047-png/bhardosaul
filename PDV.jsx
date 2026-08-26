@@ -1,4 +1,5 @@
 import React from 'react';
+import ReactDOM from 'react-dom';
 import { formatarMoeda, calcularTotal, listarCategoriasProdutos, normalizarCategoria } from './formatadores.js';
 
 export function PDV({
@@ -695,6 +696,7 @@ export function PDV({
                         </button>
                       </>
                     ) : (
+                      ReactDOM.createPortal(
                       <React.Fragment>
                         <div
                           onClick={() => setMostrarMultiFormas(false)}
@@ -817,7 +819,9 @@ export function PDV({
                           </button>
                         </div>
                         </div>
-                      </React.Fragment>
+                      </React.Fragment>,
+                      document.body
+                      )
                     )}
                   </div>
                 )}
