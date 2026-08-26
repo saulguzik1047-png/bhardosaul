@@ -108,8 +108,9 @@ function App() {
   const [mostrarLeitorCamera, setMostrarLeitorCamera] = React.useState(false);
   const [processandoNota, setProcessandoNota] = React.useState(false);
   const [itensNotaIA, setItensNotaIA] = React.useState([]);
- 
-  
+
+  const MAX_LADO_IMAGEM_NOTA = 1600;
+  const QUALIDADE_JPEG_NOTA = 0.82;
 
   const converterArquivoParaBase64 = (file) => {
     return new Promise((resolve, reject) => {
@@ -118,6 +119,50 @@ function App() {
       reader.onload = () => resolve(reader.result);
       reader.onerror = error => reject(error);
     });
+  };
+
+  const carregarImagemDataUrl = (dataUrl) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = (err) => reject(err);
+      img.src = dataUrl;
+    });
+  };
+
+  const prepararImagemParaIA = async (file) => {
+    const base64Original = await converterArquivoParaBase64(file);
+    const tipo = String(file?.type || '').toLowerCase();
+
+    if (!tipo.startsWith('image/')) return base64Original;
+
+    try {
+      const imagem = await carregarImagemDataUrl(base64Original);
+      const larguraOriginal = Number(imagem.naturalWidth || imagem.width || 0);
+      const alturaOriginal = Number(imagem.naturalHeight || imagem.height || 0);
+      if (!larguraOriginal || !alturaOriginal) return base64Original;
+
+      const maiorLado = Math.max(larguraOriginal, alturaOriginal);
+      const precisaReduzir = maiorLado > MAX_LADO_IMAGEM_NOTA;
+      const formatoNaoIdeal = !/(jpeg|jpg|png|webp)/i.test(tipo);
+      if (!precisaReduzir && !formatoNaoIdeal) return base64Original;
+
+      const escala = precisaReduzir ? (MAX_LADO_IMAGEM_NOTA / maiorLado) : 1;
+      const novaLargura = Math.max(1, Math.round(larguraOriginal * escala));
+      const novaAltura = Math.max(1, Math.round(alturaOriginal * escala));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = novaLargura;
+      canvas.height = novaAltura;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return base64Original;
+
+      ctx.drawImage(imagem, 0, 0, novaLargura, novaAltura);
+      return canvas.toDataURL('image/jpeg', QUALIDADE_JPEG_NOTA);
+    } catch (err) {
+      console.warn('[IA NOTA] não foi possível otimizar a imagem, usando original:', err);
+      return base64Original;
+    }
   };
 
   const processarNotaComIA = async (e) => {
@@ -129,7 +174,7 @@ function App() {
     setItensNotaIA([]);
 
     try {
-      const base64DataUrl = await converterArquivoParaBase64(file);
+      const base64DataUrl = await prepararImagemParaIA(file);
       const nomesOficiais = produtos.map(p => {
         const aliases = (p.apelidos && p.apelidos.length > 0) ? ` (aliases: ${p.apelidos.join(', ')})` : '';
         return p.nome + aliases;
@@ -263,6 +308,8 @@ function App() {
         dica = 'A chave da OpenAI não está configurada no servidor. Configure OPENAI_API_KEY no Vercel/Supabase e tente novamente.';
       } else if (msg.includes('401') || msg.toLowerCase().includes('unauthorized')) {
         dica = 'A chave da OpenAI parece inválida ou sem permissão para visão.';
+      } else if (msg.includes('413') || msg.toLowerCase().includes('payload too large') || msg.toLowerCase().includes('request entity too large')) {
+        dica = 'A foto ficou muito pesada para o servidor. Tente aproximar melhor a nota e tirar a foto com boa luz.';
       } else if (file?.type === 'application/pdf') {
         dica = 'PDF pode falhar neste modo. Tente enviar a foto da nota (JPG/PNG) para extrair com IA.';
       }
@@ -1184,6 +1231,46 @@ function App() {
       window.clearInterval(intervalo);
     };
   }, [produtosExcluidosSet]);
+
+  // Re-sincroniza clientes periodicamente: o carregamento inicial roda uma única vez,
+  // então uma falha de rede logo na abertura do app (ex.: celular acabou de desbloquear)
+  // fazia a lista de clientes nunca mais ser recarregada naquela sessão.
+  React.useEffect(() => {
+    if (!supabaseClient) return undefined;
+
+    let cancelado = false;
+
+    const atualizarClientesDaNuvem = async () => {
+      const { data, error } = await supabaseClient.from('clientes').select('*');
+      if (cancelado || error || !Array.isArray(data) || data.length === 0) return;
+
+      setClientesCadastrados((atuais) => {
+        const mapa = new Map();
+        for (const cliente of data) {
+          const nome = String(cliente?.nome || '').trim();
+          if (!nome) continue;
+          mapa.set(nome.toLowerCase(), {
+            nome,
+            sobrenome: cliente.sobrenome || '',
+            telefone: cliente.telefone || '',
+            foto: cliente.foto || '',
+          });
+        }
+        for (const cliente of Array.isArray(atuais) ? atuais : []) {
+          const chave = String(cliente?.nome || '').trim().toLowerCase();
+          if (chave && !mapa.has(chave)) mapa.set(chave, cliente);
+        }
+        return Array.from(mapa.values());
+      });
+    };
+
+    atualizarClientesDaNuvem();
+    const intervalo = window.setInterval(atualizarClientesDaNuvem, 6000);
+    return () => {
+      cancelado = true;
+      window.clearInterval(intervalo);
+    };
+  }, []);
 
   const comandaAtual = comandas.find((c) => mesmoComandaId(c.id, comandaAtivaId)) || null;
 

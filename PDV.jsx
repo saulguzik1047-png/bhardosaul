@@ -696,6 +696,35 @@ export function PDV({
                       </>
                     ) : (
                       <React.Fragment>
+                        <div
+                          onClick={() => setMostrarMultiFormas(false)}
+                          style={{
+                            position: 'fixed',
+                            inset: 0,
+                            background: 'rgba(15, 23, 42, 0.45)',
+                            zIndex: 10001,
+                          }}
+                        />
+                        <div
+                          role="dialog"
+                          aria-label="Multi-formas de pagamento"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            position: 'fixed',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            width: 'min(360px, calc(100vw - 32px))',
+                            maxHeight: 'calc(100vh - 32px)',
+                            overflowY: 'auto',
+                            background: '#ffffff',
+                            border: '2px solid #60a5fa',
+                            borderRadius: '14px',
+                            boxShadow: '0 18px 45px rgba(15, 42, 95, 0.35)',
+                            padding: '16px',
+                            zIndex: 10002,
+                          }}
+                        >
                         <div className="grid-multi-pagamento">
                           <div className="linha-multi-pagamento" style={{fontSize: '12px', fontWeight: 'bold'}}>
                             <label>💵 R$:</label>
@@ -786,6 +815,7 @@ export function PDV({
                           >
                             Voltar
                           </button>
+                        </div>
                         </div>
                       </React.Fragment>
                     )}
