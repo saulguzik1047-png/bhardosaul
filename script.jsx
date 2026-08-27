@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import Tesseract from 'tesseract.js';
 import LeitorNotaCamera from './LeitorNotaCamera.jsx';
 import { supabaseClient } from './supabase.js';  
 import { formatarMoeda, calcularTotal } from './formatadores.js';
@@ -130,6 +131,22 @@ function App() {
     });
   };
 
+  const extrairTextoNotaComOCR = async (file) => {
+    try {
+      if (!file || !file.type || !file.type.startsWith('image/')) return '';
+      const base64 = await converterArquivoParaBase64(file);
+      const resultado = await Tesseract.recognize(base64, 'por+eng', {
+        logger: () => {}
+      });
+
+      const texto = String(resultado?.data?.text || '').trim();
+      return texto;
+    } catch (err) {
+      console.warn('[OCR LOCAL] não foi possível ler a nota:', err);
+      return '';
+    }
+  };
+
   const prepararImagemParaIA = async (file) => {
     const base64Original = await converterArquivoParaBase64(file);
     const tipo = String(file?.type || '').toLowerCase();
@@ -175,6 +192,7 @@ function App() {
 
     try {
       const base64DataUrl = await prepararImagemParaIA(file);
+      const textoOcrLocal = await extrairTextoNotaComOCR(file);
       const nomesOficiais = produtos.map(p => {
         const aliases = (p.apelidos && p.apelidos.length > 0) ? ` (aliases: ${p.apelidos.join(', ')})` : '';
         return p.nome + aliases;
@@ -189,7 +207,7 @@ function App() {
             content: [
               {
                 type: "text",
-                text: `Você é um sistema de leitura de nota fiscal e deve ser CONSERVADOR.\n\nLISTA DE REFERÊNCIA DE PRODUTOS DO SISTEMA: [${nomesOficiais}]\n\nREGRAS OBRIGATÓRIAS (NÃO QUEBRE):\n1. NUNCA invente item que não esteja visualmente na nota.\n2. Se estiver em dúvida, mantenha o nome exatamente como lido na nota (mesmo com erro de OCR).\n3. Só sugira nome do sistema se a semelhança for clara.\n4. Não use conhecimento prévio de bar para adivinhar produtos.\n5. Quantidade e custoTotal devem refletir apenas o que aparece no documento.\n\nRetorne APENAS JSON válido neste formato:\n{\n  "descricao": "Resumo curto",\n  "itens": [\n    {\n      "nomeLido": "texto cru lido na nota",\n      "nomeSugeridoSistema": "nome da lista somente se alta confiança, senão vazio",\n      "quantidade": 1,\n      "custoTotal": 15.50,\n      "confianca": 0.0\n    }\n  ]\n}`
+                text: `Você é um sistema de leitura de nota fiscal e deve ser EXTREMAMENTE CONSERVADOR.\n\nTEXTO OCR LOCAL DA NOTA (fonte primária):\n"""\n${textoOcrLocal.slice(0, 4000)}\n"""\n\nLISTA DE REFERÊNCIA DE PRODUTOS DO SISTEMA: [${nomesOficiais}]\n\nREGRAS OBRIGATÓRIAS (NÃO QUEBRE):\n1. Use o texto OCR local como base principal para o que realmente existe na nota.\n2. NUNCA invente item que não esteja visível na nota ou no OCR.\n3. Se estiver em dúvida, mantenha o nome exatamente como lido na nota e deixe nomeSugeridoSistema vazio.\n4. Só sugira nome do sistema se houver alta semelhança com o item da nota e com a lista de referência.\n5. Não use conhecimento prévio de bar para adivinhar produtos.\n6. Quantidade e custoTotal devem refletir apenas o que aparece no documento.\n7. Se o item não tiver nome claro, não o inclua.\n8. Retorne no máximo 12 itens, priorizando item com valor e quantidade legíveis.\n\nRetorne APENAS JSON válido neste formato:\n{\n  "descricao": "Resumo curto",\n  "itens": [\n    {\n      "nomeLido": "texto cru lido na nota",\n      "nomeSugeridoSistema": "nome da lista somente se alta confiança, senão vazio",\n      "quantidade": 1,\n      "custoTotal": 15.50,\n      "confianca": 0.0\n    }\n  ]\n}`
               },
               {
                 type: "image_url",
@@ -294,6 +312,10 @@ function App() {
           const confianca = Number(item.confianca || 0);
           const nomeBase = nomeLido || nomeSugerido;
 
+          if (!nomeBase || nomeBase.length < 2 || confianca < 0.45) {
+            return null;
+          }
+
           const nomeNormalizado = normalizarNome(nomeBase);
           const produtoSalvo = produtos.find(p => {
             const nomeProduto = normalizarNome(p.nome);
@@ -305,16 +327,23 @@ function App() {
           const usarFatorDoProduto = !!produtoSalvo && confianca >= 0.75;
           const fatorReal = usarFatorDoProduto && produtoSalvo.fatorConversao > 1 ? produtoSalvo.fatorConversao : 1;
           const formatoReal = fatorReal > 1 ? 'fracionado' : 'padrao';
+          const quantidade = Number(item.quantidade || 1);
+          const custoTotal = Number(item.custoTotal || 0);
+
+          if (!Number.isFinite(quantidade) || quantidade <= 0 || !Number.isFinite(custoTotal) || custoTotal <= 0) {
+            return null;
+          }
 
           return {
             idTemp: Math.random().toString(),
-            nome: nomeBase || 'Produto Sem Nome',
+            nome: nomeBase,
             formato: formatoReal,
-            qtdComprada: Number(item.quantidade || 1),
+            qtdComprada: quantidade,
             fator: fatorReal,
-            custoTotal: Number(item.custoTotal || 0),
+            custoTotal,
           };
         })
+        .filter(Boolean)
         .filter((item) => item.nome && item.qtdComprada > 0 && item.custoTotal > 0);
 
       setItensNotaIA(itensProntos);
@@ -361,11 +390,17 @@ function App() {
       const custoUnitario = custoTotalFinal / (qtdFinal || 1);
 
       const nomeItemIA = itemInfo.nome.toLowerCase();
+      const nomeNormalizadoItem = normalizarNomeProduto(itemInfo.nome);
       const indexExistente = produtosAtualizados.findIndex(p => {
-        if (p.nome.toLowerCase() === nomeItemIA) return true;
-        if (p.apelidos && p.apelidos.some(a => a.toLowerCase() === nomeItemIA)) return true;
+        const nomeP = normalizarNomeProduto(p.nome);
+        if (nomeP === nomeNormalizadoItem) return true;
+        if (p.apelidos && p.apelidos.some(a => normalizarNomeProduto(a) === nomeNormalizadoItem)) return true;
         return false;
       });
+
+      if (nomesProdutosExcluidosSet.has(nomeNormalizadoItem)) {
+        return;
+      }
 
       if (indexExistente >= 0) {
         produtosAtualizados[indexExistente] = {
@@ -674,21 +709,55 @@ function App() {
     }
   });
 
+  const [nomesProdutosExcluidos, setNomesProdutosExcluidos] = React.useState(() => {
+    try {
+      const salvos = localStorage.getItem('bhar_produtos_excluidos_nomes_v1');
+      const parsed = salvos ? JSON.parse(salvos) : [];
+      return Array.isArray(parsed) ? parsed.map((nome) => String(nome).trim().toLowerCase()) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const normalizarNomeProduto = React.useCallback((valor) => String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase(), []);
+
   const produtosExcluidosSet = React.useMemo(
     () => new Set((Array.isArray(produtosExcluidos) ? produtosExcluidos : []).map((id) => String(id))),
     [produtosExcluidos]
   );
 
+  const nomesProdutosExcluidosSet = React.useMemo(
+    () => new Set((Array.isArray(nomesProdutosExcluidos) ? nomesProdutosExcluidos : []).map((nome) => String(nome).trim().toLowerCase())),
+    [nomesProdutosExcluidos]
+  );
+
   const filtrarProdutosExcluidos = React.useCallback((lista) => {
     if (!Array.isArray(lista)) return [];
-    return lista.filter((produto) => !produtosExcluidosSet.has(String(produto?.id ?? '')));
-  }, [produtosExcluidosSet]);
+    return lista.filter((produto) => {
+      const id = String(produto?.id ?? '');
+      if (produtosExcluidosSet.has(id)) return false;
+      const nomeNormalizado = normalizarNomeProduto(produto?.nome || '');
+      return !nomesProdutosExcluidosSet.has(nomeNormalizado);
+    });
+  }, [produtosExcluidosSet, nomesProdutosExcluidosSet, normalizarNomeProduto]);
 
   React.useEffect(() => {
     try {
       localStorage.setItem('bhar_produtos_excluidos_v1', JSON.stringify(produtosExcluidos));
     } catch (e) {}
   }, [produtosExcluidos]);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('bhar_produtos_excluidos_nomes_v1', JSON.stringify(nomesProdutosExcluidos));
+    } catch (e) {}
+  }, [nomesProdutosExcluidos]);
 
   const idProdutoParaBanco = React.useCallback((id) => {
     const n = Number(id);
@@ -788,6 +857,13 @@ function App() {
       })) : [];
     } catch (e) { return []; }
   });
+  const [comandasExcluidas, setComandasExcluidas] = React.useState(() => {
+    try {
+      const salvas = localStorage.getItem('bhar_comandas_excluidas_v1');
+      const dados = salvas ? JSON.parse(salvas) : [];
+      return Array.isArray(dados) ? dados.map(String) : [];
+    } catch (e) { return []; }
+  });
   const [clientesSincronizados, setClientesSincronizados] = React.useState(false);
   const [comandasSincronizadas, setComandasSincronizadas] = React.useState(false);
   // Marca quando há alterações locais ainda não confirmadas na nuvem, para que a
@@ -810,6 +886,18 @@ function App() {
   React.useEffect(() => {
     localStorage.setItem('bhar_comandas_v1', JSON.stringify(comandas));
   }, [comandas]);
+
+  React.useEffect(() => {
+    localStorage.setItem('bhar_comandas_excluidas_v1', JSON.stringify(comandasExcluidas));
+  }, [comandasExcluidas]);
+
+  const registrarComandaExcluida = React.useCallback((idComanda) => {
+    const idNormalizado = normalizarComandaId(idComanda);
+    if (!idNormalizado) return;
+
+    setComandasExcluidas((prev) => (prev.includes(idNormalizado) ? prev : [...prev, idNormalizado]));
+    setComandas((prev) => prev.filter((c) => !mesmoComandaId(c.id, idComanda)));
+  }, [normalizarComandaId, mesmoComandaId]);
 
   const dadosBackupRef = React.useRef({
     clientes: [],
@@ -990,8 +1078,11 @@ function App() {
         return;
       }
 
-      if (Array.isArray(data) && data.length > 0) {
-        const comandasNuvem = data.map((comanda) => ({
+      const idsExcluidos = new Set((comandasExcluidas || []).map(normalizarComandaId));
+      const dadosNuvemFiltrados = Array.isArray(data) ? data.filter((comanda) => !idsExcluidos.has(normalizarComandaId(comanda.id))) : [];
+
+      if (dadosNuvemFiltrados.length > 0) {
+        const comandasNuvem = dadosNuvemFiltrados.map((comanda) => ({
           id: normalizarComandaId(comanda.id),
           nome: comanda.nome,
           status: comanda.status || 'Aberto',
@@ -999,12 +1090,12 @@ function App() {
           updated_at: comanda.updated_at || new Date().toISOString(),
         }));
         setComandas((locais) => {
-          const locaisMap = new Map((locais || []).map((comanda) => [normalizarComandaId(comanda.id), comanda]));
+          const locaisFiltrados = (locais || []).filter((comanda) => !idsExcluidos.has(normalizarComandaId(comanda.id)));
           const resultado = [...(comandasNuvem || [])];
 
-          for (const local of locais || []) {
+          for (const local of locaisFiltrados) {
             const idLocal = normalizarComandaId(local.id);
-            const cloud = data.find((item) => normalizarComandaId(item.id) === idLocal);
+            const cloud = dadosNuvemFiltrados.find((item) => normalizarComandaId(item.id) === idLocal);
             if (!cloud) {
               resultado.push({ ...local, updated_at: local?.updated_at || new Date().toISOString() });
               continue;
@@ -1027,18 +1118,21 @@ function App() {
 
     carregarComandasDaNuvem();
     return () => { cancelado = true; };
-  }, []);
+  }, [comandasExcluidas]);
 
   React.useEffect(() => {
     if (!comandasSincronizadas || !supabaseClient) return;
 
-    const comandasParaSalvar = comandas.map((comanda) => ({
-      id: idComandaParaBanco(comanda.id),
-      nome: comanda.nome,
-      status: comanda.status || 'Aberto',
-      itens: comanda.itens || [],
-      updated_at: comanda.updated_at || new Date().toISOString(),
-    }));
+    const idsExcluidos = new Set((comandasExcluidas || []).map(normalizarComandaId));
+    const comandasParaSalvar = comandas
+      .filter((comanda) => !idsExcluidos.has(normalizarComandaId(comanda.id)))
+      .map((comanda) => ({
+        id: idComandaParaBanco(comanda.id),
+        nome: comanda.nome,
+        status: comanda.status || 'Aberto',
+        itens: comanda.itens || [],
+        updated_at: comanda.updated_at || new Date().toISOString(),
+      }));
 
     if (comandasParaSalvar.length === 0) return;
 
@@ -1052,16 +1146,12 @@ function App() {
       .finally(() => {
         upsertComandasPendenteRef.current = false;
       });
-  }, [comandas, comandasSincronizadas]);
+  }, [comandas, comandasSincronizadas, comandasExcluidas]);
 
   React.useEffect(() => {
     if (!comandasSincronizadas || !supabaseClient) return undefined;
 
     const atualizarComandasDaNuvem = async () => {
-      // Se ainda houver alterações locais pendentes de envio para a nuvem
-      // (por exemplo, itens digitados enquanto o celular estava com a tela
-      // bloqueada e o upsert não terminou a tempo), não sobrescreve o estado
-      // local com os dados antigos da nuvem: aguarda o próximo ciclo.
       if (upsertComandasPendenteRef.current) return;
 
       const { data, error } = await supabaseClient
@@ -1071,9 +1161,9 @@ function App() {
 
       if (error || !Array.isArray(data)) return;
 
-      if (upsertComandasPendenteRef.current) return;
-
-      const comandasNuvem = data.map((comanda) => ({
+      const idsExcluidos = new Set((comandasExcluidas || []).map(normalizarComandaId));
+      const dadosNuvemFiltrados = data.filter((comanda) => !idsExcluidos.has(normalizarComandaId(comanda.id)));
+      const comandasNuvem = dadosNuvemFiltrados.map((comanda) => ({
         id: normalizarComandaId(comanda.id),
         nome: comanda.nome,
         status: comanda.status || 'Aberto',
@@ -1082,11 +1172,12 @@ function App() {
       }));
 
       setComandas((atuais) => {
+        const locaisFiltrados = (atuais || []).filter((atual) => !idsExcluidos.has(normalizarComandaId(atual.id)));
         const resultado = [...comandasNuvem];
 
-        for (const atual of atuais || []) {
+        for (const atual of locaisFiltrados) {
           const idAtual = normalizarComandaId(atual.id);
-          const nuvem = data.find((item) => normalizarComandaId(item.id) === idAtual);
+          const nuvem = dadosNuvemFiltrados.find((item) => normalizarComandaId(item.id) === idAtual);
           if (!nuvem) {
             resultado.push({ ...atual, updated_at: atual?.updated_at || new Date().toISOString() });
             continue;
@@ -1107,10 +1198,11 @@ function App() {
 
     const intervalo = window.setInterval(atualizarComandasDaNuvem, 4000);
     return () => window.clearInterval(intervalo);
-  }, [comandasSincronizadas]);
+  }, [comandasSincronizadas, comandasExcluidas]);
 
   async function removerComandaDaNuvem(id) {
     if (!supabaseClient) return;
+    registrarComandaExcluida(id);
     const { error } = await supabaseClient.from('comandas').delete().eq('id', idComandaParaBanco(id));
     if (error) console.warn('Não foi possível remover a comanda da nuvem:', error);
   }
@@ -1160,7 +1252,11 @@ function App() {
   const [crediarios, setCrediarios] = React.useState(() => {
     try {
       const salvos = localStorage.getItem('bhar_crediarios_v1');
-      return salvos ? JSON.parse(salvos) : [];
+      const dados = salvos ? JSON.parse(salvos) : [];
+      return Array.isArray(dados) ? dados.map((item) => ({
+        ...item,
+        updated_at: item?.updated_at || new Date().toISOString(),
+      })) : [];
     } catch (e) { return []; }
   });
 
@@ -1241,12 +1337,25 @@ function App() {
             idCred: c.id_cred, data: c.data, cliente: c.cliente,
             total: Number(c.total || 0), status: c.status || 'Pendente',
             itensConsumidos: c.itens_consumidos || [], pagamentos: c.pagamentos || [],
+            updated_at: c.updated_at || c.data || new Date().toISOString(),
           }));
 
           setCrediarios((prev) => {
             const mapa = new Map();
-            for (const c of Array.isArray(prev) ? prev : []) mapa.set(String(c.idCred), c);
-            for (const c of crediariosNuvem) mapa.set(String(c.idCred), c);
+            for (const c of Array.isArray(prev) ? prev : []) {
+              const chave = String(c.idCred);
+              const atual = mapa.get(chave);
+              if (!atual || Date.parse(c.updated_at || c.data || 0) > Date.parse(atual.updated_at || atual.data || 0)) {
+                mapa.set(chave, c);
+              }
+            }
+            for (const c of crediariosNuvem) {
+              const chave = String(c.idCred);
+              const atual = mapa.get(chave);
+              if (!atual || Date.parse(c.updated_at || c.data || 0) > Date.parse(atual.updated_at || atual.data || 0)) {
+                mapa.set(chave, c);
+              }
+            }
             return Array.from(mapa.values());
           });
         }
@@ -1436,7 +1545,8 @@ function App() {
       for (const c of crediarios) {
         await supabaseClient?.from('crediarios').upsert({
           id_cred: c.idCred, data: c.data, cliente: c.cliente,
-          total: c.total, status: c.status, itens_consumidos: c.itensConsumidos, pagamentos: c.pagamentos || []
+          total: c.total, status: c.status, itens_consumidos: c.itensConsumidos, pagamentos: c.pagamentos || [],
+          updated_at: c.updated_at || new Date().toISOString()
         });
       }
 
@@ -1610,19 +1720,24 @@ function App() {
   function excluirProdutoDoEstoque(id, nome) {
     dispararConfirmacao('Excluir Produto', `Deseja realmente EXCLUIR permanentemente o produto "${nome}"?`, async () => {
         const idProdutoNormalizado = String(id ?? '');
+        const nomeNormalizado = normalizarNomeProduto(nome);
         const proximoExcluidos = [...new Set([...produtosExcluidos, idProdutoNormalizado])];
+        const proximoNomesExcluidos = [...new Set([...nomesProdutosExcluidos, nomeNormalizado])];
+
         setProdutosExcluidos(proximoExcluidos);
-        setProdutos((prev) => prev.filter((p) => String(p.id) !== idProdutoNormalizado));
+        setNomesProdutosExcluidos(proximoNomesExcluidos);
+        setProdutos((prev) => prev.filter((p) => String(p.id) !== idProdutoNormalizado && normalizarNomeProduto(p.nome) !== nomeNormalizado));
 
         try {
           const { error } = await supabaseClient?.from('produtos').delete().eq('id', idProdutoParaBanco(id));
           if (!error) {
             setProdutosExcluidos((prev) => prev.filter((item) => String(item) !== idProdutoNormalizado));
+            setNomesProdutosExcluidos((prev) => prev.filter((item) => item !== nomeNormalizado));
           }
         } catch (err) { console.warn('Nuvem offline:', err); }
 
         dispararMensagem('Estoque', `Produto "${nome}" foi removido do estoque.`);
-        const restantes = produtos.filter((p) => String(p.id) !== idProdutoNormalizado);
+        const restantes = produtos.filter((p) => String(p.id) !== idProdutoNormalizado && normalizarNomeProduto(p.nome) !== nomeNormalizado);
         if (restantes.length > 0) setIdProdutoSelecionadoEdicao(restantes[0].id);
     });
   }
@@ -1796,14 +1911,17 @@ function App() {
 
     if (tipo === 'fiado') {
       const idCredGerado = Date.now();
+      const tsAgora = new Date().toISOString();
       setCrediarios((prev) => [...prev, {
         idCred: idCredGerado, data: new Date().toLocaleString('pt-BR'), cliente: comandaAlvo.nome,
         total: totalParcial, status: 'Pendente', itensConsumidos: itensFormatados,
+        updated_at: tsAgora,
       }]);
       try {
         await supabaseClient?.from('crediarios').insert([{
           id_cred: idCredGerado, data: new Date().toLocaleString('pt-BR'), cliente: comandaAlvo.nome,
           total: totalParcial, status: 'Pendente', itens_consumidos: itensFormatados,
+          updated_at: tsAgora,
         }]);
       } catch (err) { console.warn('Fiado parcial salvo apenas localmente:', err); }
     }
@@ -1824,7 +1942,7 @@ function App() {
 
     if (restantes.length === 0) {
       setComandaRecemPaga({ ...comandaAlvo, itens: selecionados });
-      setComandas((prev) => prev.filter((c) => !mesmoComandaId(c.id, comandaAlvo.id)));
+      registrarComandaExcluida(comandaAlvo.id);
       removerComandaDaNuvem(comandaAlvo.id);
       setComandaAtivaId(null);
       setModoPagamento(false);
@@ -2086,7 +2204,7 @@ function App() {
           }, ...prev,
         ]);
 
-        setComandas((prev) => prev.filter((c) => !mesmoComandaId(c.id, comanda.id)));
+        registrarComandaExcluida(comanda.id);
         removerComandaDaNuvem(comanda.id);
 
         if (mesmoComandaId(comandaAtivaId, comanda.id)) {
@@ -2214,11 +2332,13 @@ function App() {
           setCrediarios(prev => [...prev, {
               idCred: idCredGerado, data: new Date().toLocaleString('pt-BR'), cliente: comandaAtual.nome,
               total: cr, status: 'Pendente', itensConsumidos: itensParaSalvar,
+              updated_at: new Date().toISOString(),
           }]);
 
           supabaseClient?.from('crediarios').insert([{
                 id_cred: idCredGerado, data: new Date().toLocaleString('pt-BR'), cliente: comandaAtual.nome,
                 total: cr, status: 'Pendente', itens_consumidos: itensParaSalvar,
+                updated_at: new Date().toISOString(),
           }]).then(() => console.log('Fiado composto salvo na nuvem!'));
 
           const dadosDoCliente = clientesCadastrados.find((cli) => cli.nome.toLowerCase() === comandaAtual.nome.toLowerCase());
@@ -2245,7 +2365,7 @@ function App() {
         } catch (error) { console.error(error); }
 
         setComandaRecemPaga({ ...comandaAtual });
-        setComandas((prev) => prev.filter((x) => !mesmoComandaId(x.id, comandaAtivaId)));
+        registrarComandaExcluida(comandaAtivaId);
         removerComandaDaNuvem(comandaAtivaId);
         setComandaAtivaId(null);
         setModoPagamento(false);
@@ -2271,11 +2391,13 @@ function App() {
           setCrediarios(prev => [...prev, {
               idCred: idCredGerado, data: new Date().toLocaleString('pt-BR'), cliente: comandaAtual.nome,
               total: totalCobranca, status: 'Pendente', itensConsumidos: itensParaSalvar,
+              updated_at: new Date().toISOString(),
           }]);
 
           supabaseClient?.from('crediarios').insert([{
             id_cred: idCredGerado, data: new Date().toLocaleString('pt-BR'), cliente: comandaAtual.nome,
-            total: totalCobranca, status: 'Pendente', itens_consumidos: itensParaSalvar
+            total: totalCobranca, status: 'Pendente', itens_consumidos: itensParaSalvar,
+            updated_at: new Date().toISOString(),
           }]).then(() => console.log('Fiado direto salvo na nuvem com sucesso!')).catch(err => console.error(err));
 
           const dadosDoCliente = clientesCadastrados.find((c) => c.nome.toLowerCase() === comandaAtual.nome.toLowerCase());
@@ -2303,7 +2425,7 @@ function App() {
 
         // 🛠️ FIX CEO: Removido o código super duplicado que estava aqui limpando as mesas 2 vezes seguidas
         setComandaRecemPaga({ ...comandaAtual });
-        setComandas((prev) => prev.filter((x) => !mesmoComandaId(x.id, comandaAtivaId)));
+        registrarComandaExcluida(comandaAtivaId);
         removerComandaDaNuvem(comandaAtivaId);
         setComandaAtivaId(null);
         setModoPagamento(false);
@@ -2395,9 +2517,11 @@ function App() {
     const itens = [{ nome: textoDescricao, qtd: 1, preco: valorLancado }];
     const dataFormatada = new Date().toLocaleString('pt-BR');
 
+    const tsAgora = new Date().toISOString();
     setCrediarios((prev) => [...prev, {
       idCred: idCredGerado, data: dataFormatada, cliente: nomeCliente,
       total: valorLancado, status: 'Pendente', itensConsumidos: itens,
+      updated_at: tsAgora,
     }]);
 
     registrarNovoClienteNaBase(nomeCliente);
@@ -2406,6 +2530,7 @@ function App() {
       await supabaseClient?.from('crediarios').insert([{
         id_cred: idCredGerado, data: dataFormatada, cliente: nomeCliente,
         total: valorLancado, status: 'Pendente', itens_consumidos: itens,
+        updated_at: tsAgora,
       }]);
     } catch (err) { console.warn('Lançamento salvo apenas localmente:', err); }
 
