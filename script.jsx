@@ -926,13 +926,16 @@ function App() {
       }))
       .sort((a, b) => a.id.localeCompare(b.id, 'pt-BR'));
 
+    const idsExcluidos = new Set((comandasExcluidas || []).map(normalizarComandaId));
+
     dadosBackupRef.current = {
       versao: 1,
       gerado_em: new Date().toISOString(),
       clientes: clientesNormalizados,
       comandas: comandasNormalizadas,
+      comandas_excluidas: [...idsExcluidos],
     };
-  }, [clientesCadastrados, comandas]);
+  }, [clientesCadastrados, comandas, comandasExcluidas, normalizarComandaId]);
 
   React.useEffect(() => {
     if (!supabaseClient) return undefined;
@@ -1031,7 +1034,8 @@ function App() {
 
       const payload = data?.payload;
       const clientesBackup = Array.isArray(payload?.clientes) ? payload.clientes : [];
-      const comandasBackup = Array.isArray(payload?.comandas) ? payload.comandas : [];
+      const idsExcluidosBackup = new Set(Array.isArray(payload?.comandas_excluidas) ? payload.comandas_excluidas.map(String) : []);
+      const comandasBackup = Array.isArray(payload?.comandas) ? payload.comandas.filter((comanda) => !idsExcluidosBackup.has(normalizarComandaId(comanda.id))) : [];
       if (clientesBackup.length === 0 && comandasBackup.length === 0) return;
 
       if (clientesBackup.length > 0) {
@@ -1039,6 +1043,10 @@ function App() {
         try {
           localStorage.setItem('bhar_clientes_v2', JSON.stringify(clientesBackup));
         } catch (e) {}
+      }
+
+      if (idsExcluidosBackup.size > 0) {
+        setComandasExcluidas((prev) => [...new Set([...prev, ...[...idsExcluidosBackup]])]);
       }
 
       if (comandasBackup.length > 0) {
