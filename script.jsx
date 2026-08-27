@@ -679,6 +679,11 @@ function App() {
     [produtosExcluidos]
   );
 
+  const filtrarProdutosExcluidos = React.useCallback((lista) => {
+    if (!Array.isArray(lista)) return [];
+    return lista.filter((produto) => !produtosExcluidosSet.has(String(produto?.id ?? '')));
+  }, [produtosExcluidosSet]);
+
   React.useEffect(() => {
     try {
       localStorage.setItem('bhar_produtos_excluidos_v1', JSON.stringify(produtosExcluidos));
@@ -1267,7 +1272,7 @@ function App() {
 
       if (cancelado || error || !Array.isArray(data) || data.length === 0) return;
 
-      const produtosNuvem = data.map((produto) => ({
+      const produtosNuvem = filtrarProdutosExcluidos(data.map((produto) => ({
         id: produto.id,
         category: String(produto.category || 'Geral').trim() || 'Geral',
         nome: produto.nome,
@@ -1279,12 +1284,12 @@ function App() {
         imagem: produto.imagem,
         fatorConversao: produto.fator_conversao || 1,
         apelidos: produto.apelidos || [],
-      })).filter((produto) => !produtosExcluidosSet.has(String(produto.id)));
+      })));
 
       setProdutos((atuais) => {
+        const locaisValidos = filtrarProdutosExcluidos(atuais || []);
         const mapa = new Map(produtosNuvem.map((produto) => [String(produto.id), produto]));
-        for (const produto of atuais) {
-          if (produtosExcluidosSet.has(String(produto.id))) continue;
+        for (const produto of locaisValidos) {
           if (!mapa.has(String(produto.id))) mapa.set(String(produto.id), produto);
         }
         return Array.from(mapa.values());
@@ -1605,16 +1610,19 @@ function App() {
   function excluirProdutoDoEstoque(id, nome) {
     dispararConfirmacao('Excluir Produto', `Deseja realmente EXCLUIR permanentemente o produto "${nome}"?`, async () => {
         const idProdutoNormalizado = String(id ?? '');
-        setProdutosExcluidos((prev) => prev.includes(idProdutoNormalizado) ? prev : [...prev, idProdutoNormalizado]);
-        setProdutos(prev => prev.filter((p) => p.id !== id));
+        const proximoExcluidos = [...new Set([...produtosExcluidos, idProdutoNormalizado])];
+        setProdutosExcluidos(proximoExcluidos);
+        setProdutos((prev) => prev.filter((p) => String(p.id) !== idProdutoNormalizado));
+
         try {
           const { error } = await supabaseClient?.from('produtos').delete().eq('id', idProdutoParaBanco(id));
           if (!error) {
             setProdutosExcluidos((prev) => prev.filter((item) => String(item) !== idProdutoNormalizado));
           }
         } catch (err) { console.warn('Nuvem offline:', err); }
+
         dispararMensagem('Estoque', `Produto "${nome}" foi removido do estoque.`);
-        const restantes = produtos.filter((p) => p.id !== id);
+        const restantes = produtos.filter((p) => String(p.id) !== idProdutoNormalizado);
         if (restantes.length > 0) setIdProdutoSelecionadoEdicao(restantes[0].id);
     });
   }
