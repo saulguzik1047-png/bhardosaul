@@ -2,7 +2,7 @@
 <html lang="pt-br">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>PDV - Sistema</title>
 
     <link
@@ -55,6 +55,10 @@
         --ios-transition: 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
       }
 
+      html, body {
+        height: 100%;
+      }
+
       body {
         margin: 0;
         font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
@@ -63,8 +67,8 @@
           radial-gradient(ellipse at 0% 0%, rgba(0, 122, 255, 0.04) 0%, transparent 50%),
           radial-gradient(ellipse at 100% 100%, rgba(175, 82, 222, 0.03) 0%, transparent 50%);
         color: var(--ios-label);
-        height: 100vh;
-        overflow: hidden;
+        min-height: 100vh;
+        overflow-y: auto;
         -webkit-font-smoothing: antialiased;
         letter-spacing: -0.2px;
       }
@@ -166,7 +170,8 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        height: calc(100vh - 56px);
+        min-height: calc(100vh - 56px);
+        padding: 24px 16px 32px;
         background: var(--ios-bg);
       }
       .login-card {
@@ -180,6 +185,7 @@
         width: 100%;
         max-width: 360px;
         text-align: center;
+        transform: translateZ(0);
       }
       .login-card i.cadeado {
         font-size: 44px;
@@ -1683,11 +1689,157 @@
       .btn-dialog-cancel:active {
         background: var(--ios-fill-secondary);
       }
+
+      /* --- RESPONSIVO MOBILE --- */
+      @media (max-width: 900px) {
+        body {
+          height: auto;
+          min-height: 100dvh;
+          overflow: auto;
+        }
+
+        .topbar {
+          height: auto !important;
+          min-height: 56px;
+          padding: 8px 10px !important;
+          gap: 8px !important;
+          flex-wrap: wrap !important;
+          justify-content: flex-start !important;
+          position: sticky;
+          top: 0;
+        }
+
+        .bar-logo {
+          order: 1;
+          flex: 1 1 100%;
+          width: 100%;
+          text-align: center;
+          font-size: 16px !important;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .topbar-menu {
+          order: 2;
+          width: 100%;
+          overflow-x: auto;
+          overflow-y: hidden;
+          white-space: nowrap;
+          flex-wrap: nowrap !important;
+          -webkit-overflow-scrolling: touch;
+          padding-bottom: 2px;
+        }
+
+        .topbar-menu button {
+          flex: 0 0 auto;
+        }
+
+        .user-info {
+          order: 3;
+          width: 100%;
+          justify-content: space-between;
+          font-size: 12px !important;
+          gap: 8px !important;
+          flex-wrap: wrap;
+        }
+
+        .login-container,
+        .single-container,
+        .estoque-dark-container {
+          height: auto !important;
+          min-height: calc(100dvh - 56px);
+          padding: 12px !important;
+          overflow: auto !important;
+        }
+
+        .main-container {
+          display: flex !important;
+          flex-direction: column !important;
+          height: auto !important;
+          min-height: calc(100dvh - 56px);
+          padding: 8px !important;
+          gap: 8px !important;
+          overflow: visible !important;
+        }
+
+        .main-container > .col {
+          flex: 1 1 auto !important;
+          max-width: none !important;
+          min-width: 0 !important;
+          height: auto !important;
+          overflow: visible !important;
+        }
+
+        .grid-financeiro-tabelas,
+        .financeiro-top-row,
+        .estoque-dark-layout,
+        .dark-form-row,
+        .dark-form-row-three,
+        .dark-form-row-two-btn {
+          display: grid !important;
+          grid-template-columns: 1fr !important;
+          gap: 10px !important;
+        }
+
+        .grid-produtos {
+          grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)) !important;
+        }
+
+        .wrapper-tabela-scroll {
+          max-height: none !important;
+          overflow: auto !important;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        table {
+          min-width: 640px;
+        }
+
+        h2 {
+          font-size: 20px;
+          margin-bottom: 10px;
+        }
+
+        h3 {
+          font-size: 16px;
+          margin-bottom: 8px;
+        }
+
+        .custom-dialog-box {
+          width: 96% !important;
+          max-width: 96% !important;
+          margin: 0 auto;
+        }
+      }
+
+      @media (max-width: 520px) {
+        .topbar-menu button {
+          height: 34px !important;
+          padding: 0 10px !important;
+          font-size: 12px !important;
+        }
+
+        .user-info span {
+          font-size: 11px !important;
+        }
+
+        .btn-dialog-confirm,
+        .btn-dialog-cancel {
+          font-size: 15px;
+          padding: 12px;
+        }
+
+        .card-panel,
+        .consumo-box {
+          padding: 12px !important;
+        }
+      }
     </style>
     <meta property="og:image" content="https://bolt.new/static/og_default.png">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content="https://bolt.new/static/og_default.png">
-  <script type="module" crossorigin src="/assets/index-50f4355f.js"></script>
+  <script type="module" crossorigin src="/assets/index-61bc0ef0.js"></script>
 </head>
 
   <body>

@@ -146,7 +146,8 @@ CREATE TABLE IF NOT EXISTS crediarios (
   total float8 DEFAULT 0,
   status text DEFAULT 'Pendente',
   itens_consumidos jsonb DEFAULT '[]'::jsonb,
-  pagamentos jsonb DEFAULT '[]'::jsonb
+  pagamentos jsonb DEFAULT '[]'::jsonb,
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 ALTER TABLE crediarios ENABLE ROW LEVEL SECURITY;
