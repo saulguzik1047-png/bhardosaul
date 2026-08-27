@@ -776,7 +776,11 @@ function App() {
   const [comandas, setComandas] = React.useState(() => {
     try {
       const salvas = localStorage.getItem('bhar_comandas_v1');
-      return salvas ? JSON.parse(salvas) : [];
+      const dados = salvas ? JSON.parse(salvas) : [];
+      return Array.isArray(dados) ? dados.map((comanda) => ({
+        ...comanda,
+        updated_at: comanda?.updated_at || new Date().toISOString(),
+      })) : [];
     } catch (e) { return []; }
   });
   const [clientesSincronizados, setClientesSincronizados] = React.useState(false);
@@ -791,6 +795,11 @@ function App() {
   const idComandaParaBanco = (id) => {
     const n = Number(id);
     return Number.isFinite(n) ? Math.trunc(n) : id;
+  };
+  const obterTimestampComanda = (valor) => {
+    if (!valor) return 0;
+    const ts = Date.parse(valor);
+    return Number.isFinite(ts) ? ts : 0;
   };
 
   React.useEffect(() => {
@@ -982,10 +991,30 @@ function App() {
           nome: comanda.nome,
           status: comanda.status || 'Aberto',
           itens: Array.isArray(comanda.itens) ? comanda.itens : [],
+          updated_at: comanda.updated_at || new Date().toISOString(),
         }));
         setComandas((locais) => {
-          const idsNuvem = new Set(comandasNuvem.map((comanda) => normalizarComandaId(comanda.id)));
-          return [...comandasNuvem, ...locais.filter((comanda) => !idsNuvem.has(normalizarComandaId(comanda.id)))];
+          const locaisMap = new Map((locais || []).map((comanda) => [normalizarComandaId(comanda.id), comanda]));
+          const resultado = [...(comandasNuvem || [])];
+
+          for (const local of locais || []) {
+            const idLocal = normalizarComandaId(local.id);
+            const cloud = data.find((item) => normalizarComandaId(item.id) === idLocal);
+            if (!cloud) {
+              resultado.push({ ...local, updated_at: local?.updated_at || new Date().toISOString() });
+              continue;
+            }
+
+            const cloudTs = obterTimestampComanda(cloud.updated_at);
+            const localTs = obterTimestampComanda(local.updated_at);
+            if (localTs > cloudTs) {
+              const indice = resultado.findIndex((item) => normalizarComandaId(item.id) === idLocal);
+              if (indice >= 0) resultado[indice] = { ...local, updated_at: local?.updated_at || new Date().toISOString() };
+              else resultado.push({ ...local, updated_at: local?.updated_at || new Date().toISOString() });
+            }
+          }
+
+          return resultado;
         });
       }
       setComandasSincronizadas(true);
@@ -1003,7 +1032,7 @@ function App() {
       nome: comanda.nome,
       status: comanda.status || 'Aberto',
       itens: comanda.itens || [],
-      updated_at: new Date().toISOString(),
+      updated_at: comanda.updated_at || new Date().toISOString(),
     }));
 
     if (comandasParaSalvar.length === 0) return;
@@ -1044,11 +1073,31 @@ function App() {
         nome: comanda.nome,
         status: comanda.status || 'Aberto',
         itens: Array.isArray(comanda.itens) ? comanda.itens : [],
+        updated_at: comanda.updated_at || new Date().toISOString(),
       }));
 
-      setComandas((atuais) => JSON.stringify(atuais) === JSON.stringify(comandasNuvem)
-        ? atuais
-        : comandasNuvem);
+      setComandas((atuais) => {
+        const resultado = [...comandasNuvem];
+
+        for (const atual of atuais || []) {
+          const idAtual = normalizarComandaId(atual.id);
+          const nuvem = data.find((item) => normalizarComandaId(item.id) === idAtual);
+          if (!nuvem) {
+            resultado.push({ ...atual, updated_at: atual?.updated_at || new Date().toISOString() });
+            continue;
+          }
+
+          const cloudTs = obterTimestampComanda(nuvem.updated_at);
+          const localTs = obterTimestampComanda(atual.updated_at);
+          if (localTs > cloudTs) {
+            const indice = resultado.findIndex((item) => normalizarComandaId(item.id) === idAtual);
+            if (indice >= 0) resultado[indice] = { ...atual, updated_at: atual?.updated_at || new Date().toISOString() };
+            else resultado.push({ ...atual, updated_at: atual?.updated_at || new Date().toISOString() });
+          }
+        }
+
+        return JSON.stringify(atuais) === JSON.stringify(resultado) ? atuais : resultado;
+      });
     };
 
     const intervalo = window.setInterval(atualizarComandasDaNuvem, 4000);
