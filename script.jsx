@@ -1471,6 +1471,31 @@ function App() {
       onConfirm: () => {}
     });
     try {
+      const { data: fiadosNuvem, error: erroFiadosNuvem } = await supabaseClient
+        ?.from('crediarios')
+        .select('*') || {};
+      if (erroFiadosNuvem) throw erroFiadosNuvem;
+
+      const mapaFiados = new Map();
+      for (const fiado of Array.isArray(fiadosNuvem) ? fiadosNuvem : []) {
+        mapaFiados.set(String(fiado.id_cred), {
+          idCred: fiado.id_cred,
+          data: fiado.data,
+          cliente: fiado.cliente,
+          total: Number(fiado.total || 0),
+          status: fiado.status || 'Pendente',
+          itensConsumidos: fiado.itens_consumidos || [],
+          pagamentos: fiado.pagamentos || [],
+          updated_at: fiado.updated_at || fiado.data || new Date().toISOString(),
+        });
+      }
+      for (const fiado of Array.isArray(crediarios) ? crediarios : []) {
+        const chave = String(fiado.idCred);
+        if (!mapaFiados.has(chave)) mapaFiados.set(chave, fiado);
+      }
+      const crediariosParaSincronizar = Array.from(mapaFiados.values());
+      setCrediarios(crediariosParaSincronizar);
+
       // fallback: se o estado `produtos` estiver vazio, tente carregar do localStorage
       let produtosParaSincronizar = produtos;
       if ((!produtos || produtos.length === 0) && typeof localStorage !== 'undefined') {
@@ -1549,7 +1574,7 @@ function App() {
         console.log(`[SYNC] fallback cliente Supabase concluiu ${produtosNormalizados.length} produto(s).`);
       }
 
-      for (const c of crediarios) {
+      for (const c of crediariosParaSincronizar) {
         await supabaseClient?.from('crediarios').upsert({
           id_cred: c.idCred, data: c.data, cliente: c.cliente,
           total: c.total, status: c.status, itens_consumidos: c.itensConsumidos, pagamentos: c.pagamentos || [],
@@ -1581,7 +1606,7 @@ function App() {
         })));
       }
 
-      dispararMensagem('✅ Sincronização Concluída', `Tudo certo! Dados seguros na nuvem.\n\n📊 Resumo:\n- ${(produtosParaSincronizar || []).length} Produtos${produtosSincronizados ? ' (OK)' : ''}\n- ${crediarios.length} Fiados\n- ${vendasParaInserir.length} Vendas resgatadas\n- ${clientesParaInserir.length} Clientes novos`);
+      dispararMensagem('✅ Sincronização Concluída', `Tudo certo! Dados seguros na nuvem.\n\n📊 Resumo:\n- ${(produtosParaSincronizar || []).length} Produtos${produtosSincronizados ? ' (OK)' : ''}\n- ${crediariosParaSincronizar.length} Fiados\n- ${vendasParaInserir.length} Vendas resgatadas\n- ${clientesParaInserir.length} Clientes novos`);
     } catch (err) {
       console.error('Erro na sincronização:', err);
       dispararMensagem('❌ Erro de Conexão', 'Não foi possível sincronizar. Verifique a internet e tente novamente.');
