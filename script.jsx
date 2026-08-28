@@ -533,17 +533,17 @@ function App() {
   const [categoriasCustomizadas, setCategoriasCustomizadas] = React.useState(() => {
     try {
       const salvadas = localStorage.getItem('bhar_categorias_customizadas_v1');
-      return salvadas ? JSON.parse(salvadas) : ['Cervejas', 'Drinks', 'Porções', 'Não Alcoólicos'];
+      return salvadas ? JSON.parse(salvadas) : [];
     } catch (e) {
-      return ['Cervejas', 'Drinks', 'Porções', 'Não Alcoólicos'];
+      return [];
     }
   });
   const [categoriasDivisiveis, setCategoriasDivisiveis] = React.useState(() => {
     try {
       const salvadas = localStorage.getItem('bhar_categorias_divisiveis_v1');
-      return salvadas ? JSON.parse(salvadas) : ['Porções'];
+      return salvadas ? JSON.parse(salvadas) : [];
     } catch (e) {
-      return ['Porções'];
+      return [];
     }
   });
 
@@ -1786,7 +1786,6 @@ function App() {
 
     const novoEstoque = produto.estoque - 1;
     setProdutos((prev) => prev.map((p) => p.id === produto.id ? { ...p, estoque: novoEstoque } : p));
-    try { await supabaseClient?.from('produtos').update({ estoque: novoEstoque }).eq('id', produto.id); } catch (err) { console.warn('Nuvem offline:', err); }
     const atualizadoEm = new Date().toISOString();
     setComandas((prev) =>
       prev.map((c) => {
@@ -1801,6 +1800,9 @@ function App() {
         return { ...c, itens: itensAlterados, updated_at: atualizadoEm };
       })
     );
+    supabaseClient?.from('produtos').update({ estoque: novoEstoque }).eq('id', produto.id)
+      .then(({ error }) => { if (error) console.warn('Estoque será sincronizado depois:', error); })
+      .catch((err) => console.warn('Estoque será sincronizado depois:', err));
 
     if (produto.category === 'Porções' || categoriasDivisiveis.includes(produto.category)) {
       dispararMensagem('⚠️ IMPRESSÃO COZINHA ⚠️', `Mesa/Comanda: ${comandaAtual.nome}\nItem: 1x ${produto.nome}\nEnviado direto para o atendente levar até a cozinha!`);
