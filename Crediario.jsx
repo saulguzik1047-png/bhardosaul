@@ -10,6 +10,7 @@ export function Crediario({
   imprimirRelatorioDiarioFiados,
   imprimirRelatorioPendenciaGeralFiados,
   imprimirExtratoDebitosCliente,
+  excluirDebitoCrediario,
 }) {
   const [buscaCrediario, setBuscaCrediario] = React.useState('');
   const [expandedCliente, setExpandedCliente] = React.useState(null);
@@ -224,6 +225,22 @@ export function Crediario({
                                   {formatarMoeda(c.total)}
                                 </span>
                               </div>
+                              <button
+                                type="button"
+                                title="Excluir este débito"
+                                onClick={() => excluirDebitoCrediario && excluirDebitoCrediario(c)}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: '#dc2626',
+                                  cursor: 'pointer',
+                                  padding: '5px 0',
+                                  fontSize: '11px',
+                                  fontWeight: 'bold',
+                                }}
+                              >
+                                <i className="fas fa-trash-alt" style={{ marginRight: '5px' }}></i>Excluir débito
+                              </button>
                               <div className="caixa-produtos-consumidos" style={{ marginTop: '4px' }}>
                                 {c.itensConsumidos &&
                                   c.itensConsumidos.map((it, idx) => (

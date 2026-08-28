@@ -2603,6 +2603,56 @@ function App() {
     dispararMensagem('Lançamento Adicionado', `${formatarMoeda(valorLancado)} (${textoDescricao}) foi adicionado à conta de ${nomeCliente}.`);
   }
 
+  function excluirDebitoCrediario(debito) {
+    if (!debito?.idCred) return;
+
+    dispararConfirmacao(
+      'Excluir Débito',
+      `Deseja excluir permanentemente o débito de ${formatarMoeda(debito.total)} lançado para ${debito.cliente}?`,
+      async () => {
+        const detalhes = {
+          id_cred: debito.idCred,
+          cliente: debito.cliente,
+          valor: Number(debito.total || 0),
+          data_lancamento: debito.data,
+        };
+
+        try {
+          const { error: erroAuditoria } = await supabaseClient
+            ?.from('auditoria_cancelamentos')
+            .insert([{
+              operador: usuarioLogado ? usuarioLogado.usuario : 'Admin',
+              tipo: 'Exclusão de Débito Fiado',
+              motivo: 'Exclusão manual no crediário',
+              data: new Date().toISOString(),
+              detalhes,
+            }]);
+          if (erroAuditoria) throw erroAuditoria;
+
+          const { error: erroExclusao } = await supabaseClient
+            ?.from('crediarios')
+            .delete()
+            .eq('id_cred', debito.idCred);
+          if (erroExclusao) throw erroExclusao;
+
+          setCrediarios((prev) => prev.filter((item) => item.idCred !== debito.idCred));
+          setLogsAuditoria((prev) => [{
+            id: Date.now(),
+            data: new Date().toISOString(),
+            tipo: 'Exclusão de Débito Fiado',
+            operador: usuarioLogado ? usuarioLogado.usuario : 'Admin',
+            motivo: 'Exclusão manual no crediário',
+            detalhes,
+          }, ...prev]);
+          dispararMensagem('Débito Excluído', 'O débito foi removido e registrado na auditoria.');
+        } catch (erro) {
+          console.error('Não foi possível excluir o débito:', erro);
+          dispararMensagem('Erro ao Excluir', 'O débito não foi removido. Verifique a conexão e tente novamente.');
+        }
+      }
+    );
+  }
+
   function liquidarVáriasComandasCrediario(comandasArray, cliente, metodo) {
     let totalDivida = comandasArray.reduce((acc, c) => acc + c.total, 0);
 
@@ -2881,6 +2931,7 @@ function App() {
           imprimirRelatorioDiarioFiados={imprimirRelatorioDiarioFiados}
           imprimirRelatorioPendenciaGeralFiados={imprimirRelatorioPendenciaGeralFiados}
           imprimirExtratoDebitosCliente={imprimirExtratoDebitosCliente}
+          excluirDebitoCrediario={excluirDebitoCrediario}
         />
       )}
       {telaAtual === 'seguranca' && autenticado && usuarioLogado && usuarioLogado.perfil === 'admin' && (
