@@ -153,8 +153,8 @@ export function Crediario({
           <table style={{ borderCollapse: 'collapse', width: '100%' }}>
             <thead>
               <tr style={{ background: 'rgba(120,120,128,0.12)', color: '#5c5c66', fontSize: '12px', textTransform: 'uppercase' }}>
-                <th style={{ padding: '12px', textAlign: 'left' }}>Cliente / Resumo</th>
-                <th style={{ padding: '12px', textAlign: 'center', width: '150px' }}>Ação</th>
+                <th style={{ padding: '12px', textAlign: 'left' }}>Cliente</th>
+                <th style={{ padding: '12px', textAlign: 'right' }}>Total devido</th>
               </tr>
             </thead>
             <tbody>
@@ -165,14 +165,10 @@ export function Crediario({
                     .includes(buscaCrediario.toLowerCase())
                 )
                 .map((g) => (
-                  <tr key={g.cliente} style={{ borderBottom: '1px solid rgba(60,60,67,0.12)' }}>
+                  <tr key={g.cliente} style={{ borderBottom: '1px solid rgba(60,60,67,0.12)', cursor: 'pointer' }} onClick={() => setExpandedCliente(expandedCliente === g.cliente ? null : g.cliente)}>
                     <td
-                      style={{ padding: '12px', cursor: 'pointer' }}
-                      onClick={() =>
-                        setExpandedCliente(
-                          expandedCliente === g.cliente ? null : g.cliente
-                        )
-                      }
+                      colSpan="2"
+                      style={{ padding: '12px' }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
@@ -180,12 +176,10 @@ export function Crediario({
                             <i className="fas fa-user" style={{ marginRight: '6px' }}></i>
                             {g.cliente}
                           </strong>
-                          <span style={{ fontSize: '11px', color: '#6b7280', marginLeft: '8px' }}>
-                            ({g.comandas.length} comanda{g.comandas.length > 1 ? 's' : ''})
-                          </span>
                         </div>
-                        <div style={{ fontWeight: 'bold', color: '#dc2626', fontSize: '16px' }}>
+                        <div style={{ fontWeight: 'bold', color: '#dc2626', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                           {formatarMoeda(g.total)}
+                          <i className={`fas fa-chevron-${expandedCliente === g.cliente ? 'up' : 'down'}`} style={{ color: '#6b7280', fontSize: '12px' }}></i>
                         </div>
                       </div>
 
@@ -263,63 +257,19 @@ export function Crediario({
                               </div>
                             </div>
                           ))}
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', paddingTop: '4px' }}>
+                            <button type="button" onClick={() => abrirOpcoesPagamento(g)} style={{ background: '#22c55e', color: 'white', border: 'none', padding: '10px 12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer' }}>
+                              <i className="fas fa-hand-holding-usd" style={{ marginRight: '5px' }}></i>Quitar Conta
+                            </button>
+                            <button type="button" onClick={() => abrirLancamento(g.cliente)} style={{ background: '#d97706', color: 'white', border: 'none', padding: '10px 12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer' }}>
+                              <i className="fas fa-plus" style={{ marginRight: '5px' }}></i>Adicionar Saldo
+                            </button>
+                            <button type="button" onClick={() => imprimirExtratoDebitosCliente && imprimirExtratoDebitosCliente(g.cliente, g.comandas)} style={{ background: '#334155', color: 'white', border: 'none', padding: '10px 12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer' }}>
+                              <i className="fas fa-print" style={{ marginRight: '5px' }}></i>Imprimir Débitos
+                            </button>
+                          </div>
                         </div>
                       )}
-                    </td>
-                    <td style={{ padding: '12px', verticalAlign: 'middle', textAlign: 'center' }}>
-                      <button
-                        style={{
-                          background: '#22c55e',
-                          color: 'white',
-                          border: 'none',
-                          padding: '12px 10px',
-                          fontSize: '13px',
-                          fontWeight: 'bold',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          width: '100%',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onClick={() => abrirOpcoesPagamento(g)}
-                      >
-                        <i className="fas fa-hand-holding-usd"></i> Quitar Conta
-                      </button>
-                      <button
-                        style={{
-                          background: '#d97706',
-                          color: 'white',
-                          border: 'none',
-                          padding: '10px',
-                          fontSize: '12px',
-                          fontWeight: 'bold',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          width: '100%',
-                          marginTop: '8px'
-                        }}
-                        onClick={() => abrirLancamento(g.cliente)}
-                      >
-                        <i className="fas fa-plus"></i> Adicionar Saldo
-                      </button>
-                      <button
-                        type="button"
-                        style={{
-                          background: '#334155',
-                          color: 'white',
-                          border: 'none',
-                          padding: '10px',
-                          fontSize: '12px',
-                          fontWeight: 'bold',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          width: '100%',
-                          marginTop: '8px'
-                        }}
-                        onClick={() => imprimirExtratoDebitosCliente && imprimirExtratoDebitosCliente(g.cliente, g.comandas)}
-                      >
-                        <i className="fas fa-print"></i> Imprimir Débitos
-                      </button>
                     </td>
                   </tr>
                 ))}
