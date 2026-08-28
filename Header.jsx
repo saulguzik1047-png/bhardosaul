@@ -59,6 +59,7 @@ export const Header = ({
                 border: 'none',
                 background: isActive ? 'rgba(0, 122, 255, 0.1)' : 'transparent',
                 color: '#007aff',
+                textTransform: 'uppercase',
                 backdropFilter: 'blur(12px)',
                 WebkitBackdropFilter: 'blur(12px)',
               }}
