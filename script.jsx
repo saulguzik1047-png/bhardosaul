@@ -2607,12 +2607,12 @@ function App() {
 
             if (sobraPagamento >= c.total) {
               sobraPagamento -= c.total;
-              atualizado = { ...c, total: 0, status: 'Pago', pagamentos: [...(c.pagamentos || []), { valor: c.total, metodo: 'Parcial', data: new Date().toLocaleString('pt-BR')}] };
+              atualizado = { ...c, total: 0, status: 'Pago', pagamentos: [...(c.pagamentos || []), { valor: c.total, metodo: 'Parcial', data: new Date().toLocaleString('pt-BR')}], updated_at: new Date().toISOString() };
             } else {
               const novoTotal = c.total - sobraPagamento;
               const pagoNesta = sobraPagamento;
               sobraPagamento = 0;
-              atualizado = { ...c, total: novoTotal, status: 'Pendente', pagamentos: [...(c.pagamentos || []), { valor: pagoNesta, metodo: 'Parcial', data: new Date().toLocaleString('pt-BR')}] };
+              atualizado = { ...c, total: novoTotal, status: 'Pendente', pagamentos: [...(c.pagamentos || []), { valor: pagoNesta, metodo: 'Parcial', data: new Date().toLocaleString('pt-BR')}], updated_at: new Date().toISOString() };
             }
             alteradosParaBanco.push(atualizado);
             return atualizado;
@@ -2634,7 +2634,7 @@ function App() {
 
           try {
             for (const item of alteradosParaBanco) {
-              await supabaseClient?.from('crediarios').update({ total: item.total, status: item.status, pagamentos: item.pagamentos }).eq('id_cred', item.idCred);
+              await supabaseClient?.from('crediarios').update({ total: item.total, status: item.status, pagamentos: item.pagamentos, updated_at: item.updated_at }).eq('id_cred', item.idCred);
             }
             await supabaseClient?.from('vendas').insert([{ data: new Date().toLocaleString('pt-BR'), cliente: `Abatimento Parcial - ${cliente}`, total: valor, pagamento: 'PIX/Dinheiro/Cartão', itens_consumidos: [{ nome: 'Abatimento Parcial Fiado', qtd: 1, preco: valor }]}]);
           } catch (error) { console.error(error); }
@@ -2648,7 +2648,7 @@ function App() {
     dispararConfirmacao('Liquidar Crediário', `Confirmar recebimento TOTAL de ${formatarMoeda(totalDivida)} em [${metodo}] para quitar todas as contas de ${cliente}?`, async () => {
         setCrediarios((prev) => prev.map((c) => {
             const pertence = comandasArray.some((x) => x.idCred === c.idCred);
-            return pertence ? { ...c, status: 'Pago', total: 0, pagamentos: [...(c.pagamentos || []), { valor: c.total, metodo: metodo, data: new Date().toLocaleString('pt-BR')}] } : c;
+        return pertence ? { ...c, status: 'Pago', total: 0, pagamentos: [...(c.pagamentos || []), { valor: c.total, metodo: metodo, data: new Date().toLocaleString('pt-BR')}], updated_at: new Date().toISOString() } : c;
         }));
 
         comandasArray.forEach((credItem) => {
@@ -2671,7 +2671,7 @@ function App() {
 
         try {
           for (const credItem of comandasArray) {
-            await supabaseClient?.from('crediarios').update({ total: 0, status: 'Pago' }).eq('id_cred', credItem.idCred);
+            await supabaseClient?.from('crediarios').update({ total: 0, status: 'Pago', updated_at: new Date().toISOString() }).eq('id_cred', credItem.idCred);
           }
           await supabaseClient?.from('vendas').insert([{ data: new Date().toLocaleString('pt-BR'), cliente: `Quitação Total - ${cliente}`, total: totalDivida, pagamento: metodo, itens_consumidos: [{ nome: 'Quitação Total Fiado', qtd: 1, preco: totalDivida }]}]);
         } catch (error) { console.error(error); }
