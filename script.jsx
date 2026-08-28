@@ -1865,7 +1865,8 @@ function App() {
   }
 
   async function diminuirQtdItemNaComanda(item) {
-    if (!comandaAtual || !item) return;
+    const comandaParaAlterar = comandasRef.current.find((comanda) => mesmoComandaId(comanda.id, comandaAtivaId));
+    if (!comandaParaAlterar || !item) return;
     const qtdAtual = Number(item.qtd || 0);
     if (item.splitGroupId) return;
     if (qtdAtual <= 1) {
@@ -1881,15 +1882,22 @@ function App() {
       return prev.map((p) => p.id === item.idProd ? { ...p, estoque: novoEst } : p);
     });
 
-    setComandas((prev) => prev.map((c) => {
-      if (!mesmoComandaId(c.id, comandaAtivaId)) return c;
-      return {
-        ...c,
-        itens: c.itens.map((i) => (i.idProd === item.idProd && !i.splitGroupId) ? { ...i, qtd: i.qtd - 1 } : i),
-      };
-    }));
+    const comandaAtualizada = {
+      ...comandaParaAlterar,
+      itens: comandaParaAlterar.itens.map((itemAtual) =>
+        (itemAtual.idProd === item.idProd && !itemAtual.splitGroupId)
+          ? { ...itemAtual, qtd: Number(itemAtual.qtd || 0) - 1 }
+          : itemAtual
+      ),
+      updated_at: new Date().toISOString(),
+    };
+    comandasRef.current = comandasRef.current.map((comanda) =>
+      mesmoComandaId(comanda.id, comandaAtivaId) ? comandaAtualizada : comanda
+    );
+    setComandas(comandasRef.current);
+    salvarComandaAgora(comandaAtualizada);
 
-    const detalhes = { id_comanda: comandaAtual.id, nome_cliente: comandaAtual.nome, produto: item.nome, quantidade: 1 };
+    const detalhes = { id_comanda: comandaParaAlterar.id, nome_cliente: comandaParaAlterar.nome, produto: item.nome, quantidade: 1 };
 
     setLogsAuditoria((prev) => [{
       id: Date.now(), data: new Date().toISOString(), tipo: 'Ajuste de Quantidade',
