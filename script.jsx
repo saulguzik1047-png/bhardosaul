@@ -872,6 +872,7 @@ function App() {
   // celular: o upsert ficava pendente e o polling apagava as comandas abertas).
   const upsertComandasPendenteRef = React.useRef(false);
   const comandasComGravacaoPendenteRef = React.useRef(new Set());
+  const comandasRef = React.useRef(comandas);
   const normalizarComandaId = (id) => String(id ?? '');
   const mesmoComandaId = (a, b) => normalizarComandaId(a) === normalizarComandaId(b);
   const idComandaParaBanco = (id) => {
@@ -886,7 +887,24 @@ function App() {
 
   React.useEffect(() => {
     localStorage.setItem('bhar_comandas_v1', JSON.stringify(comandas));
+    comandasRef.current = comandas;
   }, [comandas]);
+
+  const salvarComandaAgora = React.useCallback((comanda) => {
+    if (!supabaseClient || !comanda?.id) return;
+    const idNormalizado = String(comanda.id);
+    comandasComGravacaoPendenteRef.current.add(idNormalizado);
+    supabaseClient.from('comandas').upsert({
+      id: Number(comanda.id),
+      nome: comanda.nome,
+      status: comanda.status || 'Aberto',
+      itens: comanda.itens || [],
+      updated_at: comanda.updated_at,
+      deleted_at: null,
+    }, { onConflict: 'id' })
+      .then(({ error }) => { if (error) console.error('Não foi possível salvar a comanda:', error); })
+      .finally(() => comandasComGravacaoPendenteRef.current.delete(idNormalizado));
+  }, []);
 
   React.useEffect(() => {
     localStorage.setItem('bhar_comandas_excluidas_v1', JSON.stringify(comandasExcluidas));
@@ -1752,7 +1770,8 @@ function App() {
   }
 
   async function addItemNaComanda(produto) {
-    if (!comandaAtual) {
+    const comandaParaAlterar = comandasRef.current.find((comanda) => mesmoComandaId(comanda.id, comandaAtivaId));
+    if (!comandaParaAlterar) {
       dispararMensagem('Aviso', 'Selecione uma comanda primeiro!');
       return;
     }
@@ -1763,28 +1782,19 @@ function App() {
 
     const novoEstoque = produto.estoque - 1;
     const atualizadoEm = new Date().toISOString();
-    const itensAlterados = [...comandaAtual.itens];
+    const itensAlterados = [...comandaParaAlterar.itens];
     const indiceItem = itensAlterados.findIndex((item) => item.idProd === produto.id && !item.splitGroupId);
     if (indiceItem >= 0) itensAlterados[indiceItem] = { ...itensAlterados[indiceItem], qtd: Number(itensAlterados[indiceItem].qtd || 0) + 1 };
     else itensAlterados.push({ idProd: produto.id, nome: produto.nome, precoCusto: produto.precoCusto, preco: produto.preco, qtd: 1 });
-    const comandaAtualizada = { ...comandaAtual, itens: itensAlterados, updated_at: atualizadoEm };
-    const idComandaAtualizada = normalizarComandaId(comandaAtualizada.id);
-    comandasComGravacaoPendenteRef.current.add(idComandaAtualizada);
+    const comandaAtualizada = { ...comandaParaAlterar, itens: itensAlterados, updated_at: atualizadoEm };
 
     setProdutos((prev) => prev.map((p) => p.id === produto.id ? { ...p, estoque: novoEstoque } : p));
-    setComandas((prev) =>
-      prev.map((c) => mesmoComandaId(c.id, comandaAtivaId) ? comandaAtualizada : c)
-    );
+    comandasRef.current = comandasRef.current.map((comanda) => mesmoComandaId(comanda.id, comandaAtivaId) ? comandaAtualizada : comanda);
+    setComandas(comandasRef.current);
     supabaseClient?.from('produtos').update({ estoque: novoEstoque }).eq('id', produto.id)
       .then(({ error }) => { if (error) console.warn('Estoque será sincronizado depois:', error); })
       .catch((err) => console.warn('Estoque será sincronizado depois:', err));
-    supabaseClient?.from('comandas').upsert({
-      id: idComandaParaBanco(comandaAtualizada.id), nome: comandaAtualizada.nome,
-      status: comandaAtualizada.status || 'Aberto', itens: comandaAtualizada.itens,
-      updated_at: comandaAtualizada.updated_at, deleted_at: null,
-    }, { onConflict: 'id' })
-      .then(({ error }) => { if (error) console.error('Não foi possível gravar item na comanda:', error); })
-      .finally(() => comandasComGravacaoPendenteRef.current.delete(idComandaAtualizada));
+    salvarComandaAgora(comandaAtualizada);
 
     if (produto.category === 'Porções' || categoriasDivisiveis.includes(produto.category)) {
       dispararMensagem('⚠️ IMPRESSÃO COZINHA ⚠️', `Mesa/Comanda: ${comandaAtual.nome}\nItem: 1x ${produto.nome}\nEnviado direto para o atendente levar até a cozinha!`);
@@ -1803,7 +1813,8 @@ function App() {
   }
   
   function removerItemNaComanda(idProd) {
-    const itemNoConsumo = comandaAtual?.itens.find((i) => i.idProd === idProd);
+    const comandaParaAlterar = comandasRef.current.find((comanda) => mesmoComandaId(comanda.id, comandaAtivaId));
+    const itemNoConsumo = comandaParaAlterar?.itens.find((i) => i.idProd === idProd);
     if (!itemNoConsumo) return;
     
     setCaixaDialogo({
@@ -1835,10 +1846,14 @@ function App() {
           try { supabaseClient?.from('produtos').update({ estoque: novoEst }).eq('id', idProd); } catch (err) { console.warn('Nuvem offline:', err); }
           return prev.map((p) => p.id === idProd ? { ...p, estoque: novoEst } : p);
         });
-        setComandas((prev) => prev.map((c) => {
-          if (!mesmoComandaId(c.id, comandaAtivaId)) return c;
-            return { ...c, itens: c.itens.filter((i) => i.idProd !== idProd) };
-        }));
+        const comandaAtualizada = {
+          ...comandaParaAlterar,
+          itens: comandaParaAlterar.itens.filter((item) => item.idProd !== idProd),
+          updated_at: new Date().toISOString(),
+        };
+        comandasRef.current = comandasRef.current.map((comanda) => mesmoComandaId(comanda.id, comandaAtivaId) ? comandaAtualizada : comanda);
+        setComandas(comandasRef.current);
+        salvarComandaAgora(comandaAtualizada);
       },
     });
   }
