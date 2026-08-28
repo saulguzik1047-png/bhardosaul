@@ -1787,6 +1787,7 @@ function App() {
     const novoEstoque = produto.estoque - 1;
     setProdutos((prev) => prev.map((p) => p.id === produto.id ? { ...p, estoque: novoEstoque } : p));
     try { await supabaseClient?.from('produtos').update({ estoque: novoEstoque }).eq('id', produto.id); } catch (err) { console.warn('Nuvem offline:', err); }
+    const atualizadoEm = new Date().toISOString();
     setComandas((prev) =>
       prev.map((c) => {
         if (!mesmoComandaId(c.id, comandaAtivaId)) return c;
@@ -1797,7 +1798,7 @@ function App() {
         if (idx >= 0) itensAlterados[idx].qtd += 1;
         else itensAlterados.push({ idProd: produto.id, nome: produto.nome, precoCusto: produto.precoCusto, preco: produto.preco, qtd: 1 });
         
-        return { ...c, itens: itensAlterados };
+        return { ...c, itens: itensAlterados, updated_at: atualizadoEm };
       })
     );
 
