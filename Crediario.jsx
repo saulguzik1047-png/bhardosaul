@@ -110,31 +110,34 @@ export function Crediario({
 
   return (
     <div className="single-container">
-      <h2>Livro Negro de Penduras (Controle de Crediário)</h2>
-
-      <button
-        type="button"
-        onClick={() => abrirLancamento()}
-        style={{ background: '#d97706', color: 'white', border: 'none', padding: '12px 18px', fontSize: '14px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer', marginBottom: '12px' }}
-      >
-        <i className="fas fa-plus-circle" style={{ marginRight: '6px' }}></i>Adicionar Saldo Devedor
-      </button>
-
-      <button
-        type="button"
-        onClick={() => imprimirRelatorioDiarioFiados && imprimirRelatorioDiarioFiados()}
-        style={{ background: '#1f2937', color: 'white', border: 'none', padding: '12px 18px', fontSize: '14px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer', marginBottom: '12px', marginLeft: '8px' }}
-      >
-        <i className="fas fa-print" style={{ marginRight: '6px' }}></i>Imprimir Ticket Diário Fiados
-      </button>
-
-      <button
-        type="button"
-        onClick={() => imprimirRelatorioPendenciaGeralFiados && imprimirRelatorioPendenciaGeralFiados()}
-        style={{ background: '#334155', color: 'white', border: 'none', padding: '12px 18px', fontSize: '14px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer', marginBottom: '12px', marginLeft: '8px' }}
-      >
-        <i className="fas fa-file-invoice-dollar" style={{ marginRight: '6px' }}></i>Imprimir Pendência Geral
-      </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        <div>
+          <h2 style={{ margin: 0 }}>Fiados</h2>
+          <span style={{ color: '#6b7280', fontSize: '13px' }}>Débitos pendentes, pagamentos e histórico dos clientes.</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => abrirLancamento()}
+            style={{ background: '#d97706', color: 'white', border: 'none', padding: '11px 14px', fontSize: '14px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer' }}
+          >
+            <i className="fas fa-plus-circle" style={{ marginRight: '6px' }}></i>Adicionar Débito
+          </button>
+          <details>
+            <summary style={{ cursor: 'pointer', color: '#334155', fontSize: '13px', fontWeight: 'bold', padding: '10px' }}>
+              <i className="fas fa-print" style={{ marginRight: '6px' }}></i>Relatórios
+            </summary>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', paddingTop: '8px', justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => imprimirRelatorioDiarioFiados && imprimirRelatorioDiarioFiados()} style={{ background: '#1f2937', color: 'white', border: 'none', padding: '9px 12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '7px', cursor: 'pointer' }}>
+                Ticket Diário
+              </button>
+              <button type="button" onClick={() => imprimirRelatorioPendenciaGeralFiados && imprimirRelatorioPendenciaGeralFiados()} style={{ background: '#334155', color: 'white', border: 'none', padding: '9px 12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '7px', cursor: 'pointer' }}>
+                Pendência Geral
+              </button>
+            </div>
+          </details>
+        </div>
+      </div>
 
       <input
         type="text"

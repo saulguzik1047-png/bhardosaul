@@ -436,51 +436,22 @@ export const Estoque = ({
   return (
     <div className="single-container" style={{ background: '#f2f2f7', padding: '20px', minHeight: 'calc(100vh - 56px)', color: textPrimary }}>
 
-      {/* TOP BUTTONS */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', justifyContent: 'center', flexWrap: 'wrap' }}>
-        <button onClick={handleLimpar} style={{ ...btnBase, background: iosBlue }}>
-          <i className="fas fa-plus" style={{ marginRight: '6px' }}></i>Novo Produto
-        </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: '22px', fontWeight: '700' }}>Estoque</h2>
+          <span style={{ fontSize: '13px', color: labelColor }}>Cadastre, dê entrada e acompanhe os produtos.</span>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button onClick={handleLimpar} style={{ ...btnBase, background: iosBlue }}>
+            <i className="fas fa-plus" style={{ marginRight: '6px' }}></i>Novo Produto
+          </button>
+          <button onClick={handleSalvar} style={{ ...btnBase, background: iosGreen }}>
+            <i className="fas fa-check" style={{ marginRight: '6px' }}></i>Salvar Produto
+          </button>
+        </div>
+      </div>
 
-        <button
-          onClick={() => setCaixaDialogo({
-            titulo: 'Nova Categoria',
-            mensagem: 'Digite o nome da nova categoria:',
-            tipo: 'prompt_categoria',
-            onConfirm: (nomeCat, divisivel) => {
-              if(nomeCat) {
-                setCategoriasCustomizadas([...categoriasCustomizadas, nomeCat]);
-                if(divisivel) setCategoriasDivisiveis([...categoriasDivisiveis, nomeCat]);
-              }
-            }
-          })}
-          style={{ ...btnBase, background: iosPurple }}
-        >
-          <i className="fas fa-folder-plus" style={{ marginRight: '6px' }}></i>Criar Categoria
-        </button>
-
-        <button
-          onClick={abrirGerenciamentoCategorias}
-          style={{ ...btnBase, background: '#ff9500' }}
-        >
-          <i className="fas fa-edit" style={{ marginRight: '6px' }}></i>Editar Categoria
-        </button>
-
-        <button onClick={() => idProdutoSelecionadoEdicao ? excluirProdutoDoEstoque(idProdutoSelecionadoEdicao, novoProdNome) : null} style={{ ...btnBase, background: iosRed }}>
-          <i className="fas fa-trash" style={{ marginRight: '6px' }}></i>Excluir
-        </button>
-
-        <button onClick={handleSalvar} style={{ ...btnBase, background: iosGreen }}>
-          <i className="fas fa-check" style={{ marginRight: '6px' }}></i>Salvar
-        </button>
-
-        <button
-          onClick={() => setMostrarLeitorCamera(!mostrarLeitorCamera)}
-          style={{ ...btnBase, background: iosIndigo, display: 'flex', alignItems: 'center', gap: '6px' }}
-        >
-          <i className="fas fa-camera"></i> {mostrarLeitorCamera ? 'Fechar Câmera' : 'Abrir Câmera (OCR)'}
-        </button>
-
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap', padding: '10px 12px', background: 'rgba(255,255,255,0.68)', border: '1px solid rgba(60,60,67,0.12)', borderRadius: radiusSm }}>
         <input
           ref={uploadNotaDesktopRef}
           type="file"
@@ -498,10 +469,45 @@ export const Estoque = ({
         />
         <button
           onClick={abrirImportacaoNota}
-          style={{ ...btnBase, background: iosTeal, display: 'flex', alignItems: 'center', gap: '6px' }}
+          style={{ ...btnBase, background: iosTeal, display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 14px' }}
         >
           <i className="fas fa-file-invoice"></i> Importar Nota
         </button>
+        <button
+          onClick={() => setMostrarLeitorCamera(!mostrarLeitorCamera)}
+          style={{ ...btnBase, background: iosIndigo, display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 14px' }}
+        >
+          <i className="fas fa-camera"></i> {mostrarLeitorCamera ? 'Fechar Câmera' : 'Ler pela Câmera'}
+        </button>
+        <details style={{ marginLeft: 'auto', alignSelf: 'center' }}>
+          <summary style={{ cursor: 'pointer', color: textSecondary, fontWeight: '600', fontSize: '14px', padding: '8px' }}>
+            <i className="fas fa-sliders-h" style={{ marginRight: '6px' }}></i>Gestão
+          </summary>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', paddingTop: '10px', justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => setCaixaDialogo({
+                titulo: 'Nova Categoria',
+                mensagem: 'Digite o nome da nova categoria:',
+                tipo: 'prompt_categoria',
+                onConfirm: (nomeCat, divisivel) => {
+                  if(nomeCat) {
+                    setCategoriasCustomizadas([...categoriasCustomizadas, nomeCat]);
+                    if(divisivel) setCategoriasDivisiveis([...categoriasDivisiveis, nomeCat]);
+                  }
+                }
+              })}
+              style={{ ...btnBase, background: iosPurple, padding: '8px 12px', fontSize: '13px' }}
+            >
+              <i className="fas fa-folder-plus" style={{ marginRight: '5px' }}></i>Categoria
+            </button>
+            <button onClick={abrirGerenciamentoCategorias} style={{ ...btnBase, background: iosOrange, padding: '8px 12px', fontSize: '13px' }}>
+              <i className="fas fa-edit" style={{ marginRight: '5px' }}></i>Editar Categorias
+            </button>
+            <button onClick={() => idProdutoSelecionadoEdicao ? excluirProdutoDoEstoque(idProdutoSelecionadoEdicao, novoProdNome) : null} disabled={!idProdutoSelecionadoEdicao} style={{ ...btnBase, background: iosRed, padding: '8px 12px', fontSize: '13px', opacity: idProdutoSelecionadoEdicao ? 1 : 0.5 }}>
+              <i className="fas fa-trash" style={{ marginRight: '5px' }}></i>Excluir Produto
+            </button>
+          </div>
+        </details>
       </div>
 
       {/* CAMERA DRAWER */}

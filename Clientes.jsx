@@ -182,7 +182,7 @@ export const Clientes = ({
           </div>
           <div>
             <h2 style={{ margin: 0, color: 'white', fontSize: '20px' }}>
-              Gerenciamento de Clientes
+              Clientes
             </h2>
             <p
               style={{
@@ -191,7 +191,7 @@ export const Clientes = ({
                 fontSize: '13px',
               }}
             >
-              Cadastre e pesquise rapidamente seus clientes.
+              Cadastre, consulte histórico e mantenha os contatos atualizados.
             </p>
           </div>
         </div>

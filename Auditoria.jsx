@@ -3,8 +3,11 @@ import React from 'react';
 export const Auditoria = ({ logsAuditoria }) => {
   return (
     <div className="single-container">
-      <h2>📋 Auditoria de Movimentações</h2>
-      <div className="wrapper-tabela-scroll">
+      <div style={{ marginBottom: '16px' }}>
+        <h2 style={{ margin: 0 }}>Auditoria</h2>
+        <span style={{ color: 'var(--ios-label-secondary)', fontSize: '13px' }}>Histórico de cancelamentos, ajustes e exclusões.</span>
+      </div>
+      <div className="wrapper-tabela-scroll" style={{ background: 'var(--ios-fill)', borderRadius: '8px', padding: '4px' }}>
         <table className="tabela-padrao">
           <thead>
             <tr>
@@ -25,6 +28,13 @@ export const Auditoria = ({ logsAuditoria }) => {
                 <td>{JSON.stringify(log.detalhes)}</td>
               </tr>
             ))}
+            {logsAuditoria.length === 0 && (
+              <tr>
+                <td colSpan="5" style={{ textAlign: 'center', padding: '24px', color: 'var(--ios-label-tertiary)' }}>
+                  Nenhuma movimentação registrada.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

@@ -168,7 +168,10 @@ export function Financeiro({
 
   return (
     <div className="single-container">
-      <h2>Fluxo de Caixa & Indicadores Financeiros</h2>
+      <div style={{ marginBottom: '16px' }}>
+        <h2 style={{ margin: 0 }}>Financeiro</h2>
+        <span style={{ color: 'var(--ios-label-secondary)', fontSize: '13px' }}>Fluxo de caixa, despesas e indicadores do período.</span>
+      </div>
 
       <div className="financeiro-top-row">
         <div className="card-panel">
