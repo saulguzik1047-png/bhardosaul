@@ -183,15 +183,26 @@ export const Estoque = ({
 
         if (acao === 'excluir') {
           const quantidadeProdutos = produtos.filter((produto) => normalizarCategoria(produto.category) === chaveSelecionada).length;
+
           if (quantidadeProdutos > 0) {
-            dispararMensagem('Categoria em uso', `Não é possível excluir "${categoriaSelecionada}" porque ${quantidadeProdutos} produto(s) ainda usam essa categoria. Edite esses produtos primeiro.`);
-            return;
+            const { error } = await supabaseClient?.from('produtos')
+              .update({ category: 'Geral' })
+              .eq('category', categoriaSelecionada) || {};
+            if (error) {
+              dispararMensagem('Erro ao Excluir', `A categoria não foi removida porque seus produtos não puderam ser atualizados no Supabase: ${error.message}`);
+              return;
+            }
+            setProdutos((prev) => prev.map((produto) => normalizarCategoria(produto.category) === chaveSelecionada
+              ? { ...produto, category: 'Geral' }
+              : produto));
           }
 
           setCategoriasCustomizadas((prev) => prev.filter((categoria) => normalizarCategoria(categoria) !== chaveSelecionada));
           setCategoriasDivisiveis((prev) => prev.filter((categoria) => normalizarCategoria(categoria) !== chaveSelecionada));
           setFiltroCategoria('Todos');
-          dispararMensagem('Categoria Excluída', `A categoria "${categoriaSelecionada}" foi excluída.`);
+          dispararMensagem('Categoria Excluída', quantidadeProdutos > 0
+            ? `A categoria "${categoriaSelecionada}" foi excluída. ${quantidadeProdutos} produto(s) foram movidos para "Geral".`
+            : `A categoria "${categoriaSelecionada}" foi excluída.`);
           return;
         }
 
