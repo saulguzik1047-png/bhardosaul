@@ -1075,8 +1075,7 @@ function App() {
 
       const { data, error } = await supabaseClient
         .from('comandas')
-        .select('id, nome, status, itens, updated_at')
-        .is('deleted_at', null)
+        .select('id, nome, status, itens, updated_at, deleted_at')
         .order('updated_at', { ascending: false });
 
       if (cancelado) return;
@@ -1087,41 +1086,27 @@ function App() {
         return;
       }
 
-      const idsExcluidos = new Set((comandasExcluidas || []).map(normalizarComandaId));
-      const dadosNuvemFiltrados = Array.isArray(data) ? data.filter((comanda) => !idsExcluidos.has(normalizarComandaId(comanda.id))) : [];
+      const idsEncerradosNuvem = new Set((data || [])
+        .filter((comanda) => comanda.deleted_at)
+        .map((comanda) => normalizarComandaId(comanda.id)));
+      const idsExcluidos = new Set([
+        ...(comandasExcluidas || []).map(normalizarComandaId),
+        ...idsEncerradosNuvem,
+      ]);
+      const dadosNuvemFiltrados = Array.isArray(data) ? data.filter((comanda) => !comanda.deleted_at) : [];
 
-      if (dadosNuvemFiltrados.length > 0) {
-        const comandasNuvem = dadosNuvemFiltrados.map((comanda) => ({
+      if (idsEncerradosNuvem.size > 0) {
+        setComandasExcluidas((prev) => [...new Set([...prev, ...idsEncerradosNuvem])]);
+      }
+
+      const comandasNuvem = dadosNuvemFiltrados.map((comanda) => ({
           id: normalizarComandaId(comanda.id),
           nome: comanda.nome,
           status: comanda.status || 'Aberto',
           itens: Array.isArray(comanda.itens) ? comanda.itens : [],
           updated_at: comanda.updated_at || new Date().toISOString(),
         }));
-        setComandas((locais) => {
-          const locaisFiltrados = (locais || []).filter((comanda) => !idsExcluidos.has(normalizarComandaId(comanda.id)));
-          const resultado = [...(comandasNuvem || [])];
-
-          for (const local of locaisFiltrados) {
-            const idLocal = normalizarComandaId(local.id);
-            const cloud = dadosNuvemFiltrados.find((item) => normalizarComandaId(item.id) === idLocal);
-            if (!cloud) {
-              resultado.push({ ...local, updated_at: local?.updated_at || new Date().toISOString() });
-              continue;
-            }
-
-            const cloudTs = obterTimestampComanda(cloud.updated_at);
-            const localTs = obterTimestampComanda(local.updated_at);
-            if (localTs > cloudTs) {
-              const indice = resultado.findIndex((item) => normalizarComandaId(item.id) === idLocal);
-              if (indice >= 0) resultado[indice] = { ...local, updated_at: local?.updated_at || new Date().toISOString() };
-              else resultado.push({ ...local, updated_at: local?.updated_at || new Date().toISOString() });
-            }
-          }
-
-          return resultado;
-        });
-      }
+      setComandas(comandasNuvem.filter((comanda) => !idsExcluidos.has(normalizarComandaId(comanda.id))));
       setComandasSincronizadas(true);
     }
 
@@ -1345,32 +1330,14 @@ function App() {
         if (logs) setLogsAuditoria(logs);
 
         const { data: creds } = (await supabaseClient?.from('crediarios').select('*')) || {};
-        if (creds && creds.length > 0) {
+        if (Array.isArray(creds)) {
           const crediariosNuvem = creds.map((c) => ({
             idCred: c.id_cred, data: c.data, cliente: c.cliente,
             total: Number(c.total || 0), status: c.status || 'Pendente',
             itensConsumidos: c.itens_consumidos || [], pagamentos: c.pagamentos || [],
             updated_at: c.updated_at || c.data || new Date().toISOString(),
           }));
-
-          setCrediarios((prev) => {
-            const mapa = new Map();
-            for (const c of Array.isArray(prev) ? prev : []) {
-              const chave = String(c.idCred);
-              const atual = mapa.get(chave);
-              if (!atual || Date.parse(c.updated_at || c.data || 0) > Date.parse(atual.updated_at || atual.data || 0)) {
-                mapa.set(chave, c);
-              }
-            }
-            for (const c of crediariosNuvem) {
-              const chave = String(c.idCred);
-              const atual = mapa.get(chave);
-              if (!atual || Date.parse(c.updated_at || c.data || 0) > Date.parse(atual.updated_at || atual.data || 0)) {
-                mapa.set(chave, c);
-              }
-            }
-            return Array.from(mapa.values());
-          });
+          setCrediarios(crediariosNuvem);
         }
       } catch (err) {
         console.error('Erro ao carregar dados da nuvem, rodando local offline:', err);
@@ -1380,6 +1347,33 @@ function App() {
     }
     carregarDadosDaNuvem();
   }, [produtosExcluidosSet]);
+
+  React.useEffect(() => {
+    if (!supabaseClient) return undefined;
+
+    let cancelado = false;
+    const atualizarCrediariosDaNuvem = async () => {
+      const { data, error } = await supabaseClient.from('crediarios').select('*');
+      if (cancelado || error || !Array.isArray(data)) return;
+
+      setCrediarios(data.map((c) => ({
+        idCred: c.id_cred,
+        data: c.data,
+        cliente: c.cliente,
+        total: Number(c.total || 0),
+        status: c.status || 'Pendente',
+        itensConsumidos: c.itens_consumidos || [],
+        pagamentos: c.pagamentos || [],
+        updated_at: c.updated_at || c.data || new Date().toISOString(),
+      })));
+    };
+
+    const intervalo = window.setInterval(atualizarCrediariosDaNuvem, 5000);
+    return () => {
+      cancelado = true;
+      window.clearInterval(intervalo);
+    };
+  }, []);
 
   React.useEffect(() => {
     if (!supabaseClient) return undefined;
