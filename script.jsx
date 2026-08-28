@@ -1116,34 +1116,6 @@ function App() {
   }, [comandasExcluidas]);
 
   React.useEffect(() => {
-    if (!comandasSincronizadas || !supabaseClient) return;
-
-    const idsExcluidos = new Set((comandasExcluidas || []).map(normalizarComandaId));
-    const comandasParaSalvar = comandas
-      .filter((comanda) => !idsExcluidos.has(normalizarComandaId(comanda.id)))
-      .map((comanda) => ({
-        id: idComandaParaBanco(comanda.id),
-        nome: comanda.nome,
-        status: comanda.status || 'Aberto',
-        itens: comanda.itens || [],
-        updated_at: comanda.updated_at || new Date().toISOString(),
-      }));
-
-    if (comandasParaSalvar.length === 0) return;
-
-    upsertComandasPendenteRef.current = true;
-    supabaseClient
-      .from('comandas')
-      .upsert(comandasParaSalvar, { onConflict: 'id' })
-      .then(({ error }) => {
-        if (error) console.warn('Não foi possível sincronizar comandas:', error);
-      })
-      .finally(() => {
-        upsertComandasPendenteRef.current = false;
-      });
-  }, [comandas, comandasSincronizadas, comandasExcluidas]);
-
-  React.useEffect(() => {
     if (!comandasSincronizadas || !supabaseClient) return undefined;
 
     const atualizarComandasDaNuvem = async () => {
@@ -2310,8 +2282,15 @@ function App() {
       return;
     }
     const novoId = String(Date.now() + Math.floor(Math.random() * 1000));
+    const novaComanda = { id: novoId, nome: validacao.nome, status: 'Aberto', itens: [], updated_at: new Date().toISOString() };
     registrarNovoClienteNaBase(validacao.nome);
-    setComandas(prev => [...prev, { id: novoId, nome: validacao.nome, status: 'Aberto', itens: [] }]);
+    setComandas(prev => [...prev, novaComanda]);
+    supabaseClient?.from('comandas').upsert({
+      id: idComandaParaBanco(novoId), nome: novaComanda.nome, status: novaComanda.status,
+      itens: novaComanda.itens, updated_at: novaComanda.updated_at, deleted_at: null,
+    }, { onConflict: 'id' }).then(({ error }) => {
+      if (error) console.error('Não foi possível abrir a comanda na nuvem:', error);
+    });
     setComandaAtivaId(novoId);
     setBusca('');
     setMostrarSugestoes(false);
