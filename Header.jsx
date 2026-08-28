@@ -44,7 +44,7 @@ export const Header = ({
         {nomeSoftware}
       </div>
 
-      <div className="topbar-menu" style={{ display: 'flex', gap: '2px', flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="topbar-menu" style={{ display: 'flex', gap: '1px', flexWrap: 'nowrap', alignItems: 'center', minWidth: 0 }}>
         {navBtns.map((btn) => {
           const isActive = telaAtual === btn.id || (telaAtual === 'login_gerencial' && proximaTelaPendente === btn.id);
           return (
@@ -54,7 +54,7 @@ export const Header = ({
               onClick={() => navegarPara(btn.id)}
               style={{
                 display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-                height: '36px', padding: '0 12px', borderRadius: '10px', fontSize: '13px', fontWeight: '500', gap: '5px',
+                height: '32px', padding: '0 8px', borderRadius: '8px', fontSize: '11px', fontWeight: '600', gap: '4px',
                 cursor: 'pointer', transition: '0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
                 border: 'none',
                 background: isActive ? 'rgba(0, 122, 255, 0.1)' : 'transparent',
@@ -64,7 +64,7 @@ export const Header = ({
                 WebkitBackdropFilter: 'blur(12px)',
               }}
             >
-              <i className={`fas ${btn.icon}`} style={{ fontSize: '15px' }}></i> {btn.label}
+              <i className={`fas ${btn.icon}`} style={{ fontSize: '12px' }}></i> {btn.label}
             </button>
           );
         })}
@@ -78,18 +78,6 @@ export const Header = ({
 
         {autenticado && !isGarcom && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <button
-              onClick={sincronizarDadosNuvem}
-              title="Sincronizar com a Nuvem"
-              style={{
-                background: 'rgba(0, 122, 255, 0.08)', color: '#007aff', border: 'none',
-                padding: '7px 12px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '500',
-                display: 'flex', alignItems: 'center', gap: '5px', transition: '0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-                backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)'
-              }}
-            >
-              <i className="fas fa-cloud-upload-alt"></i> Sinc.
-            </button>
             <button
               onClick={logoutSistema}
               title="Sair do Sistema"
