@@ -2144,6 +2144,39 @@ function App() {
     dispararMensagem('Relatório Impresso', 'Ticket de pendência geral enviado para a impressora térmica.');
   }
 
+  function imprimirExtratoDebitosCliente(cliente, lancamentos) {
+    const debitos = Array.isArray(lancamentos) ? lancamentos : [];
+    const total = debitos.reduce((soma, item) => soma + Number(item?.total || 0), 0);
+    if (!cliente || debitos.length === 0 || total <= 0) {
+      dispararMensagem('Extrato de Débitos', 'Não há débitos pendentes para imprimir.');
+      return;
+    }
+
+    let htmlCupom = `
+      <div class="center">
+        <div class="title">${nomeSoftware}</div>
+        <div>EXTRATO DE DEBITOS</div>
+        <div class="linha"></div>
+      </div>
+      <div><strong>Cliente:</strong> ${cliente}</div>
+      <div><strong>Emitido:</strong> ${new Date().toLocaleDateString('pt-BR')}</div>
+      <div class="linha"></div>
+    `;
+
+    debitos.forEach((item) => {
+      const data = String(item?.data || '').split(',')[0].trim() || '-';
+      htmlCupom += `<div class="flex item"><span>${data}</span><span>${formatarMoeda(item?.total)}</span></div>`;
+    });
+
+    htmlCupom += `
+      <div class="linha"></div>
+      <div class="flex bold" style="font-size: 15px;"><span>TOTAL DEVIDO:</span><span>${formatarMoeda(total)}</span></div>
+      <div class="linha"></div>
+      <div class="center" style="margin-top: 12px;">-</div>
+    `;
+    gerarImpressaoTermica(htmlCupom);
+  }
+
   function tratarRemoverSplit(item, comandaDono) {    setCaixaDialogo({
       titulo: 'Estorno de Item Dividido',
       mensagem: `O item "${item.nome}" foi compartilhado entre comandas.\n\nEscolha como deseja prosseguir com a exclusão:`,
@@ -2323,6 +2356,7 @@ function App() {
       return;
     }
 
+    setMostrarMultiFormas(false);
     dispararConfirmacao('Confirmar Recebimento', `Deseja finalizar a comanda de ${comandaAtual.nome} com os valores informados?`, async () => {
         registrarProdutosVendidos(comandaAtual.itens);
 
@@ -2822,6 +2856,7 @@ function App() {
           clientesCadastrados={clientesCadastrados}
           imprimirRelatorioDiarioFiados={imprimirRelatorioDiarioFiados}
           imprimirRelatorioPendenciaGeralFiados={imprimirRelatorioPendenciaGeralFiados}
+          imprimirExtratoDebitosCliente={imprimirExtratoDebitosCliente}
         />
       )}
       {telaAtual === 'seguranca' && autenticado && usuarioLogado && usuarioLogado.perfil === 'admin' && (

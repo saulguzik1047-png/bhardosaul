@@ -9,6 +9,7 @@ export function Crediario({
   clientesCadastrados = [],
   imprimirRelatorioDiarioFiados,
   imprimirRelatorioPendenciaGeralFiados,
+  imprimirExtratoDebitosCliente,
 }) {
   const [buscaCrediario, setBuscaCrediario] = React.useState('');
   const [expandedCliente, setExpandedCliente] = React.useState(null);
@@ -280,6 +281,24 @@ export function Crediario({
                         onClick={() => abrirLancamento(g.cliente)}
                       >
                         <i className="fas fa-plus"></i> Adicionar Saldo
+                      </button>
+                      <button
+                        type="button"
+                        style={{
+                          background: '#334155',
+                          color: 'white',
+                          border: 'none',
+                          padding: '10px',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          width: '100%',
+                          marginTop: '8px'
+                        }}
+                        onClick={() => imprimirExtratoDebitosCliente && imprimirExtratoDebitosCliente(g.cliente, g.comandas)}
+                      >
+                        <i className="fas fa-print"></i> Imprimir Débitos
                       </button>
                     </td>
                   </tr>
