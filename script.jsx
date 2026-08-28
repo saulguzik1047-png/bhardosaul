@@ -1457,14 +1457,16 @@ function App() {
 
   const comandaAtual = comandas.find((c) => mesmoComandaId(c.id, comandaAtivaId)) || null;
 
-  async function sincronizarDadosNuvem() {
-    setCaixaDialogo({
-      titulo: 'Sincronizando com a Nuvem ☁️',
-      mensagem: 'Por favor, aguarde. Analisando e enviando dados pendentes...',
-      confirmTxt: 'Aguarde...',
-      noCancel: true,
-      onConfirm: () => {}
-    });
+  async function sincronizarDadosNuvem({ silencioso = false } = {}) {
+    if (!silencioso) {
+      setCaixaDialogo({
+        titulo: 'Sincronizando com a Nuvem ☁️',
+        mensagem: 'Por favor, aguarde. Analisando e enviando dados pendentes...',
+        confirmTxt: 'Aguarde...',
+        noCancel: true,
+        onConfirm: () => {}
+      });
+    }
     try {
       const { data: fiadosNuvem, error: erroFiadosNuvem } = await supabaseClient
         ?.from('crediarios')
@@ -1569,12 +1571,12 @@ function App() {
         console.log(`[SYNC] fallback cliente Supabase concluiu ${produtosNormalizados.length} produto(s).`);
       }
 
-      for (const c of crediariosParaSincronizar) {
-        await supabaseClient?.from('crediarios').upsert({
+      if (crediariosParaSincronizar.length > 0) {
+        await supabaseClient?.from('crediarios').upsert(crediariosParaSincronizar.map((c) => ({
           id_cred: c.idCred, data: c.data, cliente: c.cliente,
           total: c.total, status: c.status, itens_consumidos: c.itensConsumidos, pagamentos: c.pagamentos || [],
           updated_at: c.updated_at || new Date().toISOString()
-        });
+        })), { onConflict: 'id_cred' });
       }
 
       const { data: vendasNuvem } = (await supabaseClient?.from('vendas').select('data, cliente, total')) || {};
@@ -1601,10 +1603,14 @@ function App() {
         })));
       }
 
-      dispararMensagem('✅ Sincronização Concluída', `Tudo certo! Dados seguros na nuvem.\n\n📊 Resumo:\n- ${(produtosParaSincronizar || []).length} Produtos${produtosSincronizados ? ' (OK)' : ''}\n- ${crediariosParaSincronizar.length} Fiados\n- ${vendasParaInserir.length} Vendas resgatadas\n- ${clientesParaInserir.length} Clientes novos`);
+      if (!silencioso) {
+        dispararMensagem('✅ Sincronização Concluída', `Tudo certo! Dados seguros na nuvem.\n\n📊 Resumo:\n- ${(produtosParaSincronizar || []).length} Produtos${produtosSincronizados ? ' (OK)' : ''}\n- ${crediariosParaSincronizar.length} Fiados\n- ${vendasParaInserir.length} Vendas resgatadas\n- ${clientesParaInserir.length} Clientes novos`);
+      }
     } catch (err) {
       console.error('Erro na sincronização:', err);
-      dispararMensagem('❌ Erro de Conexão', 'Não foi possível sincronizar. Verifique a internet e tente novamente.');
+      if (!silencioso) {
+        dispararMensagem('❌ Erro de Conexão', 'Não foi possível sincronizar. Verifique a internet e tente novamente.');
+      }
     }
   }
 
@@ -1681,7 +1687,7 @@ function App() {
       setUsuarioLogado(usuarioEncontrado);
       setErroAutenticacao(false);
       setTelaAtual(proximaTelaPendente || 'pdv');
-      sincronizarDadosNuvem();
+      sincronizarDadosNuvem({ silencioso: true });
     } else {
       setErroAutenticacao(true);
       setSenhaDigitada('');
@@ -1690,7 +1696,7 @@ function App() {
 
   async function logoutSistema() {
     if (usuarioLogado && usuarioLogado.perfil !== 'garcom') {
-      await sincronizarDadosNuvem();
+      await sincronizarDadosNuvem({ silencioso: true });
     }
     setAutenticado(false);
     setUsuarioLogado(null);
