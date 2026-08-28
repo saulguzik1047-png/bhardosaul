@@ -871,6 +871,7 @@ function App() {
   // de eles serem salvos (isso acontecia, por exemplo, ao bloquear/desbloquear o
   // celular: o upsert ficava pendente e o polling apagava as comandas abertas).
   const upsertComandasPendenteRef = React.useRef(false);
+  const comandasComGravacaoPendenteRef = React.useRef(new Set());
   const normalizarComandaId = (id) => String(id ?? '');
   const mesmoComandaId = (a, b) => normalizarComandaId(a) === normalizarComandaId(b);
   const idComandaParaBanco = (id) => {
@@ -1172,6 +1173,10 @@ function App() {
 
         for (const atual of locaisFiltrados) {
           const idAtual = normalizarComandaId(atual.id);
+          if (comandasComGravacaoPendenteRef.current.has(idAtual)) {
+            resultado.push(atual);
+            continue;
+          }
           const nuvem = dadosNuvemFiltrados.find((item) => normalizarComandaId(item.id) === idAtual);
           if (!nuvem) {
             resultado.push({ ...atual, updated_at: atual?.updated_at || new Date().toISOString() });
@@ -1785,24 +1790,29 @@ function App() {
     }
 
     const novoEstoque = produto.estoque - 1;
-    setProdutos((prev) => prev.map((p) => p.id === produto.id ? { ...p, estoque: novoEstoque } : p));
     const atualizadoEm = new Date().toISOString();
+    const itensAlterados = [...comandaAtual.itens];
+    const indiceItem = itensAlterados.findIndex((item) => item.idProd === produto.id && !item.splitGroupId);
+    if (indiceItem >= 0) itensAlterados[indiceItem] = { ...itensAlterados[indiceItem], qtd: Number(itensAlterados[indiceItem].qtd || 0) + 1 };
+    else itensAlterados.push({ idProd: produto.id, nome: produto.nome, precoCusto: produto.precoCusto, preco: produto.preco, qtd: 1 });
+    const comandaAtualizada = { ...comandaAtual, itens: itensAlterados, updated_at: atualizadoEm };
+    const idComandaAtualizada = normalizarComandaId(comandaAtualizada.id);
+    comandasComGravacaoPendenteRef.current.add(idComandaAtualizada);
+
+    setProdutos((prev) => prev.map((p) => p.id === produto.id ? { ...p, estoque: novoEstoque } : p));
     setComandas((prev) =>
-      prev.map((c) => {
-        if (!mesmoComandaId(c.id, comandaAtivaId)) return c;
-        const itensAlterados = [...c.itens];
-        
-        // 🛠️ FIX CEO: Ignora itens "Rachados/Divididos" na hora de somar. Garante que se dividir a cerveja, pedir outra vem como item novo
-        const idx = itensAlterados.findIndex((i) => i.idProd === produto.id && !i.splitGroupId);
-        if (idx >= 0) itensAlterados[idx].qtd += 1;
-        else itensAlterados.push({ idProd: produto.id, nome: produto.nome, precoCusto: produto.precoCusto, preco: produto.preco, qtd: 1 });
-        
-        return { ...c, itens: itensAlterados, updated_at: atualizadoEm };
-      })
+      prev.map((c) => mesmoComandaId(c.id, comandaAtivaId) ? comandaAtualizada : c)
     );
     supabaseClient?.from('produtos').update({ estoque: novoEstoque }).eq('id', produto.id)
       .then(({ error }) => { if (error) console.warn('Estoque será sincronizado depois:', error); })
       .catch((err) => console.warn('Estoque será sincronizado depois:', err));
+    supabaseClient?.from('comandas').upsert({
+      id: idComandaParaBanco(comandaAtualizada.id), nome: comandaAtualizada.nome,
+      status: comandaAtualizada.status || 'Aberto', itens: comandaAtualizada.itens,
+      updated_at: comandaAtualizada.updated_at, deleted_at: null,
+    }, { onConflict: 'id' })
+      .then(({ error }) => { if (error) console.error('Não foi possível gravar item na comanda:', error); })
+      .finally(() => comandasComGravacaoPendenteRef.current.delete(idComandaAtualizada));
 
     if (produto.category === 'Porções' || categoriasDivisiveis.includes(produto.category)) {
       dispararMensagem('⚠️ IMPRESSÃO COZINHA ⚠️', `Mesa/Comanda: ${comandaAtual.nome}\nItem: 1x ${produto.nome}\nEnviado direto para o atendente levar até a cozinha!`);
