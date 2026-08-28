@@ -87,6 +87,9 @@ export function Crediario({
     }
   });
 
+  pendentesAgrupados.sort((a, b) => a.cliente.localeCompare(b.cliente, 'pt-BR'));
+  pagasAgrupadas.sort((a, b) => a.cliente.localeCompare(b.cliente, 'pt-BR'));
+
   const abrirOpcoesPagamento = (grupo) => {
     setCaixaDialogo({
       titulo: `💳 Quitar Conta: ${grupo.cliente}`,
@@ -449,7 +452,9 @@ export function Crediario({
                 autoFocus
               />
               <datalist id="clientes-crediario">
-                {clientesCadastrados.map((c) => <option key={c.nome} value={c.nome} />)}
+                {[...clientesCadastrados]
+                  .sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'))
+                  .map((c) => <option key={c.nome} value={c.nome} />)}
               </datalist>
 
               <input

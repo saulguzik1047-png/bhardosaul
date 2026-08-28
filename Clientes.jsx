@@ -160,15 +160,17 @@ export const Clientes = ({
     dispararMensagem('Sucesso', 'Cliente cadastrado com sucesso!');
   };
 
-  const clientesFiltradosPesquisa = clientesCadastrados.filter(
-    (cli) =>
-      cli.nome.toLowerCase().includes(pesquisaClienteBase.toLowerCase()) ||
-      (cli.sobrenome &&
-        cli.sobrenome
-          .toLowerCase()
-          .includes(pesquisaClienteBase.toLowerCase())) ||
-      (cli.telefone && cli.telefone.includes(pesquisaClienteBase))
-  );
+  const clientesFiltradosPesquisa = clientesCadastrados
+    .filter(
+      (cli) =>
+        cli.nome.toLowerCase().includes(pesquisaClienteBase.toLowerCase()) ||
+        (cli.sobrenome &&
+          cli.sobrenome
+            .toLowerCase()
+            .includes(pesquisaClienteBase.toLowerCase())) ||
+        (cli.telefone && cli.telefone.includes(pesquisaClienteBase))
+    )
+    .sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'));
 
   return (
     <div className="estoque-dark-container">

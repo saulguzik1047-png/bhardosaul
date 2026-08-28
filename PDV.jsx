@@ -137,15 +137,9 @@ export function PDV({
           c.nome.toLowerCase().includes(busca.toLowerCase())
         );
 
-  const sugestoesClientesOrdenadas = [...sugestoesClientes].sort((a, b) => {
-    const abertasA = comandas.filter(
-      (com) => com.nome.toLowerCase() === a.nome.toLowerCase()
-    ).length;
-    const abertasB = comandas.filter(
-      (com) => com.nome.toLowerCase() === b.nome.toLowerCase()
-    ).length;
-    return abertasB - abertasA;
-  });
+  const sugestoesClientesOrdenadas = [...sugestoesClientes].sort((a, b) =>
+    String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR')
+  );
 
   const ehNomeInedito =
     busca.trim().split(' ').length >= 2 &&
