@@ -1076,6 +1076,7 @@ function App() {
       const { data, error } = await supabaseClient
         .from('comandas')
         .select('id, nome, status, itens, updated_at')
+        .is('deleted_at', null)
         .order('updated_at', { ascending: false });
 
       if (cancelado) return;
@@ -1165,6 +1166,7 @@ function App() {
       const { data, error } = await supabaseClient
         .from('comandas')
         .select('id, nome, status, itens, updated_at')
+        .is('deleted_at', null)
         .order('updated_at', { ascending: false });
 
       if (error || !Array.isArray(data)) return;
@@ -1211,8 +1213,11 @@ function App() {
   async function removerComandaDaNuvem(id) {
     if (!supabaseClient) return;
     registrarComandaExcluida(id);
-    const { error } = await supabaseClient.from('comandas').delete().eq('id', idComandaParaBanco(id));
-    if (error) console.warn('Não foi possível remover a comanda da nuvem:', error);
+    const { error } = await supabaseClient
+      .from('comandas')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', idComandaParaBanco(id));
+    if (error) console.warn('Não foi possível encerrar a comanda na nuvem:', error);
   }
 
   React.useEffect(() => {
