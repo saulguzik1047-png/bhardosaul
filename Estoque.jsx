@@ -18,6 +18,7 @@ export const Estoque = ({
   imagemAutomaticaProduto
 }) => {
   const [idProdutoSelecionadoEdicao, setIdProdutoSelecionadoEdicao] = useState(null);
+  const [buscaProdutoEdicao, setBuscaProdutoEdicao] = useState('');
   const [novoProdNome, setNovoProdNome] = useState('');
   const [novoProdCategoria, setNovoProdCategoria] = useState('');
   const [precoCusto, setPrecoCusto] = useState('');
@@ -397,6 +398,7 @@ export const Estoque = ({
 
   const handleLimpar = () => {
     setIdProdutoSelecionadoEdicao(null);
+    setBuscaProdutoEdicao('');
     setNovoProdNome('');
     setNovoProdCategoria('');
     setPrecoCusto('');
@@ -561,7 +563,11 @@ export const Estoque = ({
                   type="text"
                   list="lista-produtos-edit"
                   placeholder="Procurar produto para editar..."
-                  onChange={(e) => carregarProdutoParaEdicao(e.target.value)}
+                  value={buscaProdutoEdicao}
+                  onChange={(e) => {
+                    setBuscaProdutoEdicao(e.target.value);
+                    carregarProdutoParaEdicao(e.target.value);
+                  }}
                   style={{ ...inputStyle, paddingLeft: '36px' }}
                 />
                 <datalist id="lista-produtos-edit">
