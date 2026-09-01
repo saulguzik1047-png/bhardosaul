@@ -923,6 +923,23 @@ function App() {
       });
   }, []);
 
+  const ajustarEstoqueAtomicamente = React.useCallback(async (idProduto, variacao) => {
+    if (!supabaseClient) return;
+
+    const { data, error } = await supabaseClient.rpc('ajustar_estoque_produto', {
+      produto_id: idProdutoParaBanco(idProduto),
+      variacao: Number(variacao),
+    });
+    if (error) throw error;
+
+    const estoqueConfirmado = Number(data?.[0]?.estoque);
+    if (Number.isFinite(estoqueConfirmado)) {
+      setProdutos((prev) => prev.map((produto) =>
+        produto.id === idProduto ? { ...produto, estoque: estoqueConfirmado } : produto
+      ));
+    }
+  }, [idProdutoParaBanco]);
+
   React.useEffect(() => {
     localStorage.setItem('bhar_comandas_excluidas_v1', JSON.stringify(comandasExcluidas));
   }, [comandasExcluidas]);
@@ -1817,8 +1834,7 @@ function App() {
     setProdutos((prev) => prev.map((p) => p.id === produto.id ? { ...p, estoque: novoEstoque } : p));
     comandasRef.current = comandasRef.current.map((comanda) => mesmoComandaId(comanda.id, comandaAtivaId) ? comandaAtualizada : comanda);
     setComandas(comandasRef.current);
-    supabaseClient?.from('produtos').update({ estoque: novoEstoque }).eq('id', produto.id)
-      .then(({ error }) => { if (error) console.warn('Estoque será sincronizado depois:', error); })
+    ajustarEstoqueAtomicamente(produto.id, -1)
       .catch((err) => console.warn('Estoque será sincronizado depois:', err));
     salvarComandaAgora(comandaAtualizada);
 
@@ -1869,9 +1885,10 @@ function App() {
         setProdutos((prev) => {
           const prodAtual = prev.find((p) => p.id === idProd);
           const novoEst = (prodAtual?.estoque || 0) + qtdDevolver;
-          try { supabaseClient?.from('produtos').update({ estoque: novoEst }).eq('id', idProd); } catch (err) { console.warn('Nuvem offline:', err); }
           return prev.map((p) => p.id === idProd ? { ...p, estoque: novoEst } : p);
         });
+        ajustarEstoqueAtomicamente(idProd, qtdDevolver)
+          .catch((err) => console.warn('Estoque será sincronizado depois:', err));
         const comandaAtualizada = {
           ...comandaParaAlterar,
           itens: comandaParaAlterar.itens.filter((item) => item.idProd !== idProd),
@@ -1898,9 +1915,10 @@ function App() {
       const prodAtual = prev.find((p) => p.id === item.idProd);
       if (!prodAtual) return prev;
       const novoEst = (prodAtual.estoque || 0) + 1;
-      try { supabaseClient?.from('produtos').update({ estoque: novoEst }).eq('id', item.idProd); } catch (err) { console.warn('Nuvem offline:', err); }
       return prev.map((p) => p.id === item.idProd ? { ...p, estoque: novoEst } : p);
     });
+    ajustarEstoqueAtomicamente(item.idProd, 1)
+      .catch((err) => console.warn('Estoque será sincronizado depois:', err));
 
     const comandaAtualizada = {
       ...comandaParaAlterar,

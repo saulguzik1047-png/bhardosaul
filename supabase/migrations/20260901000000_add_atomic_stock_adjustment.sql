@@ -10,7 +10,7 @@ BEGIN
   UPDATE produtos
   SET estoque = GREATEST(0, COALESCE(produtos.estoque, 0) + variacao)
   WHERE produtos.id = produto_id
-  RETURNING produtos.id, produtos.estoque;
+  RETURNING produtos.id::bigint, produtos.estoque::float8;
 END;
 $$;
 
