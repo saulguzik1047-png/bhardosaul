@@ -873,6 +873,8 @@ function App() {
   // celular: o upsert ficava pendente e o polling apagava as comandas abertas).
   const upsertComandasPendenteRef = React.useRef(false);
   const comandasComGravacaoPendenteRef = React.useRef(new Set());
+  const filasGravacaoComandaRef = React.useRef(new Map());
+  const pagamentoEmProcessamentoRef = React.useRef(false);
   const comandasRef = React.useRef(comandas);
   const normalizarComandaId = (id) => String(id ?? '');
   const mesmoComandaId = (a, b) => normalizarComandaId(a) === normalizarComandaId(b);
@@ -895,16 +897,30 @@ function App() {
     if (!supabaseClient || !comanda?.id) return;
     const idNormalizado = String(comanda.id);
     comandasComGravacaoPendenteRef.current.add(idNormalizado);
-    supabaseClient.from('comandas').upsert({
-      id: Number(comanda.id),
-      nome: comanda.nome,
-      status: comanda.status || 'Aberto',
-      itens: comanda.itens || [],
-      updated_at: comanda.updated_at,
-      deleted_at: null,
-    }, { onConflict: 'id' })
-      .then(({ error }) => { if (error) console.error('Não foi possível salvar a comanda:', error); })
-      .finally(() => comandasComGravacaoPendenteRef.current.delete(idNormalizado));
+    const gravacaoAnterior = filasGravacaoComandaRef.current.get(idNormalizado) || Promise.resolve();
+    const proximaGravacao = gravacaoAnterior
+      .catch(() => undefined)
+      .then(async () => {
+        const { error } = await supabaseClient.from('comandas').upsert({
+          id: Number(comanda.id),
+          nome: comanda.nome,
+          status: comanda.status || 'Aberto',
+          itens: comanda.itens || [],
+          updated_at: comanda.updated_at,
+          deleted_at: null,
+        }, { onConflict: 'id' });
+        if (error) throw error;
+      });
+
+    filasGravacaoComandaRef.current.set(idNormalizado, proximaGravacao);
+    proximaGravacao
+      .catch((error) => console.error('Não foi possível salvar a comanda:', error))
+      .finally(() => {
+        if (filasGravacaoComandaRef.current.get(idNormalizado) === proximaGravacao) {
+          filasGravacaoComandaRef.current.delete(idNormalizado);
+          comandasComGravacaoPendenteRef.current.delete(idNormalizado);
+        }
+      });
   }, []);
 
   React.useEffect(() => {
@@ -2391,6 +2407,7 @@ function App() {
 
   function confirmarPagamentoComposto() {
     if (!comandaAtual || comandaAtual.itens.length === 0) return;
+    if (pagamentoEmProcessamentoRef.current) return;
     const totalCobranca = calcularTotal(comandaAtual.itens);
 
     const d = parseMoedaBR(valDinheiro);
@@ -2407,6 +2424,9 @@ function App() {
 
     setMostrarMultiFormas(false);
     dispararConfirmacao('Confirmar Recebimento', `Deseja finalizar a comanda de ${comandaAtual.nome} com os valores informados?`, async () => {
+      if (pagamentoEmProcessamentoRef.current) return;
+      pagamentoEmProcessamentoRef.current = true;
+      try {
         registrarProdutosVendidos(comandaAtual.itens);
 
         const formasTexto = [];
@@ -2463,15 +2483,22 @@ function App() {
         setMostrarMultiFormas(false);
         setValDinheiro(''); setValPix(''); setValCartao(''); setValCrediario('');
         dispararMensagem('Sucesso', `Pagamento processado com sucesso! A mesa foi liberada.${msgWppStatus}`);
+        } finally {
+          pagamentoEmProcessamentoRef.current = false;
+        }
       }
     );
   }
 
   function finalizarPagamentoDireto(tipo) {
     if (!comandaAtual || comandaAtual.itens.length === 0) return;
+    if (pagamentoEmProcessamentoRef.current) return;
     const totalCobranca = calcularTotal(comandaAtual.itens);
 
     dispararConfirmacao('Confirmar Pagamento', `Deseja fechar a conta de ${comandaAtual.nome} no valor total de ${formatarMoeda(totalCobranca)} via [${tipo.toUpperCase()}]?`, async () => {
+        if (pagamentoEmProcessamentoRef.current) return;
+        pagamentoEmProcessamentoRef.current = true;
+        try {
         registrarProdutosVendidos(comandaAtual.itens);
 
         let msgWppStatus = '';
@@ -2523,6 +2550,9 @@ function App() {
         setMostrarMultiFormas(false);
         setValDinheiro(''); setValPix(''); setValCartao(''); setValCrediario('');
         dispararMensagem('Sucesso', `Conta finalizada com sucesso via ${tipo.toUpperCase()}!${msgWppStatus}`);
+        } finally {
+          pagamentoEmProcessamentoRef.current = false;
+        }
       }
     );
   }
