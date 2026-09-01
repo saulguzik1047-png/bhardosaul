@@ -9,15 +9,19 @@ export const Login = ({
   erroAutenticacao,
   validarAcessoGerencial
 }) => {
+  const [tecladoAberto, setTecladoAberto] = React.useState(false);
+
   useEffect(() => {
     const ajustarParaTeclado = () => {
+      const viewportAltura = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      setTecladoAberto(window.innerHeight - viewportAltura > 140);
+
       const elementoAtivo = document.activeElement;
       if (!elementoAtivo || !['INPUT', 'SELECT', 'TEXTAREA'].includes(elementoAtivo.tagName)) {
         return;
       }
 
       const rect = elementoAtivo.getBoundingClientRect();
-      const viewportAltura = window.visualViewport ? window.visualViewport.height : window.innerHeight;
       const margemSegura = 80;
 
       if (rect.bottom > viewportAltura - margemSegura) {
@@ -63,7 +67,7 @@ export const Login = ({
   };
 
   return (
-    <div className="login-container">
+    <div className={`login-container${tecladoAberto ? ' login-teclado-aberto' : ''}`}>
       <form className="login-card" onSubmit={validarAcessoGerencial}>
         <i className="fas fa-lock cadeado"></i>
         <h3>Autenticação Requerida</h3>
