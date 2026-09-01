@@ -464,6 +464,7 @@ function App() {
   const [usuarioLogado, setUsuarioLogado] = React.useState(null);
   const [erroAutenticacao, setErroAutenticacao] = React.useState(false);
   const [proximaTelaPendente, setProximaTelaPendente] = React.useState('pdv');
+  const [statusSincronizacao, setStatusSincronizacao] = React.useState('');
   
   const [filtroDia, setFiltroDia] = React.useState('Todos');
   const [filtroMes, setFiltroMes] = React.useState(() => String(new Date().getMonth() + 1).padStart(2, '0'));
@@ -1458,6 +1459,7 @@ function App() {
   const comandaAtual = comandas.find((c) => mesmoComandaId(c.id, comandaAtivaId)) || null;
 
   async function sincronizarDadosNuvem({ silencioso = false } = {}) {
+    setStatusSincronizacao('Sincronizando');
     if (!silencioso) {
       setCaixaDialogo({
         titulo: 'Sincronizando com a Nuvem ☁️',
@@ -1606,8 +1608,10 @@ function App() {
       if (!silencioso) {
         dispararMensagem('✅ Sincronização Concluída', `Tudo certo! Dados seguros na nuvem.\n\n📊 Resumo:\n- ${(produtosParaSincronizar || []).length} Produtos${produtosSincronizados ? ' (OK)' : ''}\n- ${crediariosParaSincronizar.length} Fiados\n- ${vendasParaInserir.length} Vendas resgatadas\n- ${clientesParaInserir.length} Clientes novos`);
       }
+      setStatusSincronizacao(`Sincronizado ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`);
     } catch (err) {
       console.error('Erro na sincronização:', err);
+      setStatusSincronizacao('Falha ao sincronizar');
       if (!silencioso) {
         dispararMensagem('❌ Erro de Conexão', 'Não foi possível sincronizar. Verifique a internet e tente novamente.');
       }
@@ -2818,6 +2822,7 @@ function App() {
         autenticado={autenticado}
         usuarioLogado={usuarioLogado}
         sincronizarDadosNuvem={sincronizarDadosNuvem}
+        statusSincronizacao={statusSincronizacao}
         logoutSistema={logoutSistema}
       /> 
         

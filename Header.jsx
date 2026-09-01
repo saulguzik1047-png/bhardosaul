@@ -8,6 +8,7 @@ export const Header = ({
   autenticado,
   usuarioLogado,
   sincronizarDadosNuvem,
+  statusSincronizacao,
   logoutSistema
 }) => {
   const isGarcom = autenticado && usuarioLogado && usuarioLogado.perfil === 'garcom';
@@ -75,6 +76,13 @@ export const Header = ({
           <i className="fas fa-circle" style={{ color: autenticado ? '#34c759' : '#8e8e93', fontSize: '8px' }}></i>{' '}
           {autenticado && usuarioLogado ? usuarioLogado.usuario.toUpperCase() : 'Bloqueado'}
         </span>
+
+        {autenticado && statusSincronizacao && (
+          <span title={statusSincronizacao} style={{ whiteSpace: 'nowrap', fontSize: '10px', color: statusSincronizacao.startsWith('Falha') ? '#dc2626' : statusSincronizacao === 'Sincronizando' ? '#2563eb' : '#16a34a' }}>
+            <i className={`fas ${statusSincronizacao === 'Sincronizando' ? 'fa-sync-alt fa-spin' : statusSincronizacao.startsWith('Falha') ? 'fa-exclamation-circle' : 'fa-cloud-check'}`} style={{ marginRight: '3px' }}></i>
+            {statusSincronizacao}
+          </span>
+        )}
 
         {autenticado && !isGarcom && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
