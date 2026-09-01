@@ -103,6 +103,31 @@ export function Seguranca({
               </p>
             </div>
           </div>
+
+          <div className="card-panel">
+            <h3><i className="fas fa-key"></i> Configuração para Novo Estabelecimento</h3>
+            <p style={{ fontSize: '12px', color: 'var(--text-light)', marginTop: 0 }}>
+              Cadastre estes valores no Vercel, em Settings &gt; Environment Variables. Chaves secretas não são exibidas no sistema por segurança.
+            </p>
+            <div className="wrapper-tabela-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Variável</th>
+                    <th>Uso</th>
+                    <th>Onde configurar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>VITE_SUPABASE_URL</code></td><td>Endereço do projeto Supabase</td><td>Vercel</td></tr>
+                  <tr><td><code>VITE_SUPABASE_ANON_KEY</code></td><td>Conexão pública do sistema</td><td>Vercel</td></tr>
+                  <tr><td><code>SUPABASE_SERVICE_ROLE_KEY</code></td><td>Imagem e sincronização no servidor</td><td>Vercel, segredo</td></tr>
+                  <tr><td><code>VITE_SUPABASE_STORAGE_BUCKET</code></td><td>Bucket das imagens de produtos</td><td>Vercel</td></tr>
+                  <tr><td><code>OPENAI_API_KEY</code></td><td>Leitura de notas fiscais por IA</td><td>Vercel, segredo</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         <div className="card-panel">
