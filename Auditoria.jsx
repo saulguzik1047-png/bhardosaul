@@ -1,26 +1,19 @@
 import React from 'react';
 
 export const Auditoria = ({ logsAuditoria }) => {
-  const formatarDetalhes = (detalhes) => {
+  const formatarDetalhesExtras = (detalhes) => {
     if (!detalhes || typeof detalhes !== 'object') return '-';
 
-    const rotulos = {
-      id_comanda: 'Comanda',
-      id_cred: 'Débito',
-      nome_cliente: 'Cliente',
-      cliente: 'Cliente',
-      produto: 'Produto',
-      quantidade: 'Quantidade',
-      valor: 'Valor',
-      data_lancamento: 'Data do lançamento',
-    };
+    const camposPrincipais = new Set(['id_comanda', 'id_cred', 'nome_cliente', 'cliente', 'produto', 'quantidade', 'valor']);
+    const extras = Object.entries(detalhes).filter(([chave]) => !camposPrincipais.has(chave));
+    if (extras.length === 0) return '-';
 
     return (
-      <div style={{ display: 'grid', gap: '3px', minWidth: '190px' }}>
-        {Object.entries(detalhes).map(([chave, valor]) => (
-          <div key={chave} style={{ display: 'flex', gap: '6px', fontSize: '12px', lineHeight: 1.35 }}>
+      <div style={{ display: 'grid', gap: '3px', minWidth: '140px' }}>
+        {extras.map(([chave, valor]) => (
+          <div key={chave} style={{ display: 'flex', gap: '5px', fontSize: '11px', lineHeight: 1.35 }}>
             <strong style={{ color: 'var(--ios-label-secondary)', whiteSpace: 'nowrap' }}>
-              {rotulos[chave] || chave.replace(/_/g, ' ')}:
+              {chave.replace(/_/g, ' ')}:
             </strong>
             <span style={{ color: 'var(--ios-label)', overflowWrap: 'anywhere' }}>
               {typeof valor === 'object' ? JSON.stringify(valor) : String(valor)}
@@ -45,7 +38,12 @@ export const Auditoria = ({ logsAuditoria }) => {
               <th>Tipo</th>
               <th>Operador</th>
               <th>Motivo</th>
-              <th>Detalhes</th>
+              <th>Comanda / Débito</th>
+              <th>Cliente</th>
+              <th>Produto</th>
+              <th>Qtd.</th>
+              <th>Valor</th>
+              <th>Outros detalhes</th>
             </tr>
           </thead>
           <tbody>
@@ -55,12 +53,17 @@ export const Auditoria = ({ logsAuditoria }) => {
                 <td>{log.tipo}</td>
                 <td>{log.operador}</td>
                 <td>{log.motivo}</td>
-                <td>{formatarDetalhes(log.detalhes)}</td>
+                <td>{log.detalhes?.id_comanda ? `#${log.detalhes.id_comanda}` : log.detalhes?.id_cred ? `#${log.detalhes.id_cred}` : '-'}</td>
+                <td>{log.detalhes?.nome_cliente || log.detalhes?.cliente || '-'}</td>
+                <td>{log.detalhes?.produto || '-'}</td>
+                <td style={{ textAlign: 'center' }}>{log.detalhes?.quantidade ?? '-'}</td>
+                <td style={{ textAlign: 'right' }}>{log.detalhes?.valor ?? '-'}</td>
+                <td>{formatarDetalhesExtras(log.detalhes)}</td>
               </tr>
             ))}
             {logsAuditoria.length === 0 && (
               <tr>
-                <td colSpan="5" style={{ textAlign: 'center', padding: '24px', color: 'var(--ios-label-tertiary)' }}>
+                <td colSpan="10" style={{ textAlign: 'center', padding: '24px', color: 'var(--ios-label-tertiary)' }}>
                   Nenhuma movimentação registrada.
                 </td>
               </tr>
