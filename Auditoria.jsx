@@ -1,6 +1,36 @@
 import React from 'react';
 
 export const Auditoria = ({ logsAuditoria }) => {
+  const formatarDetalhes = (detalhes) => {
+    if (!detalhes || typeof detalhes !== 'object') return '-';
+
+    const rotulos = {
+      id_comanda: 'Comanda',
+      id_cred: 'Débito',
+      nome_cliente: 'Cliente',
+      cliente: 'Cliente',
+      produto: 'Produto',
+      quantidade: 'Quantidade',
+      valor: 'Valor',
+      data_lancamento: 'Data do lançamento',
+    };
+
+    return (
+      <div style={{ display: 'grid', gap: '3px', minWidth: '190px' }}>
+        {Object.entries(detalhes).map(([chave, valor]) => (
+          <div key={chave} style={{ display: 'flex', gap: '6px', fontSize: '12px', lineHeight: 1.35 }}>
+            <strong style={{ color: 'var(--ios-label-secondary)', whiteSpace: 'nowrap' }}>
+              {rotulos[chave] || chave.replace(/_/g, ' ')}:
+            </strong>
+            <span style={{ color: 'var(--ios-label)', overflowWrap: 'anywhere' }}>
+              {typeof valor === 'object' ? JSON.stringify(valor) : String(valor)}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="single-container">
       <div style={{ marginBottom: '16px' }}>
@@ -25,7 +55,7 @@ export const Auditoria = ({ logsAuditoria }) => {
                 <td>{log.tipo}</td>
                 <td>{log.operador}</td>
                 <td>{log.motivo}</td>
-                <td>{JSON.stringify(log.detalhes)}</td>
+                <td>{formatarDetalhes(log.detalhes)}</td>
               </tr>
             ))}
             {logsAuditoria.length === 0 && (
