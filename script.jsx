@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import Tesseract from 'tesseract.js';
 import LeitorNotaCamera from './LeitorNotaCamera.jsx';
-import { supabaseClient } from './supabase.js';  
+import { supabaseClient, obterConfigSupabase, salvarConfigSupabase, limparConfigSupabase } from './supabase.js';  
 import { formatarMoeda, calcularTotal, normalizarCategoria } from './formatadores.js';
 import { criptografarSenha } from './seguranca.js';
 
@@ -223,7 +223,7 @@ function App() {
         temperature: 0.1
       };
 
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://perjhxqgcdccmfyazubi.supabase.co';
+    const { url: supabaseUrl, anonKey: supabaseAnonKey } = obterConfigSupabase();
     const endpoints = [
       {
         url: import.meta.env.VITE_PROCESSAR_NOTA_URL || '/api/processar-nota',
@@ -233,8 +233,8 @@ function App() {
         url: `${supabaseUrl}/functions/v1/processar-nota`,
         headers: {
           'Content-Type': 'application/json',
-          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`
+          apikey: supabaseAnonKey || '',
+          Authorization: `Bearer ${supabaseAnonKey || ''}`
         }
       }
     ].filter((endpoint) => endpoint.url);
@@ -3060,6 +3060,11 @@ function App() {
             usuariosSistema={usuariosSistema}
             setUsuarioEditando={setUsuarioEditando}
             excluirUsuario={excluirUsuario}
+            obterConfigSupabase={obterConfigSupabase}
+            salvarConfigSupabase={salvarConfigSupabase}
+            limparConfigSupabase={limparConfigSupabase}
+            dispararMensagem={dispararMensagem}
+            dispararConfirmacao={dispararConfirmacao}
           />
       )}
 

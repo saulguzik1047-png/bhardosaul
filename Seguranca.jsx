@@ -7,8 +7,38 @@ export function Seguranca({
   novoUserPerfil, setNovoUserPerfil,
   novoUserRestricoes, gerenciarCheckboxRestricao,
   nomeSoftware, setNomeSoftware,
-  usuariosSistema, setUsuarioEditando, excluirUsuario
+  usuariosSistema, setUsuarioEditando, excluirUsuario,
+  obterConfigSupabase, salvarConfigSupabase, limparConfigSupabase,
+  dispararMensagem, dispararConfirmacao
 }) {
+  const configAtual = obterConfigSupabase ? obterConfigSupabase() : { url: '', anonKey: '' };
+  const [urlSupabase, setUrlSupabase] = React.useState(configAtual.url || '');
+  const [anonKeySupabase, setAnonKeySupabase] = React.useState(configAtual.anonKey || '');
+
+  function salvarESupabaseRecarregar() {
+    if (!urlSupabase.trim() || !anonKeySupabase.trim()) {
+      dispararMensagem?.('Erro', 'Preencha a URL e a Chave Anônima (anon key) do Supabase.');
+      return;
+    }
+    salvarConfigSupabase?.({ url: urlSupabase.trim(), anonKey: anonKeySupabase.trim() });
+    dispararConfirmacao?.(
+      'Chaves Salvas',
+      'As novas chaves do Supabase foram salvas neste dispositivo/navegador. É necessário recarregar a página para aplicar. Recarregar agora?',
+      () => window.location.reload()
+    );
+  }
+
+  function restaurarPadrao() {
+    dispararConfirmacao?.(
+      'Restaurar Padrão',
+      'Isso remove as chaves personalizadas salvas neste navegador e volta a usar as chaves padrão do sistema. Deseja continuar?',
+      () => {
+        limparConfigSupabase?.();
+        window.location.reload();
+      }
+    );
+  }
+
   return (
     <div className="single-container">
       <h2>Controle de Acessos & Operadores do Sistema</h2>
@@ -107,7 +137,59 @@ export function Seguranca({
           <div className="card-panel">
             <h3><i className="fas fa-key"></i> Configuração para Novo Estabelecimento</h3>
             <p style={{ fontSize: '12px', color: 'var(--text-light)', marginTop: 0 }}>
-              Cadastre estes valores no Vercel, em Settings &gt; Environment Variables. Chaves secretas não são exibidas no sistema por segurança.
+              Para ligar o sistema a um novo banco de dados Supabase, cole abaixo a URL e a Chave Anônima (anon key)
+              do novo projeto. Essas duas informações são públicas por natureza (o próprio Supabase recomenda usá-las
+              no navegador) e ficam salvas apenas neste dispositivo.
+            </p>
+            <div className="form-fin-bloco">
+              <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-dark)' }}>
+                Supabase Project URL:
+              </label>
+              <input
+                type="text"
+                placeholder="https://xxxxxxxx.supabase.co"
+                value={urlSupabase}
+                onChange={(e) => setUrlSupabase(e.target.value)}
+                style={{ textAlign: 'left', padding: '10px', border: '1px solid var(--border)' }}
+              />
+              <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-dark)' }}>
+                Supabase Anon/Public Key:
+              </label>
+              <input
+                type="text"
+                placeholder="eyJhbGciOi..."
+                value={anonKeySupabase}
+                onChange={(e) => setAnonKeySupabase(e.target.value)}
+                style={{ textAlign: 'left', padding: '10px', border: '1px solid var(--border)' }}
+              />
+              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                <button
+                  type="button"
+                  onClick={salvarESupabaseRecarregar}
+                  className="btn-add-fin"
+                  style={{ background: 'var(--blue)', margin: 0 }}
+                >
+                  <i className="fas fa-save"></i> Salvar e Recarregar
+                </button>
+                <button
+                  type="button"
+                  onClick={restaurarPadrao}
+                  className="btn-add-fin"
+                  style={{ background: '#64748b', margin: 0 }}
+                >
+                  Restaurar Padrão
+                </button>
+              </div>
+              <p style={{ fontSize: '11px', color: '#dc2626', margin: '6px 0 0 0' }}>
+                Essas duas chaves só funcionam neste computador/navegador. Repita esse passo em cada aparelho usado no
+                novo estabelecimento.
+              </p>
+            </div>
+
+            <p style={{ fontSize: '12px', color: 'var(--text-light)', marginTop: '16px' }}>
+              As chaves abaixo são <strong>secretas</strong> (dão acesso total ao servidor) e por isso não podem ser
+              digitadas aqui — só quem administra a conta no Vercel consegue cadastrá-las, em Settings &gt; Environment
+              Variables.
             </p>
             <div className="wrapper-tabela-scroll">
               <table>
@@ -119,8 +201,6 @@ export function Seguranca({
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td><code>VITE_SUPABASE_URL</code></td><td>Endereço do projeto Supabase</td><td>Vercel</td></tr>
-                  <tr><td><code>VITE_SUPABASE_ANON_KEY</code></td><td>Conexão pública do sistema</td><td>Vercel</td></tr>
                   <tr><td><code>SUPABASE_SERVICE_ROLE_KEY</code></td><td>Imagem e sincronização no servidor</td><td>Vercel, segredo</td></tr>
                   <tr><td><code>VITE_SUPABASE_STORAGE_BUCKET</code></td><td>Bucket das imagens de produtos</td><td>Vercel</td></tr>
                   <tr><td><code>OPENAI_API_KEY</code></td><td>Leitura de notas fiscais por IA</td><td>Vercel, segredo</td></tr>
