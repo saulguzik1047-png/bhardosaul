@@ -440,8 +440,10 @@ export function PDV({
                 }}
               >
                 <div className="comanda-header" style={{ fontSize: '13px', fontWeight: isAtiva ? 'bold' : '600', marginBottom: '6px' }}>
-                  <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nome}</div>
-                  <div style={{ color: isAtiva ? '#ffedd5' : '#94a3b8', fontSize: '10px', marginTop: '2px' }}>#{c.id}</div>
+                  <div>{c.nome}</div>
+                  <div style={{ color: isAtiva ? '#ffedd5' : '#94a3b8', fontSize: '10px', marginTop: '2px' }}>
+                    #{String(c.id).slice(-4)}
+                  </div>
                 </div>
                 <div className="comanda-footer" style={{ fontSize: '11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{
@@ -506,8 +508,8 @@ export function PDV({
                     );
                     const podeDividir =
                       prodOriginal &&
-                      (prodOriginal.category === 'Porções' ||
-                        categoriasDivisiveis.includes(prodOriginal.category));
+                      (normalizarCategoria(prodOriginal.category) === 'porções' ||
+                        categoriasDivisiveis.some((cat) => normalizarCategoria(cat) === normalizarCategoria(prodOriginal.category)));
 
                         return (
                           <div key={index} className="item-linha" style={{ fontSize: '12px', padding: '6px 0', flexDirection: 'column', alignItems: 'stretch' }}>
