@@ -34,6 +34,7 @@ export function PDV({
   emitirNotaFiscalSilenciosa,
   imagemAutomaticaProduto,
   addItemNaComanda,
+  editarObservacaoItem,
   iniciarDivisaoItem,
   tratarRemoverSplit,
   removerItemNaComanda,
@@ -514,13 +515,33 @@ export function PDV({
                               <span className="item-qtd" style={{ fontWeight: 'bold' }}>{item.qtd}x</span>
                               <span>{item.nome}</span>
                             </div>
+                            {item.obs && (
+                              <div style={{ fontSize: '10px', fontStyle: 'italic', color: '#dc2626', marginLeft: '2px' }}>
+                                Obs: {item.obs}
+                              </div>
+                            )}
                             <div
                               style={{ display: 'flex', alignItems: 'center' }}
                             >
                               <span style={{ marginRight: '4px', fontWeight: 'bold' }}>
                                 {formatarMoeda(item.preco * item.qtd)}
                               </span>
-  
+
+                              {!item.splitGroupId && (
+                                <button
+                                  className="btn-remove-item"
+                                  style={{
+                                    color: item.obs ? '#eab308' : '#94a3b8',
+                                    marginRight: '4px',
+                                    padding: '1px 5px'
+                                  }}
+                                  onClick={() => editarObservacaoItem(item, index)}
+                                  title="Adicionar observação (ex: sem salada)"
+                                >
+                                  <i className="fas fa-note-sticky" style={{ fontSize: '10px' }}></i>
+                                </button>
+                              )}
+
                               {!item.splitGroupId && item.qtd > 1 && (
                                 <button
                                   className="btn-remove-item"

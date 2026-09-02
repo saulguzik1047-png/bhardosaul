@@ -1852,7 +1852,7 @@ function App() {
     const novoEstoque = produto.estoque - 1;
     const atualizadoEm = new Date().toISOString();
     const itensAlterados = [...comandaParaAlterar.itens];
-    const indiceItem = itensAlterados.findIndex((item) => item.idProd === produto.id && !item.splitGroupId);
+    const indiceItem = itensAlterados.findIndex((item) => item.idProd === produto.id && !item.splitGroupId && !item.obs);
     if (indiceItem >= 0) itensAlterados[indiceItem] = { ...itensAlterados[indiceItem], qtd: Number(itensAlterados[indiceItem].qtd || 0) + 1 };
     else itensAlterados.push({ idProd: produto.id, nome: produto.nome, precoCusto: produto.precoCusto, preco: produto.preco, qtd: 1 });
     const comandaAtualizada = { ...comandaParaAlterar, itens: itensAlterados, updated_at: atualizadoEm };
@@ -1878,6 +1878,51 @@ function App() {
       `;
       gerarImpressaoTermica(htmlCozinha);
     }
+  }
+
+  // Observação é opcional por item (ex: "sem salada"), só usada quando o pedido precisa de ajuste na cozinha.
+  function editarObservacaoItem(itemAlvo, index) {
+    const comandaParaAlterar = comandasRef.current.find((comanda) => mesmoComandaId(comanda.id, comandaAtivaId));
+    if (!comandaParaAlterar || !comandaParaAlterar.itens[index]) return;
+
+    setPromptVal(itemAlvo.obs || '');
+    setCaixaDialogo({
+      titulo: 'Observação do Item',
+      mensagem: `Observação para "${itemAlvo.nome}" (ex: sem salada, bem passado, sem gelo...):`,
+      tipo: 'prompt',
+      confirmTxt: 'Salvar',
+      cancelTxt: 'Cancelar',
+      onConfirm: (texto) => {
+        const obsLimpa = String(texto || '').trim().slice(0, 120);
+        const itensAlterados = [...comandaParaAlterar.itens];
+        if (!itensAlterados[index]) return;
+        itensAlterados[index] = { ...itensAlterados[index], obs: obsLimpa };
+        const comandaAtualizada = { ...comandaParaAlterar, itens: itensAlterados, updated_at: new Date().toISOString() };
+        comandasRef.current = comandasRef.current.map((comanda) => mesmoComandaId(comanda.id, comandaAtivaId) ? comandaAtualizada : comanda);
+        setComandas(comandasRef.current);
+        salvarComandaAgora(comandaAtualizada);
+
+        const produtoOriginal = produtos.find((p) => p.id === itensAlterados[index].idProd);
+        const ehItemCozinha = produtoOriginal && (produtoOriginal.category === 'Porções' || normalizarCategoria(produtoOriginal.category) === 'cozinha' || categoriasDivisiveis.includes(produtoOriginal.category));
+
+        if (obsLimpa && ehItemCozinha) {
+          const htmlCozinha = `
+            <div style="text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 10px;">⚠️ OBSERVAÇÃO COZINHA ⚠️</div>
+            <div style="border-bottom: 2px dashed black; margin: 8px 0;"></div>
+            <div style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">MESA / COMANDA: ${comandaParaAlterar.nome}</div>
+            <div style="border-bottom: 2px dashed black; margin: 8px 0;"></div>
+            <div style="font-size: 18px; font-weight: bold; margin-top: 10px;">-> ${itensAlterados[index].qtd}x ${itensAlterados[index].nome}</div>
+            <div style="font-size: 16px; font-weight: bold; color: red; margin-top: 6px;">OBS: ${obsLimpa}</div>
+            <div style="border-bottom: 2px dashed black; margin: 8px 0;"></div>
+            <div style="text-align: center; font-size: 12px; margin-top: 5px;">Impresso para produção</div>
+          `;
+          gerarImpressaoTermica(htmlCozinha);
+          dispararMensagem('Observação Enviada', `"${obsLimpa}" foi impresso na cozinha para o item "${itensAlterados[index].nome}".`);
+        } else {
+          dispararMensagem('Observação', obsLimpa ? `Observação "${obsLimpa}" salva no item.` : 'Observação removida do item.');
+        }
+      },
+    });
   }
   
   function removerItemNaComanda(idProd) {
@@ -2650,7 +2695,7 @@ function App() {
     `;
 
     comandaAtual.itens.forEach(i => {
-      htmlCupom += `<div class="flex item"><span>${i.qtd}x ${i.nome}</span><span>${formatarMoeda(i.preco * i.qtd)}</span></div>`;
+      htmlCupom += `<div class="flex item"><span>${i.qtd}x ${i.nome}${i.obs ? ` <em>(${i.obs})</em>` : ''}</span><span>${formatarMoeda(i.preco * i.qtd)}</span></div>`;
     });
 
     htmlCupom += `
@@ -2965,6 +3010,7 @@ function App() {
           emitirNotaFiscalSilenciosa={emitirNotaFiscalSilenciosa}
           imagemAutomaticaProduto={imagemAutomaticaProduto}
           addItemNaComanda={addItemNaComanda}
+          editarObservacaoItem={editarObservacaoItem}
           iniciarDivisaoItem={iniciarDivisaoItem}
           tratarRemoverSplit={tratarRemoverSplit}
           removerItemNaComanda={removerItemNaComanda}
@@ -3127,7 +3173,7 @@ function App() {
               <div style={{ marginBottom: '20px' }}>
                 <input
                   type="text" className="dark-input-field" placeholder="Digite o valor..."
-                  style={{ textAlign: 'left', background: '#090f17', border: '1px solid #ef4444' }}
+                  style={{ textAlign: 'left', background: '#ffffff', color: '#111827', border: '1px solid #ef4444' }}
                   value={promptVal} onChange={(e) => setPromptVal(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { caixaDialogo.onConfirm(promptVal); setCaixaDialogo(null); } }}
                   autoFocus
