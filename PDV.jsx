@@ -541,7 +541,7 @@ export function PDV({
                                   onClick={() => editarObservacaoItem(item, index)}
                                   title="Adicionar observação (ex: sem salada)"
                                 >
-                                  <i className="fas fa-note-sticky" style={{ fontSize: '13px' }}></i>
+                                  <i className="fas fa-pencil" style={{ fontSize: '13px' }}></i>
                                 </button>
                               )}
 
