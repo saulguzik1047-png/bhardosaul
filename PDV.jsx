@@ -614,25 +614,75 @@ export function PDV({
                       </div>
                     )}
                 {comandaAtual.itens.length > 0 && (
-                  <button
-                    className="btn-imprimir"
-                    style={{
-                      padding: '10px 12px',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      width: '100%',
-                      marginBottom: '6px',
-                    }}
-                    onClick={imprimirComandaConferencia}
-                  >
-                    <i className="fas fa-print"></i> Conferência
-                  </button>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '6px' }}>
+                    {comandaAtual.itens.length > 0 && (
+                      <button
+                        className="btn-imprimir"
+                        style={{
+                          aspectRatio: '1 / 1',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                        }}
+                        onClick={imprimirComandaConferencia}
+                      >
+                        <i className="fas fa-print" style={{ fontSize: '16px', marginBottom: '4px' }}></i>
+                        Conferência
+                      </button>
+                    )}
+
+                    {!modoPagamento && comandaAtual.itens.length > 0 && (
+                      <>
+                        <button
+                          className="btn-finalizar"
+                          style={{
+                            aspectRatio: '1 / 1',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            borderRadius: '8px',
+                          }}
+                          onClick={() => {
+                            setModoPagamento(true);
+                            setBusca('');
+                          }}
+                        >
+                          <i className="fas fa-cash-register" style={{ fontSize: '16px', marginBottom: '4px' }}></i>
+                          Fechar Comanda
+                        </button>
+                        <button
+                          className="btn-finalizar"
+                          style={{
+                            aspectRatio: '1 / 1',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: '#0f766e',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            borderRadius: '8px',
+                          }}
+                          onClick={iniciarPagamentoParcial}
+                        >
+                          <i className="fas fa-hand-holding-usd" style={{ fontSize: '16px', marginBottom: '4px' }}></i>
+                          Pagamento Parcial
+                        </button>
+                      </>
+                    )}
+                  </div>
                 )}
 
                 {!modoPagamento ? (
-                  comandaAtual.itens.length === 0 ? (
+                  comandaAtual.itens.length === 0 && (
                     <button
                       className="btn-finalizar"
                       style={{
@@ -647,26 +697,6 @@ export function PDV({
                     >
                       <i className="fas fa-trash-alt"></i> Excluir Comanda
                     </button>
-                  ) : (
-                    <>
-                      <button
-                        className="btn-finalizar"
-                        style={{ padding: '10px', fontSize: '13px', borderRadius: '6px', width: '100%' }}
-                        onClick={() => {
-                          setModoPagamento(true);
-                          setBusca('');
-                        }}
-                      >
-                        <i className="fas fa-cash-register"></i> Fechar Comanda
-                      </button>
-                      <button
-                        className="btn-finalizar"
-                        style={{ background: '#0f766e', padding: '10px', fontSize: '13px', borderRadius: '6px', width: '100%', marginTop: '6px' }}
-                        onClick={iniciarPagamentoParcial}
-                      >
-                        <i className="fas fa-hand-holding-usd"></i> Pagamento Parcial
-                      </button>
-                    </>
                   )
                 ) : (
                   <div
