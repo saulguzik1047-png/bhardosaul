@@ -614,7 +614,7 @@ export function PDV({
                       </div>
                     )}
                 {comandaAtual.itens.length > 0 && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '6px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '6px', width: '80%', margin: '0 auto 6px' }}>
                     {comandaAtual.itens.length > 0 && (
                       <button
                         className="btn-imprimir"
