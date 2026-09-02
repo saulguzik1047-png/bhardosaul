@@ -575,31 +575,6 @@ function App() {
   const [valCrediario, setValCrediario] = React.useState('');
   const [descontoAtual, setDescontoAtual] = React.useState(0);
 
-  React.useEffect(() => {
-    setDescontoAtual(0);
-  }, [comandaAtivaId]);
-
-  function abrirDescontoComanda() {
-    if (!comandaAtual) return;
-    const totalAtual = calcularTotal(comandaAtual.itens);
-    setPromptVal(descontoAtual > 0 ? formatarMoeda(descontoAtual) : '');
-    setCaixaDialogo({
-      titulo: 'Aplicar Desconto',
-      mensagem: `Informe o valor do desconto para a comanda de ${comandaAtual.nome} (Total atual: ${formatarMoeda(totalAtual)}):`,
-      tipo: 'prompt_moeda',
-      confirmTxt: 'Aplicar',
-      cancelTxt: 'Cancelar',
-      onConfirm: (valorDigitado) => {
-        const limpo = String(valorDigitado || '').replace('R$', '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
-        const valor = parseFloat(limpo) || 0;
-        if (valor < 0) { dispararMensagem('Erro', 'Valor de desconto inválido.'); return; }
-        if (valor > totalAtual) { dispararMensagem('Erro', `O desconto não pode ser maior que o total da comanda (${formatarMoeda(totalAtual)}).`); return; }
-        setDescontoAtual(valor);
-        dispararMensagem('Desconto', valor > 0 ? `Desconto de ${formatarMoeda(valor)} aplicado à comanda.` : 'Desconto removido da comanda.');
-      },
-    });
-  }
-
   const buscaContainerRef = React.useRef(null);
   const inputBuscaImgRef = React.useRef(null);
   const inputQtdAdicionarRef = React.useRef(null);
@@ -1516,6 +1491,31 @@ function App() {
   }, []);
 
   const comandaAtual = comandas.find((c) => mesmoComandaId(c.id, comandaAtivaId)) || null;
+
+  React.useEffect(() => {
+    setDescontoAtual(0);
+  }, [comandaAtivaId]);
+
+  function abrirDescontoComanda() {
+    if (!comandaAtual) return;
+    const totalAtual = calcularTotal(comandaAtual.itens);
+    setPromptVal(descontoAtual > 0 ? formatarMoeda(descontoAtual) : '');
+    setCaixaDialogo({
+      titulo: 'Aplicar Desconto',
+      mensagem: `Informe o valor do desconto para a comanda de ${comandaAtual.nome} (Total atual: ${formatarMoeda(totalAtual)}):`,
+      tipo: 'prompt_moeda',
+      confirmTxt: 'Aplicar',
+      cancelTxt: 'Cancelar',
+      onConfirm: (valorDigitado) => {
+        const limpo = String(valorDigitado || '').replace('R$', '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+        const valor = parseFloat(limpo) || 0;
+        if (valor < 0) { dispararMensagem('Erro', 'Valor de desconto inválido.'); return; }
+        if (valor > totalAtual) { dispararMensagem('Erro', `O desconto não pode ser maior que o total da comanda (${formatarMoeda(totalAtual)}).`); return; }
+        setDescontoAtual(valor);
+        dispararMensagem('Desconto', valor > 0 ? `Desconto de ${formatarMoeda(valor)} aplicado à comanda.` : 'Desconto removido da comanda.');
+      },
+    });
+  }
 
   async function sincronizarDadosNuvem({ silencioso = false } = {}) {
     setStatusSincronizacao('Sincronizando');
