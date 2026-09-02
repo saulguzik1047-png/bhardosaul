@@ -439,9 +439,9 @@ export function PDV({
                   transition: 'all 0.2s ease'
                 }}
               >
-                <div className="comanda-header" style={{ fontSize: '13px', fontWeight: isAtiva ? 'bold' : '600', marginBottom: '6px', display: 'flex', justifyContent: 'space-between' }}>
-                  <span>{c.nome}</span>
-                  <span style={{ color: isAtiva ? '#ffedd5' : '#94a3b8', fontSize: '11px' }}>#{c.id}</span>
+                <div className="comanda-header" style={{ fontSize: '13px', fontWeight: isAtiva ? 'bold' : '600', marginBottom: '6px' }}>
+                  <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nome}</div>
+                  <div style={{ color: isAtiva ? '#ffedd5' : '#94a3b8', fontSize: '10px', marginTop: '2px' }}>#{c.id}</div>
                 </div>
                 <div className="comanda-footer" style={{ fontSize: '11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{
@@ -510,23 +510,24 @@ export function PDV({
                         categoriasDivisiveis.includes(prodOriginal.category));
 
                         return (
-                          <div key={index} className="item-linha" style={{ fontSize: '14px', padding: '5px 0' }}>
-                            <div className="item-qtd-nome">
-                              <span className="item-qtd" style={{ fontWeight: 'bold' }}>{item.qtd}x</span>
-                              <span>{item.nome}</span>
+                          <div key={index} className="item-linha" style={{ fontSize: '12px', padding: '6px 0', flexDirection: 'column', alignItems: 'stretch' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div className="item-qtd-nome">
+                                <span className="item-qtd" style={{ fontWeight: 'bold' }}>{item.qtd}x</span>
+                                <span>{item.nome}</span>
+                              </div>
+                              <span style={{ fontWeight: 'bold' }}>
+                                {formatarMoeda(item.preco * item.qtd)}
+                              </span>
                             </div>
                             {item.obs && (
-                              <div style={{ fontSize: '11px', fontStyle: 'italic', color: '#dc2626', marginLeft: '2px' }}>
+                              <div style={{ fontSize: '11px', fontStyle: 'italic', color: '#dc2626', marginTop: '2px' }}>
                                 Obs: {item.obs}
                               </div>
                             )}
                             <div
-                              style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '2px' }}
+                              style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', marginTop: '4px' }}
                             >
-                              <span style={{ marginRight: '4px', fontWeight: 'bold' }}>
-                                {formatarMoeda(item.preco * item.qtd)}
-                              </span>
-
                               {!item.splitGroupId && (
                                 <button
                                   className="btn-remove-item"
