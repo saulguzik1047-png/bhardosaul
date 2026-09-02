@@ -24,6 +24,8 @@ export function PDV({
   valPix, setValPix,
   valCartao, setValCartao,
   valCrediario, setValCrediario,
+  desconto,
+  abrirDescontoComanda,
   modoPagamento, setModoPagamento,
   mostrarMultiFormas, setMostrarMultiFormas,
   comandaRecemPaga, setComandaRecemPaga,
@@ -95,6 +97,8 @@ export function PDV({
   };
 
   let subtotal = comandaAtual ? calcularTotal(comandaAtual.itens) : 0;
+  const descontoAplicado = Math.min(Number(desconto) || 0, subtotal);
+  const totalComDesconto = Math.max(0, subtotal - descontoAplicado);
   const listaCategorias = listarCategoriasProdutos(categoriasCustomizadas, produtos);
 
   let produtosFiltrados =
@@ -154,7 +158,7 @@ export function PDV({
     parseMoedaBR(valPix) +
     parseMoedaBR(valCartao) +
     parseMoedaBR(valCrediario);
-  const saldoRestantePagamento = subtotal - totalPagoAtualmente;
+  const saldoRestantePagamento = totalComDesconto - totalPagoAtualmente;
 
   return (
     <div className="main-container" style={{ display: 'flex', height: 'calc(100vh - 60px)', gap: '8px', padding: '8px', background: '#eaf2ff' }}>
@@ -573,6 +577,18 @@ export function PDV({
                       <span>Total:</span>
                       <span>{formatarMoeda(subtotal)}</span>
                     </div>
+                    {descontoAplicado > 0 && (
+                      <div className="linha-total" style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#dc2626' }}>
+                        <span>Desconto:</span>
+                        <span>-{formatarMoeda(descontoAplicado)}</span>
+                      </div>
+                    )}
+                    {descontoAplicado > 0 && (
+                      <div className="linha-total" style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '4px', color: '#16a34a' }}>
+                        <span>A pagar:</span>
+                        <span>{formatarMoeda(totalComDesconto)}</span>
+                      </div>
+                    )}
                 {comandaAtual.itens.length > 0 && (
                   <button
                     className="btn-imprimir"
@@ -632,37 +648,37 @@ export function PDV({
                   <div
                     className="botoes-pagamento"
                     style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '4px',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(2, 1fr)',
+                      gap: '8px',
                     }}
                   >
                    {!mostrarMultiFormas ? (
                       <>
                         <button
                           className="btn-pag btn-cartao"
-                          style={{ padding: '14px 10px', fontSize: '13px', fontWeight: 'bold', borderRadius: '8px' }}
+                          style={{ aspectRatio: '1 / 1', flexDirection: 'column', fontSize: '13px', fontWeight: 'bold', borderRadius: '8px' }}
                           onClick={() => finalizarPagamentoDireto('cartão')}
                         >
                           💳 Cartão
                         </button>
                         <button
                           className="btn-pag btn-pix"
-                          style={{ padding: '14px 10px', fontSize: '13px', fontWeight: 'bold', borderRadius: '8px' }}
+                          style={{ aspectRatio: '1 / 1', flexDirection: 'column', fontSize: '13px', fontWeight: 'bold', borderRadius: '8px' }}
                           onClick={() => finalizarPagamentoDireto('pix')}
                         >
                           ⚡ Pix
                         </button>
                         <button
                           className="btn-pag btn-dinheiro"
-                          style={{ padding: '14px 10px', fontSize: '13px', fontWeight: 'bold', borderRadius: '8px' }}
+                          style={{ aspectRatio: '1 / 1', flexDirection: 'column', fontSize: '13px', fontWeight: 'bold', borderRadius: '8px' }}
                           onClick={() => finalizarPagamentoDireto('dinheiro')}
                         >
                           💵 Dinheiro
                         </button>
                         <button
                           className="btn-pag btn-creadiario"
-                          style={{ padding: '14px 10px', fontSize: '13px', fontWeight: 'bold', borderRadius: '8px' }}
+                          style={{ aspectRatio: '1 / 1', flexDirection: 'column', fontSize: '13px', fontWeight: 'bold', borderRadius: '8px' }}
                           onClick={() => finalizarPagamentoDireto('fiado')}
                         >
                           📙 Fiado
@@ -670,19 +686,27 @@ export function PDV({
                         <button
                           className="btn-pag btn-mais-pgto"
                           onClick={() => setMostrarMultiFormas(true)}
-                          style={{ background: '#64748b', padding: '14px 10px', fontSize: '13px', fontWeight: 'bold', borderRadius: '8px' }}
+                          style={{ aspectRatio: '1 / 1', flexDirection: 'column', background: '#64748b', fontSize: '13px', fontWeight: 'bold', borderRadius: '8px' }}
                         >
                           ➕ Multi-Formas
+                        </button>
+                        <button
+                          className="btn-pag btn-desconto"
+                          onClick={abrirDescontoComanda}
+                          style={{ aspectRatio: '1 / 1', flexDirection: 'column', background: '#eab308', fontSize: '13px', fontWeight: 'bold', borderRadius: '8px' }}
+                        >
+                          🏷️ Desconto
                         </button>
                         <button
                           className="btn-cancelar-pag"
                           onClick={() => setModoPagamento(false)}
                           style={{
+                            gridColumn: '1 / -1',
                             padding: '12px 10px',
                             fontSize: '12px',
                             borderRadius: '8px',
                             cursor: 'pointer',
-                            marginTop: '8px',
+                            marginTop: '4px',
                             fontWeight: 'bold'
                           }}
                         >
@@ -779,6 +803,10 @@ export function PDV({
                               color: '#555',
                             }}
                           >
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>Total a Pagar:</span>
+                              <strong style={{fontSize: '13px'}}>{formatarMoeda(totalComDesconto)}</strong>
+                            </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                               <span>Total Pago:</span>
                               <strong style={{fontSize: '13px'}}>{formatarMoeda(totalPagoAtualmente)}</strong>

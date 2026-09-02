@@ -573,6 +573,32 @@ function App() {
   const [valPix, setValPix] = React.useState('');
   const [valCartao, setValCartao] = React.useState('');
   const [valCrediario, setValCrediario] = React.useState('');
+  const [descontoAtual, setDescontoAtual] = React.useState(0);
+
+  React.useEffect(() => {
+    setDescontoAtual(0);
+  }, [comandaAtivaId]);
+
+  function abrirDescontoComanda() {
+    if (!comandaAtual) return;
+    const totalAtual = calcularTotal(comandaAtual.itens);
+    setPromptVal(descontoAtual > 0 ? formatarMoeda(descontoAtual) : '');
+    setCaixaDialogo({
+      titulo: 'Aplicar Desconto',
+      mensagem: `Informe o valor do desconto para a comanda de ${comandaAtual.nome} (Total atual: ${formatarMoeda(totalAtual)}):`,
+      tipo: 'prompt_moeda',
+      confirmTxt: 'Aplicar',
+      cancelTxt: 'Cancelar',
+      onConfirm: (valorDigitado) => {
+        const limpo = String(valorDigitado || '').replace('R$', '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+        const valor = parseFloat(limpo) || 0;
+        if (valor < 0) { dispararMensagem('Erro', 'Valor de desconto inválido.'); return; }
+        if (valor > totalAtual) { dispararMensagem('Erro', `O desconto não pode ser maior que o total da comanda (${formatarMoeda(totalAtual)}).`); return; }
+        setDescontoAtual(valor);
+        dispararMensagem('Desconto', valor > 0 ? `Desconto de ${formatarMoeda(valor)} aplicado à comanda.` : 'Desconto removido da comanda.');
+      },
+    });
+  }
 
   const buscaContainerRef = React.useRef(null);
   const inputBuscaImgRef = React.useRef(null);
@@ -2426,7 +2452,9 @@ function App() {
   function confirmarPagamentoComposto() {
     if (!comandaAtual || comandaAtual.itens.length === 0) return;
     if (pagamentoEmProcessamentoRef.current) return;
-    const totalCobranca = calcularTotal(comandaAtual.itens);
+    const totalBruto = calcularTotal(comandaAtual.itens);
+    const descontoAplicado = Math.min(descontoAtual || 0, totalBruto);
+    const totalCobranca = Math.max(0, totalBruto - descontoAplicado);
 
     const d = parseMoedaBR(valDinheiro);
     const p = parseMoedaBR(valPix);
@@ -2451,6 +2479,7 @@ function App() {
         if (d > 0) formasTexto.push(`Dinheiro: ${formatarMoeda(d)}`);
         if (p > 0) formasTexto.push(`Pix: ${formatarMoeda(p)}`);
         if (c > 0) formasTexto.push(`Cartão: ${formatarMoeda(c)}`);
+        if (descontoAplicado > 0) formasTexto.push(`Desconto: -${formatarMoeda(descontoAplicado)}`);
 
         let msgWppStatus = '';
         if (cr > 0) {
@@ -2499,6 +2528,7 @@ function App() {
         setComandaAtivaId(null);
         setModoPagamento(false);
         setMostrarMultiFormas(false);
+        setDescontoAtual(0);
         setValDinheiro(''); setValPix(''); setValCartao(''); setValCrediario('');
         dispararMensagem('Sucesso', `Pagamento processado com sucesso! A mesa foi liberada.${msgWppStatus}`);
         } finally {
@@ -2511,9 +2541,12 @@ function App() {
   function finalizarPagamentoDireto(tipo) {
     if (!comandaAtual || comandaAtual.itens.length === 0) return;
     if (pagamentoEmProcessamentoRef.current) return;
-    const totalCobranca = calcularTotal(comandaAtual.itens);
+    const totalBruto = calcularTotal(comandaAtual.itens);
+    const descontoAplicado = Math.min(descontoAtual || 0, totalBruto);
+    const totalCobranca = Math.max(0, totalBruto - descontoAplicado);
+    const rotuloTipo = descontoAplicado > 0 ? `${tipo.toUpperCase()} (Desc. ${formatarMoeda(descontoAplicado)})` : tipo.toUpperCase();
 
-    dispararConfirmacao('Confirmar Pagamento', `Deseja fechar a conta de ${comandaAtual.nome} no valor total de ${formatarMoeda(totalCobranca)} via [${tipo.toUpperCase()}]?`, async () => {
+    dispararConfirmacao('Confirmar Pagamento', `Deseja fechar a conta de ${comandaAtual.nome} no valor total de ${formatarMoeda(totalCobranca)}${descontoAplicado > 0 ? ` (desconto de ${formatarMoeda(descontoAplicado)} aplicado)` : ''} via [${tipo.toUpperCase()}]?`, async () => {
         if (pagamentoEmProcessamentoRef.current) return;
         pagamentoEmProcessamentoRef.current = true;
         try {
@@ -2549,13 +2582,13 @@ function App() {
 
         setVendas(prev => [...prev, {
             idVenda: Date.now(), data: new Date().toLocaleString('pt-BR'), cliente: comandaAtual.nome,
-            total: totalCobranca, pagamento: tipo.toUpperCase(), itensConsumidos: itensFormatados,
+            total: totalCobranca, pagamento: rotuloTipo, itensConsumidos: itensFormatados,
         }]);
 
         try {
           await supabaseClient?.from('vendas').insert([{
               data: new Date().toLocaleString('pt-BR'), cliente: comandaAtual.nome, total: totalCobranca,
-              pagamento: tipo.toUpperCase(), itens_consumidos: itensFormatados,
+              pagamento: rotuloTipo, itens_consumidos: itensFormatados,
           }]);
         } catch (err) { console.warn('Venda registrada apenas localmente:', err); }
 
@@ -2566,6 +2599,7 @@ function App() {
         setComandaAtivaId(null);
         setModoPagamento(false);
         setMostrarMultiFormas(false);
+        setDescontoAtual(0);
         setValDinheiro(''); setValPix(''); setValCartao(''); setValCrediario('');
         dispararMensagem('Sucesso', `Conta finalizada com sucesso via ${tipo.toUpperCase()}!${msgWppStatus}`);
         } finally {
@@ -2918,6 +2952,8 @@ function App() {
           setValCartao={setValCartao}
           valCrediario={valCrediario}
           setValCrediario={setValCrediario}
+          desconto={descontoAtual}
+          abrirDescontoComanda={abrirDescontoComanda}
           modoPagamento={modoPagamento}
           setModoPagamento={setModoPagamento}
           mostrarMultiFormas={mostrarMultiFormas}
