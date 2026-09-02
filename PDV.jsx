@@ -164,8 +164,8 @@ export function PDV({
   return (
     <div className="main-container" style={{ display: 'flex', height: 'calc(100vh - 60px)', gap: '8px', padding: '8px', background: '#eaf2ff' }}>
       
-      {/* COLUNA 1: COMANDAS (Largura reduzida para 180px) */}
-      <div className="col" style={{ flex: '0 0 180px', maxWidth: '180px', display: 'flex', flexDirection: 'column' }}>
+      {/* COLUNA 1: COMANDAS (Largura reduzida para 150px) */}
+      <div className="col" style={{ flex: '0 0 150px', maxWidth: '150px', display: 'flex', flexDirection: 'column' }}>
         <h2 style={{ fontSize: '14px', marginBottom: '8px' }}>Mesas e Comandas</h2>
 
         <div className="busca-container" ref={buscaContainerRef} style={{ marginBottom: '8px', position: 'relative' }}>
@@ -463,7 +463,7 @@ export function PDV({
       </div>
 
       {/* COLUNA 2: CONSUMO */}
-      <div className="col" style={{ flex: '0 0 240px', maxWidth: '240px', display: 'flex', flexDirection: 'column' }}>
+      <div className="col" style={{ flex: '0 0 280px', maxWidth: '280px', display: 'flex', flexDirection: 'column' }}>
         <div
           className="consumo-box"
           style={{
@@ -510,18 +510,18 @@ export function PDV({
                         categoriasDivisiveis.includes(prodOriginal.category));
 
                         return (
-                          <div key={index} className="item-linha" style={{ fontSize: '12px', padding: '3px 0' }}>
+                          <div key={index} className="item-linha" style={{ fontSize: '14px', padding: '5px 0' }}>
                             <div className="item-qtd-nome">
                               <span className="item-qtd" style={{ fontWeight: 'bold' }}>{item.qtd}x</span>
                               <span>{item.nome}</span>
                             </div>
                             {item.obs && (
-                              <div style={{ fontSize: '10px', fontStyle: 'italic', color: '#dc2626', marginLeft: '2px' }}>
+                              <div style={{ fontSize: '11px', fontStyle: 'italic', color: '#dc2626', marginLeft: '2px' }}>
                                 Obs: {item.obs}
                               </div>
                             )}
                             <div
-                              style={{ display: 'flex', alignItems: 'center' }}
+                              style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '2px' }}
                             >
                               <span style={{ marginRight: '4px', fontWeight: 'bold' }}>
                                 {formatarMoeda(item.preco * item.qtd)}
@@ -532,13 +532,13 @@ export function PDV({
                                   className="btn-remove-item"
                                   style={{
                                     color: item.obs ? '#eab308' : '#94a3b8',
-                                    marginRight: '4px',
-                                    padding: '1px 5px'
+                                    marginRight: '2px',
+                                    padding: '3px 7px'
                                   }}
                                   onClick={() => editarObservacaoItem(item, index)}
                                   title="Adicionar observação (ex: sem salada)"
                                 >
-                                  <i className="fas fa-note-sticky" style={{ fontSize: '10px' }}></i>
+                                  <i className="fas fa-note-sticky" style={{ fontSize: '13px' }}></i>
                                 </button>
                               )}
 
@@ -547,14 +547,14 @@ export function PDV({
                                   className="btn-remove-item"
                                   style={{
                                     color: 'var(--blue)',
-                                    marginRight: '4px',
-                                    padding: '1px 5px',
+                                    marginRight: '2px',
+                                    padding: '3px 7px',
                                     fontWeight: 'bold'
                                   }}
                                   onClick={() => diminuirQtdItemNaComanda(item)}
                                   title="Remover 1 unidade"
                                 >
-                                  <i className="fas fa-minus" style={{ fontSize: '10px' }}></i>
+                                  <i className="fas fa-minus" style={{ fontSize: '13px' }}></i>
                                 </button>
                               )}
 
@@ -563,19 +563,19 @@ export function PDV({
                                   className="btn-remove-item"
                                   style={{
                                     color: 'var(--blue)',
-                                    marginRight: '4px',
-                                    padding: '1px 3px'
+                                    marginRight: '2px',
+                                    padding: '3px 6px'
                                   }}
                                   onClick={() => iniciarDivisaoItem(item)}
                                   title="Dividir Porção"
                                 >
-                                  <i className="fas fa-divide" style={{ fontSize: '10px' }}></i>
+                                  <i className="fas fa-divide" style={{ fontSize: '13px' }}></i>
                                 </button>
                               )}
   
                               <button
                                 className="btn-remove-item"
-                                style={{ padding: '1px 3px' }}
+                                style={{ padding: '3px 6px' }}
                                 onClick={() => {
                                   if (item.splitGroupId) {
                                     tratarRemoverSplit(item, comandaAtual);
@@ -584,7 +584,7 @@ export function PDV({
                                   }
                                 }}
                               >
-                                <i className="fas fa-trash" style={{ fontSize: '10px' }}></i>
+                                <i className="fas fa-trash" style={{ fontSize: '13px' }}></i>
                               </button>
                             </div>
                           </div>
