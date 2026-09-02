@@ -3137,7 +3137,7 @@ function App() {
                   inputMode="decimal"
                   className="dark-input-field"
                   placeholder="R$ 0,00"
-                  style={{ textAlign: 'left', background: '#090f17', border: '1px solid #ef4444' }}
+                  style={{ textAlign: 'left', background: '#ffffff', color: '#111827', border: '1px solid #ef4444' }}
                   value={promptVal}
                   onChange={(e) => {
                     const somenteNumeros = String(e.target.value || '').replace(/[^\d]/g, '');
