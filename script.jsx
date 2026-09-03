@@ -2106,7 +2106,8 @@ function App() {
       return;
     }
 
-    setComandas((prev) => prev.map((c) => mesmoComandaId(c.id, comandaAlvo.id) ? { ...c, itens: restantes } : c));
+    setComandas((prev) => prev.map((c) => mesmoComandaId(c.id, comandaAlvo.id) ? { ...c, itens: restantes, updated_at: new Date().toISOString() } : c));
+    salvarComandaAgora({ ...comandaAlvo, itens: restantes, updated_at: new Date().toISOString() });
     dispararMensagem('Pagamento Parcial', `Recebido ${formatarMoeda(totalParcial)} via ${tipo.toUpperCase()}.\nRestam ${formatarMoeda(calcularTotal(restantes))} na comanda de ${comandaAlvo.nome}.`);
   }
 
