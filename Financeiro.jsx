@@ -123,12 +123,13 @@ export function Financeiro({
   let totalCustoRelatorio = 0;
 
   vendasFiltradas.forEach((v) => {
-    totalVendidoRelatorio += v.total;
+    totalVendidoRelatorio += Number(v.total || 0);
     if (v.itensConsumidos) {
       v.itensConsumidos.forEach((item) => {
-        const prodOriginal = produtos.find((p) => p.nome === item.nome);
-        const custo = prodOriginal ? prodOriginal.precoCusto : 0;
-        totalCustoRelatorio += custo * item.qtd;
+        const custoRegistrado = Number(item.precoCusto);
+        const prodOriginal = produtos.find((p) => p.id === item.idProd) || produtos.find((p) => p.nome === item.nome);
+        const custo = Number.isFinite(custoRegistrado) ? custoRegistrado : Number(prodOriginal?.precoCusto || 0);
+        totalCustoRelatorio += custo * Number(item.qtd || 0);
       });
     }
   });

@@ -2052,7 +2052,7 @@ function App() {
 
     const comandaAlvo = comandaAtual;
     const totalParcial = calcularTotal(selecionados);
-    const itensFormatados = selecionados.map((i) => ({ nome: i.nome, qtd: i.qtd, preco: i.preco }));
+    const itensFormatados = selecionados.map((i) => ({ idProd: i.idProd, nome: i.nome, qtd: i.qtd, preco: i.preco, precoCusto: i.precoCusto }));
     const rotuloPagamento = `${tipo.toUpperCase()} (PARCIAL)`;
 
     const restantes = comandaAlvo.itens
@@ -2530,7 +2530,7 @@ function App() {
         let msgWppStatus = '';
         if (cr > 0) {
           const idCredGerado = Date.now();
-          const itensParaSalvar = comandaAtual.itens.map((i) => ({ nome: i.nome, qtd: i.qtd, preco: i.preco }));
+          const itensParaSalvar = comandaAtual.itens.map((i) => ({ idProd: i.idProd, nome: i.nome, qtd: i.qtd, preco: i.preco, precoCusto: i.precoCusto }));
           formasTexto.push(`Crediário: ${formatarMoeda(cr)}`);
 
           setCrediarios(prev => [...prev, {
@@ -2554,7 +2554,7 @@ function App() {
           }
         }
 
-        const itensFormatados = comandaAtual.itens.map((i) => ({ nome: i.nome, qtd: i.qtd, preco: i.preco }));
+        const itensFormatados = comandaAtual.itens.map((i) => ({ idProd: i.idProd, nome: i.nome, qtd: i.qtd, preco: i.preco, precoCusto: i.precoCusto }));
 
         setVendas(prev => [...prev, {
             idVenda: Date.now(), data: new Date().toLocaleString('pt-BR'), cliente: comandaAtual.nome,
@@ -2601,7 +2601,7 @@ function App() {
         let msgWppStatus = '';
         if (tipo === 'fiado') {
           const idCredGerado = Date.now();
-          const itensParaSalvar = comandaAtual.itens.map((i) => ({ nome: i.nome, qtd: i.qtd, preco: i.preco }));
+          const itensParaSalvar = comandaAtual.itens.map((i) => ({ idProd: i.idProd, nome: i.nome, qtd: i.qtd, preco: i.preco, precoCusto: i.precoCusto }));
 
           setCrediarios(prev => [...prev, {
               idCred: idCredGerado, data: new Date().toLocaleString('pt-BR'), cliente: comandaAtual.nome,
@@ -2624,7 +2624,7 @@ function App() {
           }
         }
 
-        const itensFormatados = comandaAtual.itens.map((i) => ({ nome: i.nome, qtd: i.qtd, preco: i.preco }));
+        const itensFormatados = comandaAtual.itens.map((i) => ({ idProd: i.idProd, nome: i.nome, qtd: i.qtd, preco: i.preco, precoCusto: i.precoCusto }));
 
         setVendas(prev => [...prev, {
             idVenda: Date.now(), data: new Date().toLocaleString('pt-BR'), cliente: comandaAtual.nome,
