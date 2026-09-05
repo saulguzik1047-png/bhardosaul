@@ -91,15 +91,17 @@ export function Financeiro({
   const inicioDate = filtroRelatorioInicio ? new Date(`${filtroRelatorioInicio}T00:00:00`) : null;
   const fimDate = filtroRelatorioFim ? new Date(`${filtroRelatorioFim}T23:59:59`) : null;
 
-  // Remove valores/observações (ex: "Cartão: R$ 40,00" ou "Pix (Desc. R$ 10,00)") e mantém só a forma base.
-  const extrairFormaBase = (f) => String(f || '').trim().split(':')[0].split('(')[0].trim().toUpperCase();
+  // Remove valores/observações e separa pagamentos antigos registrados juntos (ex: "Pix/Dinheiro/Cartão").
+  const extrairFormasBase = (forma) => String(forma || '')
+    .split(/\s*[|/]\s*/)
+    .map((parte) => parte.trim().split(':')[0].split('(')[0].trim().toUpperCase())
+    .filter(Boolean);
 
   const formasPagamento = React.useMemo(() => {
     const set = new Set(['DINHEIRO', 'PIX', 'CARTÃO', 'FIADO']);
     vendas.forEach((v) => {
       if (v.pagamento) {
-        v.pagamento.split(/\s*\|\s*/).forEach((f) => {
-          const val = extrairFormaBase(f);
+        extrairFormasBase(v.pagamento).forEach((val) => {
           if (val) set.add(val);
         });
       }
@@ -112,7 +114,7 @@ export function Financeiro({
     if (inicioDate && vDate < inicioDate) return false;
     if (fimDate && vDate > fimDate) return false;
     if (filtroPagamento !== 'Todos' && v.pagamento) {
-      const formas = v.pagamento.split(/\s*\|\s*/).map((f) => extrairFormaBase(f));
+      const formas = extrairFormasBase(v.pagamento);
       if (!formas.includes(filtroPagamento)) return false;
     }
     if (filtroPagamento !== 'Todos' && !v.pagamento) return false;
