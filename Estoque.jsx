@@ -235,12 +235,49 @@ export const Estoque = ({
     });
   };
 
+  const otimizarImagemNavegador = (source) => {
+    return new Promise((resolve) => {
+      const src = String(source || '').trim();
+      if (!src || src.includes('/storage/v1/object/public/')) return resolve(src);
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const MAX_DIM = 600;
+          let w = img.width || 600;
+          let h = img.height || 600;
+          if (w > MAX_DIM || h > MAX_DIM) {
+            if (w > h) {
+              h = Math.round((h * MAX_DIM) / w);
+              w = MAX_DIM;
+            } else {
+              w = Math.round((w * MAX_DIM) / h);
+              h = MAX_DIM;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.75));
+        } catch {
+          resolve(src);
+        }
+      };
+      img.onerror = () => resolve(src);
+      img.src = src;
+    });
+  };
+
   const enviarImagemParaStorage = async (imagemOrigem, nomeProduto) => {
-    const source = String(imagemOrigem || '').trim();
-    if (!source) return '';
+    const sourceRaw = String(imagemOrigem || '').trim();
+    if (!sourceRaw) return '';
 
     // Keep already-hosted storage URLs untouched.
-    if (source.includes('/storage/v1/object/public/')) return source;
+    if (sourceRaw.includes('/storage/v1/object/public/')) return sourceRaw;
+
+    const source = await otimizarImagemNavegador(sourceRaw);
 
     try {
       const resp = await fetch('/api/store-product-image', {
