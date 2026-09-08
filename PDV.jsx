@@ -1058,13 +1058,13 @@ export function PDV({
           ))}
         </div>
 
-        <div className="grid-produtos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(112px, 1fr))', gap: '8px', alignContent: 'start', overflowY: 'auto', flexGrow: '1' }}>
+        <div className="grid-produtos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '8px', alignContent: 'start', overflowY: 'auto', flexGrow: '1' }}>
           {produtosFiltrados.map((p) => (
             <div
               key={p.id}
               className="card-prod"
               onClick={() => addItemNaComanda(p)}
-              style={{ position: 'relative', minHeight: '116px', padding: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', gap: 0, borderRadius: '10px', cursor: 'pointer', background: '#ffffff', border: '1px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.14)', boxSizing: 'border-box' }}
+              style={{ position: 'relative', minHeight: '75px', padding: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px', borderRadius: '10px', cursor: 'pointer', background: '#ffffff', border: '1px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', boxSizing: 'border-box' }}
             >
               {p.estoque <= p.estoqueMinimo && (
                 <span
@@ -1085,19 +1085,9 @@ export function PDV({
                 </span>
               )}
 
-              <img
-                src={p.imagem || imagemAutomaticaProduto(p.nome, p.category)}
-                alt={p.nome}
-                onError={(e) => {
-                  e.currentTarget.onerror = null;
-                  e.currentTarget.src = imagemAutomaticaProduto(p.nome, p.category);
-                }}
-                style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '8px' }}
-              />
+              <span className="prod-nome" style={{ fontSize: '12px', lineHeight: '1.2', textAlign: 'center', fontWeight: 'bold', color: '#1e293b', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{p.nome}</span>
               
-              <span className="prod-nome" style={{ fontSize: '10px', lineHeight: '1.15', textAlign: 'center', fontWeight: 'bold', color: '#1e293b', whiteSpace: 'normal', overflow: 'hidden', textOverflow: 'ellipsis', overflowWrap: 'break-word', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', width: '100%', height: '23px', padding: '0 2px', boxSizing: 'border-box' }}>{p.nome}</span>
-              
-              <span className="prod-preco" style={{ fontSize: '10px', color: '#16a34a', fontWeight: 'bold' }}>{formatarMoeda(p.preco)}</span>
+              <span className="prod-preco" style={{ fontSize: '13px', color: '#16a34a', fontWeight: 'bold' }}>{formatarMoeda(p.preco)}</span>
             </div>
           ))}
         </div>
