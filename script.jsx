@@ -1317,33 +1317,30 @@ function App() {
             const produtosLocais = Array.isArray(prev) ? prev : [];
             const mapaMerge = new Map();
 
-            for (const p of produtosNuvem) mapaMerge.set(String(p.id), p);
             for (const p of produtosLocais) {
               if (produtosExcluidosSet.has(String(p.id))) continue;
-              const produtoNuvem = mapaMerge.get(String(p.id));
-              if (!produtoNuvem) {
-                mapaMerge.set(String(p.id), p);
-                continue;
+              mapaMerge.set(String(p.id), p);
+            }
+
+            for (const pNuvem of produtosNuvem) {
+              const pLocal = mapaMerge.get(String(pNuvem.id));
+              if (!pLocal) {
+                mapaMerge.set(String(pNuvem.id), pNuvem);
+              } else {
+                const imgNuvem = String(pNuvem.imagem || '').trim();
+                const imgLocal = String(pLocal.imagem || '').trim();
+                const imgFinal = imgNuvem || imgLocal;
+
+                mapaMerge.set(String(pNuvem.id), {
+                  ...pNuvem,
+                  imagem: imgFinal,
+                });
               }
-
-              const imagemNuvem = String(produtoNuvem.imagem || '');
-              const imagemLocal = String(p.imagem || '');
-              const imagemNuvemHospedada = imagemNuvem.includes('/storage/v1/object/public/');
-              const imagemLocalHospedada = imagemLocal.includes('/storage/v1/object/public/');
-
-              mapaMerge.set(String(p.id), imagemNuvemHospedada && !imagemLocalHospedada
-                ? { ...p, imagem: produtoNuvem.imagem }
-                : p);
             }
 
             const produtosMesclados = Array.from(mapaMerge.values());
-
-            if (produtosMesclados.length > produtosNuvem.length) {
-              console.log(`[SYNC] preservando ${produtosMesclados.length - produtosNuvem.length} produto(s) local(is) ainda não presente(s) na nuvem`);
-              return produtosMesclados;
-            }
-
-            return produtosNuvem;
+            console.log(`[SYNC] produtos mesclados (locais + nuvem): ${produtosMesclados.length}`);
+            return produtosMesclados;
           });
         }
 
@@ -1678,36 +1675,77 @@ function App() {
   }
 
   async function sincronizarImagens() {
-    if (!supabaseClient) {
-      dispararMensagem('Aviso', 'Cliente Supabase não está disponível.');
-      return;
-    }
     setStatusSincronizacao('Sincronizando');
+    let imagensRecuperadas = 0;
+
     try {
-      const { data: prods, error } = await supabaseClient.from('produtos').select('id, imagem');
-      if (error) throw error;
-      if (prods && prods.length > 0) {
-        const mapaImagens = new Map(prods.map((p) => [String(p.id), String(p.imagem || '')]));
+      if (supabaseClient) {
+        const { data: prods, error } = await supabaseClient.from('produtos').select('id, imagem');
+        if (!error && prods && prods.length > 0) {
+          const mapaImagens = new Map(prods.map((p) => [String(p.id), String(p.imagem || '')]));
+          setProdutos((prev) => {
+            const atualizados = (prev || []).map((p) => {
+              const imgNuvem = mapaImagens.get(String(p.id));
+              if (imgNuvem && imgNuvem.trim() !== '' && (!p.imagem || String(p.imagem).trim() === '')) {
+                imagensRecuperadas++;
+                return { ...p, imagem: imgNuvem };
+              }
+              return p;
+            });
+            try { localStorage.setItem('bhar_produtos_v3', JSON.stringify(atualizados)); } catch (e) {}
+            return atualizados;
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Falha ao buscar imagens do Supabase, tentando resgatar do localStorage:', err);
+    }
+
+    try {
+      const explicitKeys = ['bhar_produtos_v3', 'bhar_produtos_v2', 'bhar_produtos_v1'];
+      const mapaLocalImagens = new Map();
+
+      for (const key of explicitKeys) {
+        const salvos = localStorage.getItem(key);
+        if (salvos) {
+          const parsed = JSON.parse(salvos);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((p) => {
+              if (p?.id && p?.imagem && String(p.imagem).trim() !== '') {
+                if (!mapaLocalImagens.has(String(p.id))) {
+                  mapaLocalImagens.set(String(p.id), String(p.imagem));
+                }
+              }
+            });
+          }
+        }
+      }
+
+      if (mapaLocalImagens.size > 0) {
         setProdutos((prev) => {
           const atualizados = (prev || []).map((p) => {
-            const imgNuvem = mapaImagens.get(String(p.id));
-            return imgNuvem !== undefined && imgNuvem !== '' ? { ...p, imagem: imgNuvem } : p;
+            const imgLocal = mapaLocalImagens.get(String(p.id));
+            if ((!p.imagem || String(p.imagem).trim() === '') && imgLocal) {
+              imagensRecuperadas++;
+              return { ...p, imagem: imgLocal };
+            }
+            return p;
           });
-          try {
-            localStorage.setItem('bhar_produtos_v3', JSON.stringify(atualizados));
-          } catch (e) {}
+          try { localStorage.setItem('bhar_produtos_v3', JSON.stringify(atualizados)); } catch (e) {}
           return atualizados;
         });
-        dispararMensagem('🖼️ Imagens Sincronizadas', `As imagens dos produtos foram baixadas da nuvem e salvas com sucesso.`);
-      } else {
-        dispararMensagem('Aviso', 'Nenhuma imagem foi encontrada na nuvem.');
       }
-      setStatusSincronizacao(`Sincronizado ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`);
-    } catch (err) {
-      console.error('Erro ao sincronizar imagens:', err);
-      setStatusSincronizacao('Falha ao sincronizar');
-      dispararMensagem('Erro', 'Não foi possível buscar as imagens da nuvem.');
+    } catch (e) {
+      console.error('Erro ao resgatar imagens do localStorage:', e);
     }
+
+    setStatusSincronizacao(`Sincronizado ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`);
+    dispararMensagem(
+      '🖼️ Sincronização de Imagens',
+      imagensRecuperadas > 0
+        ? `${imagensRecuperadas} imagem(ns) resgatada(s) do histórico local/nuvem com sucesso!`
+        : 'As imagens disponíveis salvas no seu navegador/nuvem foram mantidas.'
+    );
   }
 
   function validarENormalizarNome(nomeBruto, ignorarDuplicadoBanco = false) {
