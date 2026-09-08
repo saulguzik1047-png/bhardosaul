@@ -8,6 +8,7 @@ export const Header = ({
   autenticado,
   usuarioLogado,
   sincronizarDadosNuvem,
+  sincronizarImagens,
   statusSincronizacao,
   logoutSistema
 }) => {
@@ -82,6 +83,29 @@ export const Header = ({
             <i className={`fas ${statusSincronizacao === 'Sincronizando' ? 'fa-sync-alt fa-spin' : statusSincronizacao.startsWith('Falha') ? 'fa-exclamation-circle' : 'fa-cloud-check'}`} style={{ marginRight: '3px' }}></i>
             {statusSincronizacao}
           </span>
+        )}
+
+        {autenticado && sincronizarImagens && (
+          <button
+            onClick={sincronizarImagens}
+            title="Baixar e sincronizar imagens dos produtos da nuvem"
+            style={{
+              background: 'rgba(0, 122, 255, 0.08)',
+              border: '1px solid rgba(0, 122, 255, 0.2)',
+              color: '#007aff',
+              cursor: 'pointer',
+              padding: '5px 9px',
+              borderRadius: '8px',
+              fontSize: '11px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <i className="fas fa-image" style={{ fontSize: '11px' }}></i> Sinc. Imagens
+          </button>
         )}
 
         {autenticado && !isGarcom && (

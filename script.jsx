@@ -1677,6 +1677,39 @@ function App() {
     }
   }
 
+  async function sincronizarImagens() {
+    if (!supabaseClient) {
+      dispararMensagem('Aviso', 'Cliente Supabase não está disponível.');
+      return;
+    }
+    setStatusSincronizacao('Sincronizando');
+    try {
+      const { data: prods, error } = await supabaseClient.from('produtos').select('id, imagem');
+      if (error) throw error;
+      if (prods && prods.length > 0) {
+        const mapaImagens = new Map(prods.map((p) => [String(p.id), String(p.imagem || '')]));
+        setProdutos((prev) => {
+          const atualizados = (prev || []).map((p) => {
+            const imgNuvem = mapaImagens.get(String(p.id));
+            return imgNuvem !== undefined && imgNuvem !== '' ? { ...p, imagem: imgNuvem } : p;
+          });
+          try {
+            localStorage.setItem('bhar_produtos_v3', JSON.stringify(atualizados));
+          } catch (e) {}
+          return atualizados;
+        });
+        dispararMensagem('🖼️ Imagens Sincronizadas', `As imagens dos produtos foram baixadas da nuvem e salvas com sucesso.`);
+      } else {
+        dispararMensagem('Aviso', 'Nenhuma imagem foi encontrada na nuvem.');
+      }
+      setStatusSincronizacao(`Sincronizado ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`);
+    } catch (err) {
+      console.error('Erro ao sincronizar imagens:', err);
+      setStatusSincronizacao('Falha ao sincronizar');
+      dispararMensagem('Erro', 'Não foi possível buscar as imagens da nuvem.');
+    }
+  }
+
   function validarENormalizarNome(nomeBruto, ignorarDuplicadoBanco = false) {
     if (!nomeBruto) return { valido: false, erro: 'O nome não pode ficar em branco.' };
     const nomeFormatado = nomeBruto.trim().replace(/\s+/g, ' ').toUpperCase();
@@ -2950,6 +2983,7 @@ function App() {
         autenticado={autenticado}
         usuarioLogado={usuarioLogado}
         sincronizarDadosNuvem={sincronizarDadosNuvem}
+        sincronizarImagens={sincronizarImagens}
         statusSincronizacao={statusSincronizacao}
         logoutSistema={logoutSistema}
       /> 
