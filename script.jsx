@@ -2929,13 +2929,11 @@ function App() {
           }
 
           setCrediarios(novasComandas);
-          setVendas(prev => [...prev, { idVenda: Date.now(), data: new Date().toLocaleString('pt-BR'), cliente: `Abatimento Parcial Crediário - ${cliente}`, total: valor, pagamento: 'PIX/Dinheiro/Cartão', itensConsumidos: [{ nome: 'Abatimento Parcial Fiado', qtd: 1, preco: valor }]}]);
 
           try {
             for (const item of alteradosParaBanco) {
               await supabaseClient?.from('crediarios').update({ total: item.total, status: item.status, pagamentos: item.pagamentos, updated_at: item.updated_at }).eq('id_cred', item.idCred);
             }
-            await supabaseClient?.from('vendas').insert([{ data: new Date().toLocaleString('pt-BR'), cliente: `Abatimento Parcial - ${cliente}`, total: valor, pagamento: 'PIX/Dinheiro/Cartão', itens_consumidos: [{ nome: 'Abatimento Parcial Fiado', qtd: 1, preco: valor }]}]);
           } catch (error) { console.error(error); }
 
           dispararMensagem('Sucesso', `Abatimento de ${formatarMoeda(valor)} registrado com sucesso!${msgWppStatus}`);
@@ -2950,12 +2948,6 @@ function App() {
         return pertence ? { ...c, status: 'Pago', total: 0, pagamentos: [...(c.pagamentos || []), { valor: c.total, metodo: metodo, data: new Date().toLocaleString('pt-BR')}], updated_at: new Date().toISOString() } : c;
         }));
 
-        comandasArray.forEach((credItem) => {
-          if (credItem.itensConsumidos) {
-            registrarProdutosVendidos(credItem.itensConsumidos.map((it) => ({ idProd: Math.random(), nome: it.nome, qtd: it.qtd, preco: it.preco, precoCusto: it.preco * 0.4 })));
-          }
-        });
-
         const dadosDoCliente = clientesCadastrados.find((c) => c.nome.toLowerCase() === cliente.toLowerCase());
         let msgWppStatus = '';
 
@@ -2966,16 +2958,13 @@ function App() {
           msgWppStatus = '\n\n📲 O WhatsApp foi aberto para notificar a quitação da conta!';
         }
 
-        setVendas(prev => [...prev, { idVenda: Date.now(), data: new Date().toLocaleString('pt-BR'), cliente: `Quitação Total Crediário - ${cliente}`, total: totalDivida, pagamento: metodo, itensConsumidos: [{ nome: 'Quitação Total Fiado', qtd: 1, preco: totalDivida }]}]);
-
         try {
           for (const credItem of comandasArray) {
             await supabaseClient?.from('crediarios').update({ total: 0, status: 'Pago', updated_at: new Date().toISOString() }).eq('id_cred', credItem.idCred);
           }
-          await supabaseClient?.from('vendas').insert([{ data: new Date().toLocaleString('pt-BR'), cliente: `Quitação Total - ${cliente}`, total: totalDivida, pagamento: metodo, itens_consumidos: [{ nome: 'Quitação Total Fiado', qtd: 1, preco: totalDivida }]}]);
         } catch (error) { console.error(error); }
 
-        dispararMensagem('Sucesso', `Todas as comandas deste cliente foram totalmente baixadas e inseridas no caixa!${msgWppStatus}`);
+        dispararMensagem('Sucesso', `Todas as comandas deste cliente foram totalmente baixadas. O recebimento foi registrado no crediário sem duplicar a venda.${msgWppStatus}`);
       }
     );
   }
