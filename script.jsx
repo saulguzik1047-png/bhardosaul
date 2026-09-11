@@ -3137,6 +3137,7 @@ function App() {
           setDespesas={setDespesas}
           nomeSoftware={nomeSoftware}
           dispararMensagem={dispararMensagem}
+          gerarImpressaoTermica={gerarImpressaoTermica}
         />
       )}
       {telaAtual === 'crediario' && autenticado && (

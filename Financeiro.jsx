@@ -7,7 +7,8 @@ export function Financeiro({
   despesas,
   setDespesas,
   nomeSoftware,
-  dispararMensagem
+  dispararMensagem,
+  gerarImpressaoTermica
 }) {
   const hojeISO = new Date().toISOString().split('T')[0];
   const [filtroRelatorioInicio, setFiltroRelatorioInicio] = React.useState(hojeISO);
@@ -190,10 +191,42 @@ export function Financeiro({
         : 'Todo o Período';
     const pagStr = filtroPagamento !== 'Todos' ? `\nForma de Pagamento: ${filtroPagamento}` : '';
 
-    dispararMensagem(
-      `RELATÓRIO DE DESEMPENHO`,
-      `Módulo Financeiro: ${nomeSoftware}\nPeríodo: ${periodo}${pagStr}\n----------------------------------------\nTotal de Vendas: ${vendasFiltradas.length}\nFaturamento Bruto: ${formatarMoeda(totalVendidoRelatorio)}\nCusto Total Estimado: ${formatarMoeda(totalCustoRelatorio)}\nLucro Líquido: ${formatarMoeda(totalLucroRelatorio)}\n----------------------------------------\n* DOCUMENTO GERENCIAL INTERNO *`
-    );
+    if (!gerarImpressaoTermica) {
+      dispararMensagem('Relatório de Desempenho', `Módulo Financeiro: ${nomeSoftware}\nPeríodo: ${periodo}${pagStr}\n----------------------------------------\nTotal de Vendas: ${vendasFiltradas.length}\nFaturamento Bruto: ${formatarMoeda(totalVendidoRelatorio)}\nCusto Total Estimado: ${formatarMoeda(totalCustoRelatorio)}\nLucro Líquido: ${formatarMoeda(totalLucroRelatorio)}\n----------------------------------------\n* DOCUMENTO GERENCIAL INTERNO *`);
+      return;
+    }
+
+    const linhasVendas = vendasFiltradas.length > 0
+      ? vendasFiltradas.map((venda) => `
+        <div class="item">
+          <div><strong>${venda.cliente || 'Sem nome'}</strong></div>
+          <div>${venda.data || ''}</div>
+          <div>${venda.pagamento || '-'}</div>
+          <div style="text-align: right; font-weight: bold;">${formatarMoeda(obterValorVendaNoFiltro(venda))}</div>
+        </div>
+      `).join('')
+      : '<div style="text-align:center; margin-top:8px;">Nenhuma venda no período.</div>';
+
+    gerarImpressaoTermica(`
+      <div class="center">
+        <div class="title">${nomeSoftware}</div>
+        <div>RELATÓRIO DE DESEMPENHO</div>
+        <div>DOCUMENTO GERENCIAL</div>
+        <div class="linha"></div>
+      </div>
+      <div><strong>Período:</strong> ${periodo}</div>
+      ${filtroPagamento !== 'Todos' ? `<div><strong>Pagamento:</strong> ${filtroPagamento}</div>` : ''}
+      <div class="linha"></div>
+      <div class="flex bold"><span>Vendas:</span><span>${vendasFiltradas.length}</span></div>
+      <div class="flex bold"><span>Vendido:</span><span>${formatarMoeda(totalVendidoRelatorio)}</span></div>
+      <div class="flex bold"><span>Custo:</span><span>${formatarMoeda(totalCustoRelatorio)}</span></div>
+      <div class="flex bold"><span>Lucro:</span><span>${formatarMoeda(totalLucroRelatorio)}</span></div>
+      <div class="linha"></div>
+      <div><strong>COMANDAS / VENDAS</strong></div>
+      ${linhasVendas}
+      <div class="linha"></div>
+      <div class="center" style="font-size: 10px;">* DOCUMENTO GERENCIAL INTERNO *</div>
+    `);
   };
 
   const filtrarPendente = (d) => {
