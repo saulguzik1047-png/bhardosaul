@@ -95,7 +95,38 @@ export function Financeiro({
   const extrairFormasBase = (forma) => String(forma || '')
     .split(/\s*[|/]\s*/)
     .map((parte) => parte.trim().split(':')[0].split('(')[0].trim().toUpperCase())
-    .filter(Boolean);
+    .filter((parte) => parte && parte !== 'DESCONTO');
+
+  const extrairParcelasPagamento = (pagamento) => String(pagamento || '')
+    .split(/\s*\|\s*/)
+    .flatMap((parte) => {
+      const temValor = parte.includes(':');
+      if (!temValor) {
+        return parte.split(/\s*\/\s*/).map((forma) => ({
+          forma: forma.trim().split('(')[0].trim().toUpperCase(),
+          valor: null,
+        }));
+      }
+
+      const [formaBruta, ...valorPartes] = parte.split(':');
+      return [{
+        forma: formaBruta.trim().split('(')[0].trim().toUpperCase(),
+        valor: parseMoedaBR(valorPartes.join(':')),
+      }];
+    })
+    .filter((parcela) => parcela.forma && parcela.forma !== 'DESCONTO');
+
+  const obterValorVendaNoFiltro = (venda) => {
+    const totalVenda = Number(venda.total || 0);
+    if (filtroPagamento === 'Todos') return totalVenda;
+
+    const parcelas = extrairParcelasPagamento(venda.pagamento);
+    const parcelasDaForma = parcelas.filter((parcela) => parcela.forma === filtroPagamento);
+    if (parcelasDaForma.length === 0) return 0;
+
+    const valorComDetalhe = parcelasDaForma.reduce((acc, parcela) => acc + (Number.isFinite(parcela.valor) ? parcela.valor : 0), 0);
+    return valorComDetalhe > 0 ? valorComDetalhe : totalVenda;
+  };
 
   const formasPagamento = React.useMemo(() => {
     const set = new Set(['DINHEIRO', 'PIX', 'CARTÃO', 'FIADO']);
@@ -125,15 +156,23 @@ export function Financeiro({
   let totalCustoRelatorio = 0;
 
   vendasFiltradas.forEach((v) => {
-    totalVendidoRelatorio += Number(v.total || 0);
+    const totalVenda = Number(v.total || 0);
+    const valorVendaNoFiltro = obterValorVendaNoFiltro(v);
+    totalVendidoRelatorio += valorVendaNoFiltro;
+    let custoVenda = 0;
+
     if (v.itensConsumidos) {
       v.itensConsumidos.forEach((item) => {
         const custoRegistrado = Number(item.precoCusto);
         const prodOriginal = produtos.find((p) => p.id === item.idProd) || produtos.find((p) => p.nome === item.nome);
         const custo = Number.isFinite(custoRegistrado) ? custoRegistrado : Number(prodOriginal?.precoCusto || 0);
-        totalCustoRelatorio += custo * Number(item.qtd || 0);
+        custoVenda += custo * Number(item.qtd || 0);
       });
     }
+
+    totalCustoRelatorio += filtroPagamento === 'Todos' || totalVenda <= 0
+      ? custoVenda
+      : custoVenda * (valorVendaNoFiltro / totalVenda);
   });
 
   const totalLucroRelatorio = totalVendidoRelatorio - totalCustoRelatorio;
