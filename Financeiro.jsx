@@ -473,6 +473,40 @@ export function Financeiro({
               </div>
             </div>
           </div>
+
+          <div style={{ marginTop: '14px', borderTop: '1px solid var(--ios-separator)', paddingTop: '12px' }}>
+            <h3 style={{ fontSize: '14px', margin: '0 0 10px 0' }}>Relatório de Vendas do Período</h3>
+            <div className="wrapper-tabela-scroll" style={{ maxHeight: '180px' }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Comanda / Cliente</th>
+                    <th>Pagamento</th>
+                    <th>Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vendasFiltradas.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" style={{ textAlign: 'center', color: 'var(--ios-label-tertiary)', fontStyle: 'italic' }}>
+                        Nenhuma venda no período.
+                      </td>
+                    </tr>
+                  ) : (
+                    vendasFiltradas.map((venda, index) => (
+                      <tr key={`${venda.idVenda || venda.id || venda.data}-${index}`}>
+                        <td>{venda.data}</td>
+                        <td><strong>{venda.cliente || 'Sem nome'}</strong></td>
+                        <td>{venda.pagamento || '-'}</td>
+                        <td style={{ color: '#16a34a', fontWeight: 'bold' }}>{formatarMoeda(obterValorVendaNoFiltro(venda))}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
 
