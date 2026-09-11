@@ -9,13 +9,14 @@ export function Financeiro({
   nomeSoftware,
   dispararMensagem
 }) {
-  const [filtroRelatorioInicio, setFiltroRelatorioInicio] = React.useState('');
-  const [filtroRelatorioFim, setFiltroRelatorioFim] = React.useState('');
+  const hojeISO = new Date().toISOString().split('T')[0];
+  const [filtroRelatorioInicio, setFiltroRelatorioInicio] = React.useState(hojeISO);
+  const [filtroRelatorioFim, setFiltroRelatorioFim] = React.useState(hojeISO);
   const [filtroPendenteInicio, setFiltroPendenteInicio] = React.useState('');
   const [filtroPendenteFim, setFiltroPendenteFim] = React.useState('');
   const [filtroPagoInicio, setFiltroPagoInicio] = React.useState('');
   const [filtroPagoFim, setFiltroPagoFim] = React.useState('');
-  const [dataBaixaManual, setDataBaixaManual] = React.useState(() => new Date().toISOString().split('T')[0]);
+  const [dataBaixaManual, setDataBaixaManual] = React.useState(hojeISO);
   const [despesaEmBaixa, setDespesaEmBaixa] = React.useState(null);
   const [novaDespesaDesc, setNovaDespesaDesc] = React.useState('');
   const [novaDespesaValor, setNovaDespesaValor] = React.useState('');
@@ -88,13 +89,18 @@ export function Financeiro({
     return new Date(`${partes[2]}-${partes[1]}-${partes[0]}T12:00:00`);
   };
 
+  const normalizarFormaPagamento = (forma) => {
+    const valor = String(forma || '').trim().split(':')[0].split('(')[0].trim().toUpperCase();
+    return valor === 'CREDIARIO' || valor === 'CREDIÁRIO' ? 'FIADO' : valor;
+  };
+
   const inicioDate = filtroRelatorioInicio ? new Date(`${filtroRelatorioInicio}T00:00:00`) : null;
   const fimDate = filtroRelatorioFim ? new Date(`${filtroRelatorioFim}T23:59:59`) : null;
 
   // Remove valores/observações e separa pagamentos antigos registrados juntos (ex: "Pix/Dinheiro/Cartão").
   const extrairFormasBase = (forma) => String(forma || '')
     .split(/\s*[|/]\s*/)
-    .map((parte) => parte.trim().split(':')[0].split('(')[0].trim().toUpperCase())
+    .map(normalizarFormaPagamento)
     .filter((parte) => parte && parte !== 'DESCONTO');
 
   const extrairParcelasPagamento = (pagamento) => String(pagamento || '')
@@ -103,14 +109,14 @@ export function Financeiro({
       const temValor = parte.includes(':');
       if (!temValor) {
         return parte.split(/\s*\/\s*/).map((forma) => ({
-          forma: forma.trim().split('(')[0].trim().toUpperCase(),
+          forma: normalizarFormaPagamento(forma),
           valor: null,
         }));
       }
 
       const [formaBruta, ...valorPartes] = parte.split(':');
       return [{
-        forma: formaBruta.trim().split('(')[0].trim().toUpperCase(),
+        forma: normalizarFormaPagamento(formaBruta),
         valor: parseMoedaBR(valorPartes.join(':')),
       }];
     })
