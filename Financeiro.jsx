@@ -421,18 +421,18 @@ export function Financeiro({
           <div
             className="img-dash-row-top"
             style={{
-              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-              gap: '10px',
+              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+              gap: '8px',
             }}
           >
             <div
               className="img-dash-card"
-              style={{ minHeight: '110px', padding: '10px' }}
+              style={{ minHeight: '72px', padding: '8px' }}
             >
               <div className="img-dash-header" style={{ gap: '6px' }}>
                 <div
                   className="img-dash-icon totalv"
-                  style={{ width: '32px', height: '32px', fontSize: '14px' }}
+                  style={{ width: '26px', height: '26px', fontSize: '12px' }}
                 >
                   <i className="fas fa-chart-line"></i>
                 </div>
@@ -442,7 +442,7 @@ export function Financeiro({
               </div>
               <div
                 className="img-dash-value totalv"
-                style={{ fontSize: '16px' }}
+                style={{ fontSize: '15px' }}
               >
                 {formatarMoeda(totalVendidoRelatorio)}
               </div>
@@ -450,7 +450,7 @@ export function Financeiro({
 
             <div
               className="img-dash-card"
-              style={{ minHeight: '110px', padding: '10px' }}
+              style={{ minHeight: '72px', padding: '8px' }}
             >
               <div className="img-dash-header" style={{ gap: '6px' }}>
                 <div
@@ -458,9 +458,9 @@ export function Financeiro({
                   style={{
                     background: '#7f1d1d',
                     color: '#f87171',
-                    width: '32px',
-                    height: '32px',
-                    fontSize: '14px',
+                    width: '26px',
+                    height: '26px',
+                    fontSize: '12px',
                   }}
                 >
                   <i className="fas fa-boxes"></i>
@@ -471,7 +471,7 @@ export function Financeiro({
               </div>
               <div
                 className="img-dash-value"
-                style={{ color: '#f87171', fontSize: '16px' }}
+                style={{ color: '#f87171', fontSize: '15px' }}
               >
                 {formatarMoeda(totalCustoRelatorio)}
               </div>
@@ -479,7 +479,7 @@ export function Financeiro({
 
             <div
               className="img-dash-card"
-              style={{ minHeight: '110px', padding: '10px' }}
+              style={{ minHeight: '72px', padding: '8px' }}
             >
               <div className="img-dash-header" style={{ gap: '6px' }}>
                 <div
@@ -487,9 +487,9 @@ export function Financeiro({
                   style={{
                     background: '#1e3a8a',
                     color: '#60a5fa',
-                    width: '32px',
-                    height: '32px',
-                    fontSize: '14px',
+                    width: '26px',
+                    height: '26px',
+                    fontSize: '12px',
                   }}
                 >
                   <i className="fas fa-hand-holding-usd"></i>
@@ -500,7 +500,7 @@ export function Financeiro({
               </div>
               <div
                 className="img-dash-value"
-                style={{ color: '#60a5fa', fontSize: '16px' }}
+                style={{ color: '#60a5fa', fontSize: '15px' }}
               >
                 {formatarMoeda(totalLucroRelatorio)}
               </div>
