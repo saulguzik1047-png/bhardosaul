@@ -10,7 +10,14 @@ export function Financeiro({
   dispararMensagem,
   gerarImpressaoTermica
 }) {
-  const hojeISO = new Date().toISOString().split('T')[0];
+  const obterDataLocalISO = () => {
+    const agora = new Date();
+    const ano = agora.getFullYear();
+    const mes = String(agora.getMonth() + 1).padStart(2, '0');
+    const dia = String(agora.getDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
+  };
+  const hojeISO = obterDataLocalISO();
   const [filtroRelatorioInicio, setFiltroRelatorioInicio] = React.useState(hojeISO);
   const [filtroRelatorioFim, setFiltroRelatorioFim] = React.useState(hojeISO);
   const [filtroPendenteInicio, setFiltroPendenteInicio] = React.useState('');
@@ -21,7 +28,7 @@ export function Financeiro({
   const [despesaEmBaixa, setDespesaEmBaixa] = React.useState(null);
   const [novaDespesaDesc, setNovaDespesaDesc] = React.useState('');
   const [novaDespesaValor, setNovaDespesaValor] = React.useState('');
-  const [novaDespesaVenc, setNovaDespesaVenc] = React.useState(new Date().toISOString().split('T')[0]);
+  const [novaDespesaVenc, setNovaDespesaVenc] = React.useState(hojeISO);
   const [filtroPagamento, setFiltroPagamento] = React.useState('Todos');
 
   const parseMoedaBR = (valor) => {
@@ -64,7 +71,7 @@ export function Financeiro({
   }
 
   function baixarDespesaManual(id, forma, dataForcada) {
-    const dataFinal = dataForcada ? dataForcada : new Date().toISOString().split('T')[0];
+    const dataFinal = dataForcada ? dataForcada : obterDataLocalISO();
     setDespesas((prev) =>
       prev.map((d) =>
         d.id === id
@@ -698,7 +705,7 @@ export function Financeiro({
                           onChange={(e) => {
                             if (e.target.value) {
                               setDataBaixaManual(
-                                new Date().toISOString().split('T')[0]
+                                obterDataLocalISO()
                               );
                               setDespesaEmBaixa({
                                 id: d.id,
