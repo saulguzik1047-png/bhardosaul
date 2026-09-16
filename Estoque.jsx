@@ -308,6 +308,7 @@ export const Estoque = ({
     const vendaFinal = parseMoedaBR(precoVenda);
     const minFinal = parseFloat(novoProdEstoqueMin) || 0;
     const fatorFinal = parseFloat(fatorConversao) || 1;
+    const estoqueInicial = Math.max(0, parseFloat(novoProdEstoque) || 0);
 
     let imagemFinal = String(novoProdImagem || '').trim();
     let erroImagem = null;
@@ -355,7 +356,7 @@ export const Estoque = ({
         category: novoProdCategoria,
         precoCusto: custoFinal,
         preco: vendaFinal,
-        estoque: 0,
+        estoque: estoqueInicial,
         estoqueMinimo: minFinal,
         imagem: imagemFinal,
         fatorConversao: fatorFinal,
@@ -638,8 +639,20 @@ export const Estoque = ({
             </div>
 
             <div>
-              <label style={labelStyle}>Quantidade Atual em Estoque</label>
-              <input type="number" value={qtdAtualDisplay} disabled style={{ ...inputStyle, color: labelColor, cursor: 'not-allowed' }} />
+              <label style={labelStyle}>{idProdutoSelecionadoEdicao ? 'Quantidade Atual em Estoque' : 'Quantidade Inicial em Estoque'}</label>
+              {idProdutoSelecionadoEdicao ? (
+                <input type="number" value={qtdAtualDisplay} disabled style={{ ...inputStyle, color: labelColor, cursor: 'not-allowed' }} />
+              ) : (
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="Ex: 24"
+                  value={novoProdEstoque}
+                  onChange={(e) => setNovoProdEstoque(e.target.value)}
+                  style={inputStyle}
+                />
+              )}
             </div>
           </div>
 
