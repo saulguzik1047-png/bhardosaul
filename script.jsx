@@ -94,6 +94,33 @@ const parseMoedaBR = (valor) => {
   return Number(somenteNumeros) / 100;
 };
 
+const tocarBipProduto = () => {
+  try {
+    const AudioCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtor) return;
+
+    const contexto = new AudioCtor();
+    const oscilador = contexto.createOscillator();
+    const ganho = contexto.createGain();
+
+    oscilador.type = 'triangle';
+    oscilador.frequency.value = 860;
+
+    ganho.gain.setValueAtTime(0.0001, contexto.currentTime);
+    ganho.gain.exponentialRampToValueAtTime(0.015, contexto.currentTime + 0.02);
+    ganho.gain.exponentialRampToValueAtTime(0.0001, contexto.currentTime + 0.12);
+
+    oscilador.connect(ganho);
+    ganho.connect(contexto.destination);
+
+    oscilador.start();
+    oscilador.stop(contexto.currentTime + 0.12);
+    oscilador.onended = () => contexto.close();
+  } catch (err) {
+    console.warn('Bip discreto indisponível:', err);
+  }
+};
+
 const INTERVALO_BACKUP_MS = 10 * 60 * 1000;
 const INTERVALO_MINIMO_ENTRE_BACKUPS_MS = 60 * 1000;
 
@@ -1931,24 +1958,10 @@ function App() {
     setProdutos((prev) => prev.map((p) => p.id === produto.id ? { ...p, estoque: novoEstoque } : p));
     comandasRef.current = comandasRef.current.map((comanda) => mesmoComandaId(comanda.id, comandaAtivaId) ? comandaAtualizada : comanda);
     setComandas(comandasRef.current);
+    tocarBipProduto();
     ajustarEstoqueAtomicamente(produto.id, -1)
       .catch((err) => console.warn('Estoque será sincronizado depois:', err));
     salvarComandaAgora(comandaAtualizada);
-
-    if (produto.category === 'Porções' || normalizarCategoria(produto.category) === 'cozinha' || categoriasDivisiveis.includes(produto.category)) {
-      dispararMensagem('⚠️ IMPRESSÃO COZINHA ⚠️', `Mesa/Comanda: ${comandaAtual.nome}\nItem: 1x ${produto.nome}\nEnviado direto para o atendente levar até a cozinha!`);
-  
-      const htmlCozinha = `
-        <div style="text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 10px;">⚠️ PEDIDO COZINHA ⚠️</div>
-        <div style="border-bottom: 2px dashed black; margin: 8px 0;"></div>
-        <div style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">MESA / COMANDA: ${comandaAtual.nome}</div>
-        <div style="border-bottom: 2px dashed black; margin: 8px 0;"></div>
-        <div style="font-size: 18px; font-weight: bold; margin-top: 10px; margin-bottom: 10px;">-> 1x ${produto.nome}</div>
-        <div style="border-bottom: 2px dashed black; margin: 8px 0;"></div>
-        <div style="text-align: center; font-size: 12px; margin-top: 5px;">Impresso para produção</div>
-      `;
-      gerarImpressaoTermica(htmlCozinha);
-    }
   }
 
   // Observação é opcional por item (ex: "sem salada"), só usada quando o pedido precisa de ajuste na cozinha.
