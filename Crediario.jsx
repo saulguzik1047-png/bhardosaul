@@ -43,6 +43,34 @@ export function Crediario({
 
   const nomeDoCliente = (c) => String(c?.cliente || '').trim() || 'Sem nome';
 
+  const parseDataCrediario = (valor) => {
+    const texto = String(valor ?? '').trim();
+    if (!texto) return new Date(0);
+
+    const [parteData, parteHora = '00:00:00'] = texto.split(',');
+    const dataLimpa = String(parteData || '').trim();
+    const matchData = dataLimpa.match(/^\d{2}\/\d{2}\/\d{4}$/);
+
+    if (matchData) {
+      const [dd, mm, yyyy] = dataLimpa.split('/');
+      const [hh = '0', mi = '0', ss = '0'] = String(parteHora).trim().split(':');
+      const data = new Date(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(mi), Number(ss));
+      if (!Number.isNaN(data.getTime())) return data;
+    }
+
+    const dataIso = new Date(texto);
+    if (!Number.isNaN(dataIso.getTime())) return dataIso;
+
+    return new Date(0);
+  };
+
+  const ordenarComandasPorData = (lista = []) =>
+    [...lista].sort((a, b) => {
+      const dataA = parseDataCrediario(a?.data).getTime();
+      const dataB = parseDataCrediario(b?.data).getTime();
+      return dataB - dataA;
+    });
+
   const listaCrediarios = Array.isArray(crediarios) ? crediarios : [];
   const pendentes = listaCrediarios.filter((c) => statusNormalizado(c) === 'Pendente');
   const pagas = listaCrediarios.filter((c) => statusNormalizado(c) === 'Pago');
@@ -87,8 +115,25 @@ export function Crediario({
     }
   });
 
-  pendentesAgrupados.sort((a, b) => a.cliente.localeCompare(b.cliente, 'pt-BR'));
-  pagasAgrupadas.sort((a, b) => a.cliente.localeCompare(b.cliente, 'pt-BR'));
+  pendentesAgrupados.forEach((grupo) => {
+    grupo.comandas = ordenarComandasPorData(grupo.comandas);
+  });
+
+  pagasAgrupadas.forEach((grupo) => {
+    grupo.comandas = ordenarComandasPorData(grupo.comandas);
+  });
+
+  pendentesAgrupados.sort((a, b) => {
+    const ultimaDataA = Math.max(...a.comandas.map((c) => parseDataCrediario(c?.data).getTime()));
+    const ultimaDataB = Math.max(...b.comandas.map((c) => parseDataCrediario(c?.data).getTime()));
+    return ultimaDataB - ultimaDataA || a.cliente.localeCompare(b.cliente, 'pt-BR');
+  });
+
+  pagasAgrupadas.sort((a, b) => {
+    const ultimaDataA = Math.max(...a.comandas.map((c) => parseDataCrediario(c?.data).getTime()));
+    const ultimaDataB = Math.max(...b.comandas.map((c) => parseDataCrediario(c?.data).getTime()));
+    return ultimaDataB - ultimaDataA || a.cliente.localeCompare(b.cliente, 'pt-BR');
+  });
 
   const abrirOpcoesPagamento = (grupo) => {
     setCaixaDialogo({
