@@ -156,6 +156,42 @@ export function Crediario({
     });
   };
 
+  const enviarResumoContaWhatsApp = (grupo) => {
+    const cliente = String(grupo?.cliente || '').trim();
+    if (!cliente) return;
+
+    const clienteCadastrado = (Array.isArray(clientesCadastradas) ? clientesCadastradas : []).find(
+      (item) => String(item?.nome || '').trim().toLowerCase() === cliente.toLowerCase()
+    );
+
+    const telefone = String(clienteCadastrado?.telefone || '').replace(/\D/g, '');
+    if (!telefone) {
+      if (setCaixaDialogo) {
+        setCaixaDialogo({
+          titulo: 'WhatsApp não disponível',
+          mensagem: `Cadastre o telefone do cliente ${cliente} para enviar o resumo da conta.`,
+          tipo: 'alerta',
+          confirmTxt: 'OK',
+          noCancel: true,
+        });
+      }
+      return;
+    }
+
+    const linhas = (grupo?.comandas || []).map((comanda) => {
+      const valor = Number(comanda?.total || 0);
+      const data = String(comanda?.data || 'Sem data');
+      return `• ${data}: ${formatarMoeda(valor)}`;
+    }).join('\n');
+
+    const total = Number(grupo?.total || 0);
+    const numeroComCodigo = telefone.startsWith('55') ? telefone : `55${telefone}`;
+    const mensagem = `Olá, *${cliente}*! 🍻\n\nSegue o resumo da sua conta em aberto:\n\n${linhas}\n\n💰 *TOTAL GERAL:* ${formatarMoeda(total)}\n\n_Qualquer dúvida, estamos à disposição!_ 🎸`;
+    const url = `https://wa.me/${numeroComCodigo}?text=${encodeURIComponent(mensagem)}`;
+
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div className="single-container">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
@@ -314,6 +350,9 @@ export function Crediario({
                             </button>
                             <button type="button" onClick={() => imprimirExtratoDebitosCliente && imprimirExtratoDebitosCliente(g.cliente, g.comandas)} style={{ background: '#334155', color: 'white', border: 'none', padding: '10px 12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer' }}>
                               <i className="fas fa-print" style={{ marginRight: '5px' }}></i>Imprimir Débitos
+                            </button>
+                            <button type="button" onClick={() => enviarResumoContaWhatsApp(g)} style={{ background: '#25d366', color: 'white', border: 'none', padding: '10px 12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer' }}>
+                              <i className="fab fa-whatsapp" style={{ marginRight: '5px' }}></i>Resumo WhatsApp
                             </button>
                           </div>
                         </div>
