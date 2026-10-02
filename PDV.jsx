@@ -31,6 +31,7 @@ export function PDV({
   comandaRecemPaga, setComandaRecemPaga,
   confirmarPagamentoComposto,
   finalizarPagamentoDireto,
+  enviarResumoFiadoWhatsApp,
   emitirNotaFiscalSilenciosa,
   imagemAutomaticaProduto,
   addItemNaComanda,
@@ -43,7 +44,8 @@ export function PDV({
   imprimirComandaConferencia,
   cancelarComanda,
   buscaContainerRef,
-  nomeSoftware
+  nomeSoftware,
+  consumoFlash = false
 }) {
   const mesmoComandaId = (a, b) => String(a ?? '') === String(b ?? '');
   const normalizarNomeProduto = (nome) => String(nome || '')
@@ -162,7 +164,15 @@ export function PDV({
   const saldoRestantePagamento = totalComDesconto - totalPagoAtualmente;
 
   return (
-    <div className="main-container" style={{ display: 'flex', height: 'calc(100vh - 60px)', gap: '8px', padding: '8px', background: '#eaf2ff' }}>
+    <div className="main-container" style={{
+      display: 'flex',
+      height: 'calc(100vh - 60px)',
+      gap: '8px',
+      padding: '8px',
+      background: consumoFlash ? '#dcfce7' : '#eaf2ff',
+      boxShadow: consumoFlash ? 'inset 0 0 0 3px rgba(16, 185, 129, 0.35)' : 'none',
+      transition: 'background 0.18s ease, box-shadow 0.18s ease'
+    }}>
       
       {/* COLUNA 1: COMANDAS (Largura reduzida para 150px) */}
       <div className="col" style={{ flex: '0 0 150px', maxWidth: '150px', display: 'flex', flexDirection: 'column' }}>
@@ -736,6 +746,27 @@ export function PDV({
                           onClick={() => finalizarPagamentoDireto('fiado')}
                         >
                           📙 Fiado
+                        </button>
+                        <button
+                          className="btn-pag btn-whatsapp"
+                          style={{
+                            gridColumn: '1 / -1',
+                            minHeight: '56px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: '#25D366',
+                            color: '#fff',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            borderRadius: '8px',
+                            boxShadow: '0 8px 18px rgba(37, 211, 102, 0.2)',
+                            border: 'none',
+                            cursor: 'pointer'
+                          }}
+                          onClick={enviarResumoFiadoWhatsApp}
+                        >
+                          📲 Enviar resumo no WhatsApp
                         </button>
                         <button
                           className="btn-pag btn-mais-pgto"

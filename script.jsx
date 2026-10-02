@@ -104,10 +104,10 @@ const tocarBipProduto = () => {
     const ganho = contexto.createGain();
 
     oscilador.type = 'triangle';
-    oscilador.frequency.value = 860;
+    oscilador.frequency.value = 780;
 
     ganho.gain.setValueAtTime(0.0001, contexto.currentTime);
-    ganho.gain.exponentialRampToValueAtTime(0.015, contexto.currentTime + 0.02);
+    ganho.gain.exponentialRampToValueAtTime(0.018, contexto.currentTime + 0.015);
     ganho.gain.exponentialRampToValueAtTime(0.0001, contexto.currentTime + 0.12);
 
     oscilador.connect(ganho);
@@ -506,8 +506,15 @@ function App() {
   const [despesaEmBaixa, setDespesaEmBaixa] = React.useState(null);
   const [filtroRelatorioEstoque, setFiltroRelatorioEstoque] = React.useState('Todos');
   const [caixaDialogo, setCaixaDialogo] = React.useState(null);
+  const [consumoFlash, setConsumoFlash] = React.useState(false);
   const [promptVal, setPromptVal] = React.useState('');
   const [promptValDivisivel, setPromptValDivisivel] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!consumoFlash) return undefined;
+    const timeoutId = window.setTimeout(() => setConsumoFlash(false), 180);
+    return () => window.clearTimeout(timeoutId);
+  }, [consumoFlash]);
   const [categoriaGerenciarSelecionada, setCategoriaGerenciarSelecionada] = React.useState('');
   const [novoNomeCategoriaGerenciar, setNovoNomeCategoriaGerenciar] = React.useState('');
   const [modalDividir, setModalDividir] = React.useState(null);
@@ -645,6 +652,38 @@ function App() {
     window.open(urlWeb, '_blank', 'noopener,noreferrer');
     return true;
   }, []);
+
+  const enviarResumoFiadoWhatsApp = React.useCallback(() => {
+    if (!comandaAtual) return false;
+
+    const nomeCliente = String(comandaAtual.nome || '').trim();
+    if (!nomeCliente) return false;
+
+    const pendentes = (Array.isArray(crediarios) ? crediarios : []).filter((item) => {
+      const nomeItem = String(item?.cliente || '').trim().toLowerCase();
+      return nomeItem === nomeCliente.toLowerCase() && Number(item?.total || 0) > 0;
+    });
+
+    const dadosDoCliente = clientesCadastrados.find((cliente) => {
+      return String(cliente?.nome || '').trim().toLowerCase() === nomeCliente.toLowerCase();
+    });
+
+    if (!dadosDoCliente || !String(dadosDoCliente.telefone || '').replace(/\D/g, '')) {
+      dispararMensagem('Cliente sem WhatsApp', `Cadastre o telefone de ${nomeCliente} para enviar o resumo do fiado.`);
+      return false;
+    }
+
+    const totalGeral = pendentes.reduce((soma, item) => soma + Number(item?.total || 0), 0);
+    const linhasResumo = pendentes.length > 0
+      ? pendentes.map((item) => `• ${String(item?.data || 'Data não informada')}: ${formatarMoeda(Number(item?.total || 0))}`).join('\n')
+      : `• ${comandaAtual.nome}: ${formatarMoeda(calcularTotal(comandaAtual.itens || []))}`;
+
+    const mensagemTexto = `Olá, *${nomeCliente}*! 🍻\nSegue o resumo das suas comandas em aberto no *${nomeSoftware}*:\n\n${linhasResumo}\n\n💰 *TOTAL GERAL:* ${formatarMoeda(totalGeral)}\n\n_Qualquer dúvida, estamos à disposição!_ 🎸`;
+
+    abrirWhatsAppDireto(dadosDoCliente.telefone, mensagemTexto);
+    dispararMensagem('WhatsApp', `Resumo do fiado enviado para ${nomeCliente}.`);
+    return true;
+  }, [abrirWhatsAppDireto, calcularTotal, clientesCadastrados, comandaAtual, crediarios, dispararMensagem, formatarMoeda, nomeSoftware]);
 
   const [usuariosSistema, setUsuariosSistema] = React.useState(() => {
     try {
@@ -1972,6 +2011,7 @@ function App() {
     setProdutos((prev) => prev.map((p) => p.id === produto.id ? { ...p, estoque: novoEstoque } : p));
     comandasRef.current = comandasRef.current.map((comanda) => mesmoComandaId(comanda.id, comandaAtivaId) ? comandaAtualizada : comanda);
     setComandas(comandasRef.current);
+    setConsumoFlash(true);
     tocarBipProduto();
     ajustarEstoqueAtomicamente(produto.id, -1)
       .catch((err) => console.warn('Estoque será sincronizado depois:', err));
@@ -3096,6 +3136,7 @@ function App() {
           setComandaRecemPaga={setComandaRecemPaga}
           confirmarPagamentoComposto={confirmarPagamentoComposto}
           finalizarPagamentoDireto={finalizarPagamentoDireto}
+          enviarResumoFiadoWhatsApp={enviarResumoFiadoWhatsApp}
           emitirNotaFiscalSilenciosa={emitirNotaFiscalSilenciosa}
           imagemAutomaticaProduto={imagemAutomaticaProduto}
           addItemNaComanda={addItemNaComanda}
@@ -3109,6 +3150,7 @@ function App() {
           cancelarComanda={cancelarComanda}
           buscaContainerRef={buscaContainerRef}
           nomeSoftware={nomeSoftware}
+          consumoFlash={consumoFlash}
         />
       )}
       {telaAtual === 'login_gerencial' && (
