@@ -201,6 +201,9 @@ export function Crediario({
     const url = `https://wa.me/${numeroComCodigo}?text=${encodeURIComponent(mensagem)}`;
 
     try {
+      const janela = window.open(url, '_blank', 'noopener,noreferrer');
+      if (janela) return;
+
       const link = document.createElement('a');
       link.href = url;
       link.target = '_blank';
@@ -208,6 +211,12 @@ export function Crediario({
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+
+      setTimeout(() => {
+        if (window && window.location) {
+          window.location.href = url;
+        }
+      }, 250);
     } catch (err) {
       window.location.href = url;
     }
