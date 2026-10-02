@@ -169,8 +169,8 @@ export function PDV({
       height: 'calc(100vh - 60px)',
       gap: '8px',
       padding: '8px',
-      background: consumoFlash ? '#dcfce7' : '#eaf2ff',
-      boxShadow: consumoFlash ? 'inset 0 0 0 3px rgba(16, 185, 129, 0.35)' : 'none',
+      background: consumoFlash ? '#bbf7d0' : '#eaf2ff',
+      boxShadow: consumoFlash ? 'inset 0 0 0 4px rgba(22, 163, 74, 0.75), 0 0 18px rgba(34, 197, 94, 0.3)' : 'none',
       transition: 'background 0.18s ease, box-shadow 0.18s ease'
     }}>
       
