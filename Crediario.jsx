@@ -202,27 +202,50 @@ export function Crediario({
     const total = Number(grupo?.total || 0);
     const numeroComCodigo = telefone.startsWith('55') ? telefone : `55${telefone}`;
     const mensagem = `Olá, *${cliente}*! 🍻\n\nSegue o resumo da sua conta em aberto:\n\n${linhas}\n\n💰 *TOTAL GERAL:* ${formatarMoeda(total)}\n\n_Qualquer dúvida, estamos à disposição!_ 🎸`;
-    const url = `https://wa.me/${numeroComCodigo}?text=${encodeURIComponent(mensagem)}`;
+    const textoCodificado = encodeURIComponent(mensagem);
+    const urlApi = `https://api.whatsapp.com/send?phone=${numeroComCodigo}&text=${textoCodificado}`;
+    const urlWeb = `https://wa.me/${numeroComCodigo}?text=${textoCodificado}`;
+    const userAgent = String(window?.navigator?.userAgent || '').toLowerCase();
+    const isMobile = /(android|iphone|ipad|ipod|mobile)/.test(userAgent);
 
     try {
-      const janela = window.open(url, '_blank', 'noopener,noreferrer');
+      if (isMobile) {
+        const linkApp = document.createElement('a');
+        linkApp.href = `whatsapp://send?phone=${numeroComCodigo}&text=${textoCodificado}`;
+        linkApp.setAttribute('target', '_self');
+        document.body.appendChild(linkApp);
+        linkApp.click();
+        setTimeout(() => document.body.removeChild(linkApp), 200);
+        setTimeout(() => {
+          if (window && window.location) {
+            window.location.href = urlWeb;
+          }
+        }, 500);
+        return;
+      }
+
+      const janela = window.open(urlApi, '_blank', 'noopener,noreferrer');
       if (janela) return;
 
       const link = document.createElement('a');
-      link.href = url;
+      link.href = urlApi;
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      setTimeout(() => {
+        if (link.parentNode) {
+          link.parentNode.removeChild(link);
+        }
+      }, 200);
 
       setTimeout(() => {
         if (window && window.location) {
-          window.location.href = url;
+          window.location.href = urlWeb;
         }
-      }, 250);
+      }, 500);
     } catch (err) {
-      window.location.href = url;
+      window.location.href = urlWeb;
     }
   };
 
