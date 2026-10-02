@@ -160,6 +160,30 @@ export const Clientes = ({
     dispararMensagem('Sucesso', 'Cliente cadastrado com sucesso!');
   };
 
+  const parseDataCliente = (valor) => {
+    const texto = String(valor ?? '').trim();
+    if (!texto) return new Date(0);
+
+    const [parteData, parteHora = '00:00:00'] = texto.split(',');
+    const dataLimpa = String(parteData || '').trim();
+    const matchData = dataLimpa.match(/^\d{2}\/\d{2}\/\d{4}$/);
+
+    if (matchData) {
+      const [dd, mm, yyyy] = dataLimpa.split('/');
+      const [hh = '0', mi = '0', ss = '0'] = String(parteHora).trim().split(':');
+      const data = new Date(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(mi), Number(ss));
+      if (!Number.isNaN(data.getTime())) return data;
+    }
+
+    const dataIso = new Date(texto);
+    if (!Number.isNaN(dataIso.getTime())) return dataIso;
+
+    return new Date(0);
+  };
+
+  const ordenarPorDataDesc = (lista = []) =>
+    [...lista].sort((a, b) => parseDataCliente(b?.data).getTime() - parseDataCliente(a?.data).getTime());
+
   const clientesFiltradosPesquisa = clientesCadastrados
     .filter(
       (cli) =>
@@ -430,13 +454,13 @@ export const Clientes = ({
                                 <i className="fas fa-list-ul"></i> Detalhamento do Consumo:
                               </div>
 
-                              {comandas
-                                .filter(
+                              {ordenarPorDataDesc(
+                                comandas.filter(
                                   (com) =>
                                     com.nome.toLowerCase() ===
                                     cli.nome.toLowerCase()
                                 )
-                                .map((c) => (
+                              ).map((c) => (
                                   <div
                                     key={'aberta' + c.id}
                                     style={{
@@ -478,14 +502,14 @@ export const Clientes = ({
                                   </div>
                                 ))}
 
-                              {crediarios
-                                .filter(
+                              {ordenarPorDataDesc(
+                                crediarios.filter(
                                   (cred) =>
                                     cred.cliente.toLowerCase() ===
                                       cli.nome.toLowerCase() &&
                                     cred.status === 'Pendente'
                                 )
-                                .map((c) => (
+                              ).map((c) => (
                                   <div
                                     key={'cred' + c.idCred}
                                     style={{
@@ -528,7 +552,7 @@ export const Clientes = ({
                                   </div>
                                 ))}
 
-                              {[
+                              {ordenarPorDataDesc([
                                 ...crediarios.filter(
                                   (cred) =>
                                     cred.cliente.toLowerCase() ===
@@ -536,7 +560,7 @@ export const Clientes = ({
                                     cred.status === 'Pago'
                                 ),
                                 ...vendasCliente,
-                              ].map((v, idx) => {
+                              ]).map((v, idx) => {
                                 const isCred = v.hasOwnProperty('idCred');
                                 const valor = isCred
                                   ? v.pagamentos
