@@ -16,6 +16,7 @@ export function Crediario({
   const [expandedCliente, setExpandedCliente] = React.useState(null);
   const [expandedClientePago, setExpandedClientePago] = React.useState(null);
   const [modalLancamento, setModalLancamento] = React.useState(null);
+  const [resumoWhatsAppAtivo, setResumoWhatsAppAtivo] = React.useState(null);
 
   const parseMoedaBR = (valor) => {
     const somenteNumeros = String(valor || '').replace(/[^\d]/g, '');
@@ -164,7 +165,10 @@ export function Crediario({
   };
 
   const enviarResumoContaWhatsApp = (grupo, evento) => {
-    if (evento) evento.stopPropagation();
+    if (evento) {
+      evento.preventDefault();
+      evento.stopPropagation();
+    }
 
     const cliente = String(grupo?.cliente || '').trim();
     if (!cliente) return;
@@ -381,8 +385,30 @@ export function Crediario({
                             <button type="button" onClick={(event) => { event.stopPropagation(); imprimirExtratoDebitosCliente && imprimirExtratoDebitosCliente(g.cliente, g.comandas); }} style={{ background: '#334155', color: 'white', border: 'none', padding: '10px 12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer' }}>
                               <i className="fas fa-print" style={{ marginRight: '5px' }}></i>Imprimir Débitos
                             </button>
-                            <button type="button" onClick={(event) => enviarResumoContaWhatsApp(g, event)} style={{ background: '#25d366', color: 'white', border: 'none', padding: '10px 12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer' }}>
-                              <i className="fab fa-whatsapp" style={{ marginRight: '5px' }}></i>Resumo WhatsApp
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                const clienteAtivo = String(g?.cliente || '').trim();
+                                setResumoWhatsAppAtivo(clienteAtivo);
+                                setTimeout(() => setResumoWhatsAppAtivo((atual) => atual === clienteAtivo ? null : atual), 900);
+                                enviarResumoContaWhatsApp(g, event);
+                              }}
+                              style={{
+                                background: resumoWhatsAppAtivo === g?.cliente ? '#1ea952' : '#25d366',
+                                color: 'white',
+                                border: 'none',
+                                padding: '10px 12px',
+                                fontSize: '12px',
+                                fontWeight: 'bold',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                transform: resumoWhatsAppAtivo === g?.cliente ? 'scale(0.98)' : 'scale(1)',
+                                boxShadow: resumoWhatsAppAtivo === g?.cliente ? '0 0 0 3px rgba(34, 197, 94, 0.25)' : '0 8px 20px rgba(37, 211, 102, 0.18)',
+                                transition: 'all 0.12s ease',
+                              }}
+                            >
+                              <i className="fab fa-whatsapp" style={{ marginRight: '5px' }}></i>
+                              {resumoWhatsAppAtivo === g?.cliente ? 'Abrindo...' : 'Resumo WhatsApp'}
                             </button>
                           </div>
                         </div>
