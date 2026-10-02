@@ -156,7 +156,9 @@ export function Crediario({
     });
   };
 
-  const enviarResumoContaWhatsApp = (grupo) => {
+  const enviarResumoContaWhatsApp = (grupo, evento) => {
+    if (evento) evento.stopPropagation();
+
     const cliente = String(grupo?.cliente || '').trim();
     if (!cliente) return;
 
@@ -186,10 +188,13 @@ export function Crediario({
 
     const total = Number(grupo?.total || 0);
     const numeroComCodigo = telefone.startsWith('55') ? telefone : `55${telefone}`;
-    const mensagem = `Olá, *${cliente}*! 🍻\n\nSegue o resumo da sua conta em aberto:\n\n${linhas}\n\n💰 *TOTAL GERAL:* ${formatarMoeda(total)}\n\n_Qualquer dúvida, estamos à disposição!_ 🎸`;
+    const mensagem = `Olá, *${cliente}*! 🍻\n\nSegue o resumo da sua conta em aberto:\n\n${linhas}\n\n💰 *TOTAL GERAL:* ${formatarMoeda(total)}\n\n_Qualquer dúvida, estamos à disponibilidade!_ 🎸`;
     const url = `https://wa.me/${numeroComCodigo}?text=${encodeURIComponent(mensagem)}`;
+    const janela = window.open(url, '_blank', 'noopener,noreferrer');
 
-    window.open(url, '_blank', 'noopener,noreferrer');
+    if (!janela) {
+      window.location.href = url;
+    }
   };
 
   return (
@@ -342,16 +347,16 @@ export function Crediario({
                             </div>
                           ))}
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', paddingTop: '4px' }}>
-                            <button type="button" onClick={() => abrirOpcoesPagamento(g)} style={{ background: '#22c55e', color: 'white', border: 'none', padding: '10px 12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer' }}>
+                            <button type="button" onClick={(event) => { event.stopPropagation(); abrirOpcoesPagamento(g); }} style={{ background: '#22c55e', color: 'white', border: 'none', padding: '10px 12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer' }}>
                               <i className="fas fa-hand-holding-usd" style={{ marginRight: '5px' }}></i>Quitar Conta
                             </button>
-                            <button type="button" onClick={() => abrirLancamento(g.cliente)} style={{ background: '#d97706', color: 'white', border: 'none', padding: '10px 12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer' }}>
+                            <button type="button" onClick={(event) => { event.stopPropagation(); abrirLancamento(g.cliente); }} style={{ background: '#d97706', color: 'white', border: 'none', padding: '10px 12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer' }}>
                               <i className="fas fa-plus" style={{ marginRight: '5px' }}></i>Adicionar Saldo
                             </button>
-                            <button type="button" onClick={() => imprimirExtratoDebitosCliente && imprimirExtratoDebitosCliente(g.cliente, g.comandas)} style={{ background: '#334155', color: 'white', border: 'none', padding: '10px 12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer' }}>
+                            <button type="button" onClick={(event) => { event.stopPropagation(); imprimirExtratoDebitosCliente && imprimirExtratoDebitosCliente(g.cliente, g.comandas); }} style={{ background: '#334155', color: 'white', border: 'none', padding: '10px 12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer' }}>
                               <i className="fas fa-print" style={{ marginRight: '5px' }}></i>Imprimir Débitos
                             </button>
-                            <button type="button" onClick={() => enviarResumoContaWhatsApp(g)} style={{ background: '#25d366', color: 'white', border: 'none', padding: '10px 12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer' }}>
+                            <button type="button" onClick={(event) => enviarResumoContaWhatsApp(g, event)} style={{ background: '#25d366', color: 'white', border: 'none', padding: '10px 12px', fontSize: '12px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer' }}>
                               <i className="fab fa-whatsapp" style={{ marginRight: '5px' }}></i>Resumo WhatsApp
                             </button>
                           </div>
