@@ -173,7 +173,7 @@ export function Crediario({
     const cliente = String(grupo?.cliente || '').trim();
     if (!cliente) return;
 
-    const clienteCadastrado = (Array.isArray(clientesCadastradas) ? clientesCadastradas : []).find((item) => {
+    const clienteCadastrado = (Array.isArray(clientesCadastrados) ? clientesCadastrados : []).find((item) => {
       const nomeNormalizado = normalizarTexto(item?.nome || '');
       const clienteNormalizado = normalizarTexto(cliente);
       return nomeNormalizado === clienteNormalizado || nomeNormalizado.includes(clienteNormalizado) || clienteNormalizado.includes(nomeNormalizado);
