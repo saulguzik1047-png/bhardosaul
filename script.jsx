@@ -613,21 +613,35 @@ function App() {
     const numeroComCodigo = foneLimpo.startsWith('55') ? foneLimpo : `55${foneLimpo}`;
     const textoCodificado = encodeURIComponent(String(mensagemTexto || ''));
     const urlApp = `whatsapp://send?phone=${numeroComCodigo}&text=${textoCodificado}`;
-    const urlWeb = `https://api.whatsapp.com/send?phone=${numeroComCodigo}&text=${textoCodificado}`;
+    const urlWeb = `https://wa.me/${numeroComCodigo}?text=${textoCodificado}`;
     const userAgent = String(navigator?.userAgent || '').toLowerCase();
     const isMobile = /android|iphone|ipad|ipod|mobile/.test(userAgent);
+    let fallbackTimer = null;
 
     if (isMobile) {
-      const abriuEmApp = Date.now();
-      window.location.href = urlApp;
-      window.setTimeout(() => {
-        if (Date.now() - abriuEmApp < 1800) {
+      try {
+        const linkApp = document.createElement('a');
+        linkApp.href = urlApp;
+        linkApp.setAttribute('target', '_self');
+        document.body.appendChild(linkApp);
+        linkApp.click();
+        document.body.removeChild(linkApp);
+      } catch (err) {
+        console.warn('Falha ao abrir deep link do WhatsApp:', err);
+      }
+
+      fallbackTimer = window.setTimeout(() => {
+        try {
           window.open(urlWeb, '_blank', 'noopener,noreferrer');
+        } catch (err) {
+          console.warn('Falha ao abrir WhatsApp web:', err);
         }
       }, 1200);
+
       return true;
     }
 
+    if (fallbackTimer) clearTimeout(fallbackTimer);
     window.open(urlWeb, '_blank', 'noopener,noreferrer');
     return true;
   }, []);
