@@ -613,6 +613,13 @@ function App() {
   const inputBuscaImgRef = React.useRef(null);
   const inputQtdAdicionarRef = React.useRef(null);
 
+  const [clientesCadastrados, setClientesCadastrados] = React.useState(() => {
+    try {
+      const salvos = localStorage.getItem('bhar_clientes_v2');
+      return salvos ? JSON.parse(salvos) : [];
+    } catch (e) { return []; }
+  });
+
   const abrirWhatsAppDireto = React.useCallback((telefone, mensagemTexto) => {
     const foneLimpo = String(telefone || '').replace(/\D/g, '');
     if (!foneLimpo) return false;
@@ -653,38 +660,6 @@ function App() {
     return true;
   }, []);
 
-  const enviarResumoFiadoWhatsApp = React.useCallback(() => {
-    if (!comandaAtual) return false;
-
-    const nomeCliente = String(comandaAtual.nome || '').trim();
-    if (!nomeCliente) return false;
-
-    const pendentes = (Array.isArray(crediarios) ? crediarios : []).filter((item) => {
-      const nomeItem = String(item?.cliente || '').trim().toLowerCase();
-      return nomeItem === nomeCliente.toLowerCase() && Number(item?.total || 0) > 0;
-    });
-
-    const dadosDoCliente = clientesCadastrados.find((cliente) => {
-      return String(cliente?.nome || '').trim().toLowerCase() === nomeCliente.toLowerCase();
-    });
-
-    if (!dadosDoCliente || !String(dadosDoCliente.telefone || '').replace(/\D/g, '')) {
-      dispararMensagem('Cliente sem WhatsApp', `Cadastre o telefone de ${nomeCliente} para enviar o resumo do fiado.`);
-      return false;
-    }
-
-    const totalGeral = pendentes.reduce((soma, item) => soma + Number(item?.total || 0), 0);
-    const linhasResumo = pendentes.length > 0
-      ? pendentes.map((item) => `• ${String(item?.data || 'Data não informada')}: ${formatarMoeda(Number(item?.total || 0))}`).join('\n')
-      : `• ${comandaAtual.nome}: ${formatarMoeda(calcularTotal(comandaAtual.itens || []))}`;
-
-    const mensagemTexto = `Olá, *${nomeCliente}*! 🍻\nSegue o resumo das suas comandas em aberto no *${nomeSoftware}*:\n\n${linhasResumo}\n\n💰 *TOTAL GERAL:* ${formatarMoeda(totalGeral)}\n\n_Qualquer dúvida, estamos à disposição!_ 🎸`;
-
-    abrirWhatsAppDireto(dadosDoCliente.telefone, mensagemTexto);
-    dispararMensagem('WhatsApp', `Resumo do fiado enviado para ${nomeCliente}.`);
-    return true;
-  }, [abrirWhatsAppDireto, calcularTotal, clientesCadastrados, comandaAtual, crediarios, dispararMensagem, formatarMoeda, nomeSoftware]);
-
   const [usuariosSistema, setUsuariosSistema] = React.useState(() => {
     try {
       const salvosUsers = localStorage.getItem('bhar_usuarios_v1');
@@ -721,13 +696,6 @@ function App() {
   React.useEffect(() => {
     try { localStorage.setItem('bhar_usuarios_v1', JSON.stringify(usuariosSistema)); } catch (e) {}
   }, [usuariosSistema]);
-
-  const [clientesCadastrados, setClientesCadastrados] = React.useState(() => {
-    try {
-      const salvos = localStorage.getItem('bhar_clientes_v2');
-      return salvos ? JSON.parse(salvos) : [];
-    } catch (e) { return []; }
-  });
 
   React.useEffect(() => {
     localStorage.setItem('bhar_clientes_v2', JSON.stringify(clientesCadastrados));
@@ -1568,6 +1536,38 @@ function App() {
   }, []);
 
   const comandaAtual = comandas.find((c) => mesmoComandaId(c.id, comandaAtivaId)) || null;
+
+  const enviarResumoFiadoWhatsApp = React.useCallback(() => {
+    if (!comandaAtual) return false;
+
+    const nomeCliente = String(comandaAtual.nome || '').trim();
+    if (!nomeCliente) return false;
+
+    const pendentes = (Array.isArray(crediarios) ? crediarios : []).filter((item) => {
+      const nomeItem = String(item?.cliente || '').trim().toLowerCase();
+      return nomeItem === nomeCliente.toLowerCase() && Number(item?.total || 0) > 0;
+    });
+
+    const dadosDoCliente = clientesCadastrados.find((cliente) => {
+      return String(cliente?.nome || '').trim().toLowerCase() === nomeCliente.toLowerCase();
+    });
+
+    if (!dadosDoCliente || !String(dadosDoCliente.telefone || '').replace(/\D/g, '')) {
+      dispararMensagem('Cliente sem WhatsApp', `Cadastre o telefone de ${nomeCliente} para enviar o resumo do fiado.`);
+      return false;
+    }
+
+    const totalGeral = pendentes.reduce((soma, item) => soma + Number(item?.total || 0), 0);
+    const linhasResumo = pendentes.length > 0
+      ? pendentes.map((item) => `• ${String(item?.data || 'Data não informada')}: ${formatarMoeda(Number(item?.total || 0))}`).join('\n')
+      : `• ${comandaAtual.nome}: ${formatarMoeda(calcularTotal(comandaAtual.itens || []))}`;
+
+    const mensagemTexto = `Olá, *${nomeCliente}*! 🍻\nSegue o resumo das suas comandas em aberto no *${nomeSoftware}*:\n\n${linhasResumo}\n\n💰 *TOTAL GERAL:* ${formatarMoeda(totalGeral)}\n\n_Qualquer dúvida, estamos à disposição!_ 🎸`;
+
+    abrirWhatsAppDireto(dadosDoCliente.telefone, mensagemTexto);
+    dispararMensagem('WhatsApp', `Resumo do fiado enviado para ${nomeCliente}.`);
+    return true;
+  }, [abrirWhatsAppDireto, calcularTotal, clientesCadastrados, comandaAtual, crediarios, dispararMensagem, formatarMoeda, nomeSoftware]);
 
   React.useEffect(() => {
     setDescontoAtual(0);
