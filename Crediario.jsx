@@ -26,6 +26,13 @@ export function Crediario({
     setModalLancamento({ cliente, valor: '', descricao: '' });
   };
 
+  const normalizarTexto = (valor) => String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
   const confirmarLancamento = () => {
     const valor = parseMoedaBR(modalLancamento.valor);
     if (!modalLancamento.cliente.trim() || valor <= 0) return;
@@ -162,9 +169,11 @@ export function Crediario({
     const cliente = String(grupo?.cliente || '').trim();
     if (!cliente) return;
 
-    const clienteCadastrado = (Array.isArray(clientesCadastradas) ? clientesCadastradas : []).find(
-      (item) => String(item?.nome || '').trim().toLowerCase() === cliente.toLowerCase()
-    );
+    const clienteCadastrado = (Array.isArray(clientesCadastradas) ? clientesCadastradas : []).find((item) => {
+      const nomeNormalizado = normalizarTexto(item?.nome || '');
+      const clienteNormalizado = normalizarTexto(cliente);
+      return nomeNormalizado === clienteNormalizado || nomeNormalizado.includes(clienteNormalizado) || clienteNormalizado.includes(nomeNormalizado);
+    });
 
     const telefone = String(clienteCadastrado?.telefone || '').replace(/\D/g, '');
     if (!telefone) {
@@ -188,11 +197,18 @@ export function Crediario({
 
     const total = Number(grupo?.total || 0);
     const numeroComCodigo = telefone.startsWith('55') ? telefone : `55${telefone}`;
-    const mensagem = `Olá, *${cliente}*! 🍻\n\nSegue o resumo da sua conta em aberto:\n\n${linhas}\n\n💰 *TOTAL GERAL:* ${formatarMoeda(total)}\n\n_Qualquer dúvida, estamos à disponibilidade!_ 🎸`;
+    const mensagem = `Olá, *${cliente}*! 🍻\n\nSegue o resumo da sua conta em aberto:\n\n${linhas}\n\n💰 *TOTAL GERAL:* ${formatarMoeda(total)}\n\n_Qualquer dúvida, estamos à disposição!_ 🎸`;
     const url = `https://wa.me/${numeroComCodigo}?text=${encodeURIComponent(mensagem)}`;
-    const janela = window.open(url, '_blank', 'noopener,noreferrer');
 
-    if (!janela) {
+    try {
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
       window.location.href = url;
     }
   };
