@@ -625,7 +625,7 @@ export function PDV({
                     )}
                 {comandaAtual.itens.length > 0 && (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '6px', width: '80%', margin: '0 auto 6px' }}>
-                    {comandaAtual.itens.length > 0 && (
+                    {!modoPagamento && comandaAtual.itens.length > 0 && (
                       <button
                         className="btn-imprimir"
                         style={{
@@ -713,8 +713,11 @@ export function PDV({
                     className="botoes-pagamento"
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(2, 1fr)',
+                      gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
                       gap: '8px',
+                      alignItems: 'stretch',
+                      width: '80%',
+                      margin: '0 auto',
                     }}
                   >
                    {!mostrarMultiFormas ? (
@@ -750,9 +753,9 @@ export function PDV({
                         <button
                           className="btn-pag btn-whatsapp"
                           style={{
-                            gridColumn: '1 / -1',
-                            minHeight: '56px',
+                            aspectRatio: '1 / 1',
                             display: 'flex',
+                            flexDirection: 'column',
                             alignItems: 'center',
                             justifyContent: 'center',
                             background: '#25D366',
@@ -766,7 +769,7 @@ export function PDV({
                           }}
                           onClick={enviarResumoFiadoWhatsApp}
                         >
-                          📲 Enviar resumo no WhatsApp
+                          <><span style={{ fontSize: '22px' }}>📲</span><span>Resumo WhatsApp</span></>
                         </button>
                         <button
                           className="btn-pag btn-mais-pgto"
@@ -781,6 +784,14 @@ export function PDV({
                           style={{ aspectRatio: '1 / 1', flexDirection: 'column', background: '#eab308', fontSize: '13px', fontWeight: 'bold', borderRadius: '8px' }}
                         >
                           🏷️ Desconto
+                        </button>
+                        <button
+                          className="btn-pag"
+                          onClick={imprimirComandaConferencia}
+                          style={{ aspectRatio: '1 / 1', flexDirection: 'column', background: '#475569', fontSize: '13px', fontWeight: 'bold', borderRadius: '8px' }}
+                        >
+                          <i className="fas fa-print" style={{ fontSize: '18px', marginBottom: '4px' }}></i>
+                          Conferência
                         </button>
                         <button
                           className="btn-cancelar-pag"

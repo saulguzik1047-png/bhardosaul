@@ -2714,7 +2714,6 @@ function App() {
         setMostrarMultiFormas(false);
         setDescontoAtual(0);
         setValDinheiro(''); setValPix(''); setValCartao(''); setValCrediario('');
-        dispararMensagem('Sucesso', `Pagamento processado com sucesso! A mesa foi liberada.${msgWppStatus}`);
         } finally {
           pagamentoEmProcessamentoRef.current = false;
         }
@@ -2785,7 +2784,6 @@ function App() {
         setMostrarMultiFormas(false);
         setDescontoAtual(0);
         setValDinheiro(''); setValPix(''); setValCartao(''); setValCrediario('');
-        dispararMensagem('Sucesso', `Conta finalizada com sucesso via ${tipo.toUpperCase()}!${msgWppStatus}`);
         } finally {
           pagamentoEmProcessamentoRef.current = false;
         }
