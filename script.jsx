@@ -2604,33 +2604,54 @@ function App() {
   }
 
   function realizarDivisao(item, comandasSelecionadas) {
-    const splitGroupId = 'split_' + Date.now();
-    const todasEnvolvidas = [comandaAtivaId, ...comandasSelecionadas].map(normalizarComandaId);
-    const totalPessoas = todasEnvolvidas.length;
-    const novaQtd = parseFloat((item.qtd / totalPessoas).toFixed(4));
-    const nomesTexto = comandas.filter((c) => todasEnvolvidas.includes(normalizarComandaId(c.id))).map((c) => c.nome).join(', ');
+    const comandasAtuais = comandasRef.current;
+    const comandaOrigem = comandasAtuais.find((comanda) => mesmoComandaId(comanda.id, comandaAtivaId));
+    const idsSelecionados = [...new Set((comandasSelecionadas || []).map(normalizarComandaId))];
+    const comandasDestino = comandasAtuais.filter((comanda) =>
+      idsSelecionados.includes(normalizarComandaId(comanda.id)) &&
+      String(comanda.status || 'Aberto').toLowerCase() === 'aberto'
+    );
+    const itemAtual = comandaOrigem?.itens.find((produto) =>
+      produto.idProd === item.idProd && !produto.splitGroupId
+    );
 
-    setComandas((prev) =>
-      prev.map((c) => {
-        if (!todasEnvolvidas.includes(normalizarComandaId(c.id))) return c;
+    if (!comandaOrigem || !itemAtual || comandasDestino.length === 0) {
+      dispararMensagem('Divisão não realizada', 'O item ou as comandas selecionadas não estão mais disponíveis. Confira as comandas abertas e tente novamente.');
+      return;
+    }
+
+    const splitGroupId = 'split_' + Date.now();
+    const todasEnvolvidas = [comandaOrigem, ...comandasDestino];
+    const idsEnvolvidos = new Set(todasEnvolvidas.map((comanda) => normalizarComandaId(comanda.id)));
+    const totalPessoas = todasEnvolvidas.length;
+    const novaQtd = parseFloat((Number(itemAtual.qtd) / totalPessoas).toFixed(4));
+    const nomesTexto = todasEnvolvidas.map((comanda) => comanda.nome).join(', ');
+
+    const comandasAtualizadas = comandasAtuais.map((comanda) => {
+        if (!idsEnvolvidos.has(normalizarComandaId(comanda.id))) return comanda;
         const splitItem = {
-          idProd: item.idProd, nome: `${item.nome.split(' (Dividido')[0]} (Dividido entre: ${nomesTexto})`,
-          precoCusto: item.precoCusto, preco: item.preco, qtd: novaQtd, splitGroupId: splitGroupId,
+          idProd: itemAtual.idProd, nome: `${itemAtual.nome.split(' (Dividido')[0]} (Dividido entre: ${nomesTexto})`,
+          precoCusto: itemAtual.precoCusto, preco: itemAtual.preco, qtd: novaQtd, splitGroupId,
         };
 
-        const itensCopia = [...c.itens];
-        if (mesmoComandaId(c.id, comandaAtivaId)) {
-          const idx = itensCopia.findIndex((it) => it.idProd === item.idProd && !it.splitGroupId);
+        const itensCopia = [...comanda.itens];
+        if (mesmoComandaId(comanda.id, comandaOrigem.id)) {
+          const idx = itensCopia.findIndex((it) => it.idProd === itemAtual.idProd && !it.splitGroupId);
           if (idx >= 0) itensCopia[idx] = splitItem;
         } else {
           itensCopia.push(splitItem);
         }
-        return { ...c, itens: itensCopia };
-      })
-    );
+        return { ...comanda, itens: itensCopia, updated_at: new Date().toISOString() };
+      });
+
+    comandasRef.current = comandasAtualizadas;
+    setComandas(comandasAtualizadas);
+    comandasAtualizadas
+      .filter((comanda) => idsEnvolvidos.has(normalizarComandaId(comanda.id)))
+      .forEach(salvarComandaAgora);
 
     setModalDividir(null);
-    dispararMensagem('Divisão Concluída', `O item "${item.nome.split(' (Dividido')[0]}" foi rateado com sucesso em ${totalPessoas} partes!`);
+    dispararMensagem('Divisão Concluída', `O item "${itemAtual.nome.split(' (Dividido')[0]}" foi rateado com sucesso em ${totalPessoas} partes!`);
   }
 
   function confirmarPagamentoComposto() {
@@ -3498,10 +3519,10 @@ function App() {
             </div>
 
             <div style={{ maxHeight: '180px', overflowY: 'auto', background: '#090f17', padding: '12px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #1e293b' }}>
-              {comandas.filter((c) => !mesmoComandaId(c.id, comandaAtual.id)).length === 0 ? (
+              {comandas.filter((c) => !mesmoComandaId(c.id, comandaAtual.id) && String(c.status || 'Aberto').toLowerCase() === 'aberto').length === 0 ? (
                 <span style={{ color: '#64748b', fontSize: '13px', display: 'block', textAlign: 'center', padding: '15px' }}>Nenhuma outra comanda ativa aberta para realizar a divisão.</span>
               ) : (
-                comandas.filter((c) => !mesmoComandaId(c.id, comandaAtual.id)).map((c) => (
+                comandas.filter((c) => !mesmoComandaId(c.id, comandaAtual.id) && String(c.status || 'Aberto').toLowerCase() === 'aberto').map((c) => (
                     <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', cursor: 'pointer', color: '#cbd5e1', fontSize: '14px', borderBottom: '1px dashed #1e293b' }}>
                       <input
                         type="checkbox" value={c.id} style={{ width: 'auto', margin: 0 }}
