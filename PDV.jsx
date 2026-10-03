@@ -54,6 +54,11 @@ export function PDV({
     .trim()
     .toLowerCase();
   const [tecladoComandaAberto, setTecladoComandaAberto] = React.useState(false);
+  const [acoesItemAberto, setAcoesItemAberto] = React.useState(null);
+
+  React.useEffect(() => {
+    setAcoesItemAberto(null);
+  }, [comandaAtivaId]);
 
   const parseMoedaBR = (valor) => {
     if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
@@ -513,6 +518,7 @@ export function PDV({
                   </p>
                 ) : (
                   comandaAtual.itens.map((item, index) => {
+                    const itemKey = `${comandaAtivaId}:${index}:${item.idProd}:${item.splitGroupId || ''}`;
                     const prodOriginal = produtos.find(
                       (p) => p.id === item.idProd
                     );
@@ -523,7 +529,20 @@ export function PDV({
 
                         return (
                           <div key={index} className="item-linha" style={{ fontSize: '12px', padding: '6px 0', flexDirection: 'column', alignItems: 'stretch' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div
+                              role="button"
+                              tabIndex={0}
+                              aria-label={`Mostrar opções para ${item.nome}`}
+                              aria-expanded={acoesItemAberto === itemKey}
+                              onClick={() => setAcoesItemAberto((atual) => atual === itemKey ? null : itemKey)}
+                              onKeyDown={(evento) => {
+                                if (evento.key === 'Enter' || evento.key === ' ') {
+                                  evento.preventDefault();
+                                  setAcoesItemAberto((atual) => atual === itemKey ? null : itemKey);
+                                }
+                              }}
+                              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                            >
                               <div className="item-qtd-nome">
                                 <span className="item-qtd" style={{ fontWeight: 'bold' }}>{item.qtd}x</span>
                                 <span>{item.nome}</span>
@@ -537,58 +556,66 @@ export function PDV({
                                 Obs: {item.obs}
                               </div>
                             )}
-                            <div
-                              style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', marginTop: '4px' }}
-                            >
+                            {acoesItemAberto === itemKey && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
                               {!item.splitGroupId && (
                                 <button
+                                  type="button"
                                   className="btn-remove-item"
                                   style={{
                                     color: item.obs ? '#eab308' : '#94a3b8',
                                     marginRight: '2px',
-                                    padding: '3px 7px'
+                                    padding: '4px 6px',
+                                    fontSize: '10px'
                                   }}
                                   onClick={() => editarObservacaoItem(item, index)}
                                   title="Adicionar observação (ex: sem salada)"
                                 >
-                                  <i className="fas fa-pencil" style={{ fontSize: '13px' }}></i>
+                                  <i className="fas fa-pencil" style={{ fontSize: '11px', marginRight: '4px' }}></i>
+                                  Observação
                                 </button>
                               )}
 
                               {!item.splitGroupId && item.qtd > 1 && (
                                 <button
+                                  type="button"
                                   className="btn-remove-item"
                                   style={{
                                     color: 'var(--blue)',
                                     marginRight: '2px',
-                                    padding: '3px 7px',
-                                    fontWeight: 'bold'
+                                    padding: '4px 6px',
+                                    fontWeight: 'bold',
+                                    fontSize: '10px'
                                   }}
                                   onClick={() => diminuirQtdItemNaComanda(item)}
                                   title="Remover 1 unidade"
                                 >
-                                  <i className="fas fa-minus" style={{ fontSize: '13px' }}></i>
+                                  <i className="fas fa-minus" style={{ fontSize: '11px', marginRight: '4px' }}></i>
+                                  Reduzir 1 un.
                                 </button>
                               )}
 
                               {podeDividir && !item.splitGroupId && (
                                 <button
+                                  type="button"
                                   className="btn-remove-item"
                                   style={{
                                     color: 'var(--blue)',
                                     marginRight: '2px',
-                                    padding: '3px 6px'
+                                    padding: '4px 6px',
+                                    fontSize: '10px'
                                   }}
                                   onClick={() => iniciarDivisaoItem(item)}
                                   title="Dividir Porção"
                                 >
-                                  <i className="fas fa-divide" style={{ fontSize: '13px' }}></i>
+                                  <i className="fas fa-divide" style={{ fontSize: '11px', marginRight: '4px' }}></i>
+                                  Dividir porção
                                 </button>
                               )}
   
                               <button
+                                type="button"
                                 className="btn-remove-item"
-                                style={{ padding: '3px 6px' }}
+                                style={{ padding: '4px 6px', fontSize: '10px' }}
                                 onClick={() => {
                                   if (item.splitGroupId) {
                                     tratarRemoverSplit(item, comandaAtual);
@@ -597,9 +624,10 @@ export function PDV({
                                   }
                                 }}
                               >
-                                <i className="fas fa-trash" style={{ fontSize: '13px' }}></i>
+                                <i className="fas fa-trash" style={{ fontSize: '11px', marginRight: '4px' }}></i>
+                                {item.splitGroupId ? 'Opções da divisão' : 'Remover item'}
                               </button>
-                            </div>
+                            </div>}
                           </div>
                         );
                       })
