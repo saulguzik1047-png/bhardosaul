@@ -2018,6 +2018,53 @@ function App() {
     salvarComandaAgora(comandaAtualizada);
   }
 
+  async function adicionarEstoqueProdutoPDV(produto, quantidade) {
+    if (!usuarioLogado || usuarioLogado.perfil !== 'admin') {
+      dispararMensagem('Acesso Restrito', 'Somente o administrador pode adicionar produtos ao estoque pelo cardápio.');
+      return false;
+    }
+
+    const quantidadeValida = Number(quantidade);
+    const produtoAtual = produtos.find((item) => String(item.id) === String(produto?.id));
+    if (!produtoAtual || !Number.isFinite(quantidadeValida) || quantidadeValida <= 0) {
+      dispararMensagem('Entrada inválida', 'Informe uma quantidade maior que zero e tente novamente.');
+      return false;
+    }
+
+    try {
+      if (supabaseClient) {
+        const { data, error } = await supabaseClient.rpc('ajustar_estoque_produto', {
+          produto_id: idProdutoParaBanco(produtoAtual.id),
+          variacao: quantidadeValida,
+        });
+        if (error) throw error;
+
+        const estoqueConfirmado = Number(data?.[0]?.estoque);
+        if (!Number.isFinite(estoqueConfirmado)) {
+          throw new Error('O produto não foi encontrado ou o Supabase não retornou o estoque atualizado.');
+        }
+        setProdutos((prev) => prev.map((item) =>
+          String(item.id) === String(produtoAtual.id)
+            ? { ...item, estoque: estoqueConfirmado }
+            : item
+        ));
+      } else {
+        setProdutos((prev) => prev.map((item) =>
+          String(item.id) === String(produtoAtual.id)
+            ? { ...item, estoque: Number(item.estoque || 0) + quantidadeValida }
+            : item
+        ));
+      }
+
+      dispararMensagem('Estoque atualizado', `Foram adicionadas ${quantidadeValida} unidades de "${produtoAtual.nome}".`);
+      return true;
+    } catch (error) {
+      console.error('Não foi possível adicionar ao estoque pelo cardápio:', error);
+      dispararMensagem('Falha ao atualizar estoque', `Não foi possível adicionar unidades de "${produtoAtual.nome}". ${error?.message || 'Verifique a conexão e tente novamente.'}`);
+      return false;
+    }
+  }
+
   // Observação é opcional por item (ex: "sem salada"), só usada quando o pedido precisa de ajuste na cozinha.
   function editarObservacaoItem(itemAlvo, index) {
     const comandaParaAlterar = comandasRef.current.find((comanda) => mesmoComandaId(comanda.id, comandaAtivaId));
@@ -3125,6 +3172,8 @@ function App() {
           comandaAtivaId={comandaAtivaId}
           setComandaAtivaId={setComandaAtivaId}
           produtos={produtos}
+          ehAdministrador={usuarioLogado?.perfil === 'admin'}
+          adicionarEstoqueProduto={adicionarEstoqueProdutoPDV}
           categoriasCustomizadas={categoriasCustomizadas}
           categoriasDivisiveis={categoriasDivisiveis}
           categoriaAtiva={categoriaAtiva}

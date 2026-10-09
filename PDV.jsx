@@ -8,6 +8,8 @@ export function PDV({
   comandaAtivaId,
   setComandaAtivaId,
   produtos,
+  ehAdministrador = false,
+  adicionarEstoqueProduto,
   categoriasCustomizadas,
   categoriasDivisiveis,
   categoriaAtiva,
@@ -55,6 +57,11 @@ export function PDV({
     .toLowerCase();
   const [tecladoComandaAberto, setTecladoComandaAberto] = React.useState(false);
   const [acoesItemAberto, setAcoesItemAberto] = React.useState(null);
+  const [divisaoContaAberta, setDivisaoContaAberta] = React.useState(false);
+  const [numeroPessoasDividir, setNumeroPessoasDividir] = React.useState(2);
+  const [produtoParaAdicionarEstoque, setProdutoParaAdicionarEstoque] = React.useState(null);
+  const [quantidadeAdicionarEstoque, setQuantidadeAdicionarEstoque] = React.useState('1');
+  const [salvandoEntradaEstoque, setSalvandoEntradaEstoque] = React.useState(false);
 
   React.useEffect(() => {
     setAcoesItemAberto(null);
@@ -167,6 +174,8 @@ export function PDV({
     parseMoedaBR(valCartao) +
     parseMoedaBR(valCrediario);
   const saldoRestantePagamento = totalComDesconto - totalPagoAtualmente;
+  const pessoasParaDividir = Math.max(2, Number(numeroPessoasDividir) || 2);
+  const valorPorPessoa = totalComDesconto > 0 ? totalComDesconto / pessoasParaDividir : 0;
 
   return (
     <div className="main-container" style={{
@@ -779,25 +788,28 @@ export function PDV({
                           📙 Fiado
                         </button>
                         <button
-                          className="btn-pag btn-whatsapp"
+                          className="btn-pag btn-dividir-conta"
                           style={{
                             aspectRatio: '1 / 1',
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            background: '#25D366',
+                            background: '#8b5cf6',
                             color: '#fff',
                             fontSize: '12px',
                             fontWeight: 'bold',
                             borderRadius: '8px',
-                            boxShadow: '0 8px 18px rgba(37, 211, 102, 0.2)',
+                            boxShadow: '0 8px 18px rgba(139, 92, 246, 0.2)',
                             border: 'none',
                             cursor: 'pointer'
                           }}
-                          onClick={enviarResumoFiadoWhatsApp}
+                          onClick={() => {
+                            setNumeroPessoasDividir((prev) => (Number(prev) > 1 ? Number(prev) : 2));
+                            setDivisaoContaAberta(true);
+                          }}
                         >
-                          <><span style={{ fontSize: '22px' }}>📲</span><span>Resumo WhatsApp</span></>
+                          <><span style={{ fontSize: '22px' }}>👥</span><span>Dividir Conta</span></>
                         </button>
                         <button
                           className="btn-pag btn-mais-pgto"
@@ -982,94 +994,78 @@ export function PDV({
               }}
             >
               {comandaRecemPaga ? (
-                <div
-                  style={{
-                    padding: '15px',
-                    background: '#e8f5e9',
-                    border: '2px solid #27ae60',
-                    borderRadius: '12px',
-                    maxWidth: '320px',
-                    margin: '0 auto',
-                    boxShadow: '0 4px 15px rgba(0,0,0,0.06)',
-                  }}
-                >
-                  <i
-                    className="fas fa-check-circle"
-                    style={{
-                      fontSize: '32px',
-                      color: '#27ae60',
-                      marginBottom: '8px',
-                    }}
-                  ></i>
-                  <h4
-                    style={{
-                      margin: '0 0 6px 0',
-                      color: '#2e7d32',
-                      fontSize: '16px',
-                    }}
-                  >
-                    Conta Quitada!
-                  </h4>
-                  <p
-                    style={{
-                      fontSize: '11px',
-                      color: '#555',
-                      margin: '0 0 10px 0',
-                    }}
-                  >
-                    Comanda de <strong>{comandaRecemPaga.nome}</strong>{' '}
-                    processada.
-                  </p>
+                ReactDOM.createPortal(
                   <div
                     style={{
-                      borderTop: '1px solid #c8e6c9',
-                      paddingTop: '10px',
-                      marginBottom: '10px',
+                      position: 'fixed',
+                      inset: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '16px',
+                      boxSizing: 'border-box',
+                      background: 'rgba(15, 23, 42, 0.45)',
+                      zIndex: 10003,
                     }}
                   >
-                    <span
+                    <div
+                      role="dialog"
+                      aria-modal="true"
+                      aria-label="Comanda quitada"
                       style={{
-                        fontSize: '11px',
-                        fontWeight: 'bold',
-                        display: 'block',
-                        marginBottom: '8px',
-                        color: '#2c3e50',
+                        width: 'min(360px, 100%)',
+                        padding: '20px',
+                        boxSizing: 'border-box',
+                        textAlign: 'center',
+                        background: '#ffffff',
+                        border: '2px solid #27ae60',
+                        borderRadius: '14px',
+                        boxShadow: '0 18px 45px rgba(15, 42, 95, 0.35)',
                       }}
                     >
-                      Deseja emitir Nota Fiscal (NFC-e)?
-                    </span>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <button
-                        className="btn-imprimir"
+                      <i
+                        className="fas fa-check-circle"
                         style={{
-                          background: '#27ae60',
-                          margin: 0,
-                          flex: 1,
-                          padding: '8px',
-                          fontSize: '11px'
+                          fontSize: '36px',
+                          color: '#27ae60',
+                          marginBottom: '10px',
                         }}
-                        onClick={() =>
-                          emitirNotaFiscalSilenciosa(comandaRecemPaga)
-                        }
-                      >
-                        <i className="fas fa-file-invoice"></i> Emitir
-                      </button>
-                      <button
-                        className="btn-imprimir"
-                        style={{
-                          background: '#e74c3c',
-                          margin: 0,
-                          flex: 1,
-                          padding: '8px',
-                          fontSize: '11px'
-                        }}
-                        onClick={() => setComandaRecemPaga(null)}
-                      >
-                        <i className="fas fa-times-circle"></i> Concluir
-                      </button>
+                      ></i>
+                      <h3 style={{ margin: '0 0 8px', color: '#2e7d32', fontSize: '20px' }}>
+                        Conta Quitada!
+                      </h3>
+                      <p style={{ fontSize: '14px', color: '#555', margin: '0 0 16px' }}>
+                        Comanda de <strong>{comandaRecemPaga.nome}</strong> processada.
+                      </p>
+                      <div style={{ borderTop: '1px solid #c8e6c9', paddingTop: '14px' }}>
+                        <p style={{ fontSize: '13px', fontWeight: 'bold', margin: '0 0 12px', color: '#2c3e50' }}>
+                          Deseja emitir Nota Fiscal (NFC-e)?
+                        </p>
+                        <div className="botoes-pagamento" style={{ margin: '0 auto', maxWidth: '280px' }}>
+                          <button
+                            type="button"
+                            className="btn-pag btn-dinheiro"
+                            style={{ flexDirection: 'column', fontSize: '13px', borderRadius: '10px' }}
+                            onClick={() => emitirNotaFiscalSilenciosa(comandaRecemPaga)}
+                          >
+                            <i className="fas fa-file-invoice" style={{ fontSize: '22px' }}></i>
+                            Emitir Nota
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-pag"
+                            style={{ flexDirection: 'column', background: '#e74c3c', fontSize: '13px', borderRadius: '10px' }}
+                            onClick={() => setComandaRecemPaga(null)}
+                          >
+                            <i className="fas fa-check-circle" style={{ fontSize: '22px' }}></i>
+                            Concluir
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  </div>,
+                  document.body
+                )
               ) : (
                 <p style={{ color: '#888', fontSize: '12px' }}>
                   Selecione ou crie uma comanda ao lado.
@@ -1137,22 +1133,51 @@ export function PDV({
               style={{ position: 'relative', minHeight: '116px', padding: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', gap: 0, borderRadius: '10px', cursor: 'pointer', background: '#ffffff', border: '1px solid #cbd5e1', boxShadow: '0 2px 8px rgba(0,0,0,0.14)', boxSizing: 'border-box' }}
             >
               {p.estoque <= p.estoqueMinimo && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: '4px',
-                    right: '6px',
-                    fontSize: '9px',
-                    background: '#fee2e2',
-                    color: '#dc2626',
-                    padding: '1px 4px',
-                    borderRadius: '4px',
-                    fontWeight: 'bold',
-                    border: '1px solid #fecaca'
-                  }}
-                >
-                  {p.estoque}
-                </span>
+                ehAdministrador ? (
+                  <button
+                    type="button"
+                    title={`Adicionar estoque de ${p.nome}. Estoque atual: ${p.estoque}`}
+                    aria-label={`Adicionar estoque de ${p.nome}. Estoque atual: ${p.estoque}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setProdutoParaAdicionarEstoque(p);
+                      setQuantidadeAdicionarEstoque('1');
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: '4px',
+                      right: '4px',
+                      zIndex: 1,
+                      fontSize: '9px',
+                      background: '#fee2e2',
+                      color: '#b91c1c',
+                      padding: '2px 5px',
+                      borderRadius: '5px',
+                      fontWeight: 'bold',
+                      border: '1px solid #fecaca',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {p.estoque} ＋
+                  </button>
+                ) : (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: '4px',
+                      right: '6px',
+                      fontSize: '9px',
+                      background: '#fee2e2',
+                      color: '#dc2626',
+                      padding: '1px 4px',
+                      borderRadius: '4px',
+                      fontWeight: 'bold',
+                      border: '1px solid #fecaca'
+                    }}
+                  >
+                    {p.estoque}
+                  </span>
+                )
               )}
 
               <img
@@ -1172,6 +1197,224 @@ export function PDV({
           ))}
         </div>
       </div>
+
+      {produtoParaAdicionarEstoque && ReactDOM.createPortal(
+        <React.Fragment>
+          <div
+            onClick={() => {
+              if (!salvandoEntradaEstoque) setProdutoParaAdicionarEstoque(null);
+            }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.45)',
+              zIndex: 10001,
+            }}
+          />
+          <div
+            role="dialog"
+            aria-label={`Adicionar estoque de ${produtoParaAdicionarEstoque.nome}`}
+            aria-modal="true"
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 'min(360px, calc(100vw - 32px))',
+              background: '#ffffff',
+              border: '2px solid #dc2626',
+              borderRadius: '14px',
+              boxShadow: '0 18px 45px rgba(15, 42, 95, 0.35)',
+              padding: '18px',
+              zIndex: 10002,
+            }}
+          >
+            <h3 style={{ margin: '0 0 6px', fontSize: '18px', color: '#1f2937' }}>Adicionar ao estoque</h3>
+            <p style={{ margin: '0 0 14px', fontSize: '13px', color: '#4b5563' }}>
+              {produtoParaAdicionarEstoque.nome} · Estoque atual: {produtoParaAdicionarEstoque.estoque}
+            </p>
+            <label htmlFor="quantidade-entrada-pdv" style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#374151', marginBottom: '6px' }}>
+              Quantidade a adicionar
+            </label>
+            <input
+              id="quantidade-entrada-pdv"
+              type="number"
+              inputMode="decimal"
+              min="0.01"
+              step="any"
+              value={quantidadeAdicionarEstoque}
+              onChange={(event) => setQuantidadeAdicionarEstoque(event.target.value)}
+              disabled={salvandoEntradaEstoque}
+              autoFocus
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                fontSize: '15px',
+                marginBottom: '16px',
+              }}
+            />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                disabled={salvandoEntradaEstoque}
+                onClick={() => setProdutoParaAdicionarEstoque(null)}
+                style={{
+                  flex: 1,
+                  padding: '11px',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  background: '#f8fafc',
+                  color: '#334155',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  cursor: salvandoEntradaEstoque ? 'wait' : 'pointer',
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={salvandoEntradaEstoque || !Number.isFinite(Number(quantidadeAdicionarEstoque)) || Number(quantidadeAdicionarEstoque) <= 0}
+                onClick={async () => {
+                  setSalvandoEntradaEstoque(true);
+                  try {
+                    const sucesso = await adicionarEstoqueProduto(
+                      produtoParaAdicionarEstoque,
+                      Number(quantidadeAdicionarEstoque)
+                    );
+                    if (sucesso) setProdutoParaAdicionarEstoque(null);
+                  } finally {
+                    setSalvandoEntradaEstoque(false);
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: '11px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: '#dc2626',
+                  color: '#fff',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  cursor: salvandoEntradaEstoque ? 'wait' : 'pointer',
+                }}
+              >
+                {salvandoEntradaEstoque ? 'Salvando...' : 'Adicionar'}
+              </button>
+            </div>
+          </div>
+        </React.Fragment>,
+        document.body
+      )}
+
+      {divisaoContaAberta && ReactDOM.createPortal(
+        <React.Fragment>
+          <div
+            onClick={() => setDivisaoContaAberta(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.45)',
+              zIndex: 10001,
+            }}
+          />
+          <div
+            role="dialog"
+            aria-label="Dividir conta"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 'min(360px, calc(100vw - 32px))',
+              background: '#ffffff',
+              border: '2px solid #8b5cf6',
+              borderRadius: '14px',
+              boxShadow: '0 18px 45px rgba(15, 42, 95, 0.35)',
+              padding: '18px',
+              zIndex: 10002,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', color: '#1f2937' }}>Dividir conta</h3>
+              <button
+                type="button"
+                onClick={() => setDivisaoContaAberta(false)}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#6b7280',
+                  fontSize: '18px',
+                  cursor: 'pointer',
+                  fontWeight: '700',
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#374151', marginBottom: '8px' }}>
+              Quantidade de pessoas
+            </label>
+            <input
+              type="number"
+              min="2"
+              step="1"
+              value={pessoasParaDividir}
+              onChange={(event) => {
+                const valor = Number(event.target.value || 2);
+                setNumeroPessoasDividir(Math.max(2, Number.isFinite(valor) ? valor : 2));
+              }}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                fontSize: '15px',
+                marginBottom: '14px',
+              }}
+            />
+
+            <div
+              style={{
+                background: '#f5f3ff',
+                border: '1px solid #ddd6fe',
+                borderRadius: '10px',
+                padding: '12px',
+                marginBottom: '16px',
+              }}
+            >
+              <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Valor por pessoa</div>
+              <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#4c1d95' }}>{formatarMoeda(valorPorPessoa)}</div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setDivisaoContaAberta(false)}
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: 'none',
+                borderRadius: '8px',
+                background: '#8b5cf6',
+                color: '#fff',
+                fontSize: '13px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+              }}
+            >
+              Confirmar
+            </button>
+          </div>
+        </React.Fragment>,
+        document.body
+      )}
     </div>
   );
 }
