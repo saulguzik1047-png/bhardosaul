@@ -2721,7 +2721,10 @@ function App() {
     }
 
     setMostrarMultiFormas(false);
-    dispararConfirmacao('Confirmar Recebimento', `Deseja finalizar a comanda de ${comandaAtual.nome} com os valores informados?`, async () => {
+    dispararConfirmacao(
+      'Confirmar quitação da comanda',
+      `Confirme o recebimento de ${formatarMoeda(totalCobranca)} da comanda de ${comandaAtual.nome}. Depois da confirmação, será exibida a opção de emitir a Nota Fiscal (NFC-e).`,
+      async () => {
       if (pagamentoEmProcessamentoRef.current) return;
       pagamentoEmProcessamentoRef.current = true;
       try {
@@ -2785,7 +2788,8 @@ function App() {
         } finally {
           pagamentoEmProcessamentoRef.current = false;
         }
-      }
+      },
+      () => setMostrarMultiFormas(true)
     );
   }
 
@@ -2797,7 +2801,10 @@ function App() {
     const totalCobranca = Math.max(0, totalBruto - descontoAplicado);
     const rotuloTipo = descontoAplicado > 0 ? `${tipo.toUpperCase()} (Desc. ${formatarMoeda(descontoAplicado)})` : tipo.toUpperCase();
 
-    dispararConfirmacao('Confirmar Pagamento', `Deseja fechar a conta de ${comandaAtual.nome} no valor total de ${formatarMoeda(totalCobranca)}${descontoAplicado > 0 ? ` (desconto de ${formatarMoeda(descontoAplicado)} aplicado)` : ''} via [${tipo.toUpperCase()}]?`, async () => {
+    dispararConfirmacao(
+      'Confirmar quitação da comanda',
+      `Confirme o pagamento de ${formatarMoeda(totalCobranca)} da comanda de ${comandaAtual.nome} via ${tipo.toUpperCase()}${descontoAplicado > 0 ? ` (desconto de ${formatarMoeda(descontoAplicado)} aplicado)` : ''}. Depois da confirmação, será exibida a opção de emitir a Nota Fiscal (NFC-e).`,
+      async () => {
         if (pagamentoEmProcessamentoRef.current) return;
         pagamentoEmProcessamentoRef.current = true;
         try {
