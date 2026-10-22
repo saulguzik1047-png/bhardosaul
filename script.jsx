@@ -1612,8 +1612,27 @@ function App() {
       return undefined;
     };
 
+    const chavesProdutos = ['bhar_produtos_v3', 'bhar_produtos_v2', 'bhar_produtos_v1'];
+    const produtosPorId = new Map();
+    for (const chave of chavesProdutos) {
+      const produtosSalvos = lerArrayCache([chave]);
+      if (!produtosSalvos) continue;
+
+      for (const produto of produtosSalvos) {
+        if (!produto || produto.id === undefined || produto.id === null) continue;
+        const id = String(produto.id);
+        const produtoMaisRecente = produtosPorId.get(id);
+        produtosPorId.set(id, produtoMaisRecente
+          ? {
+              ...produto,
+              ...produtoMaisRecente,
+              imagem: produtoMaisRecente.imagem || produto.imagem || '',
+            }
+          : produto);
+      }
+    }
+
     const caches = [
-      { chaves: ['bhar_produtos_v3', 'bhar_produtos_v2', 'bhar_produtos_v1'], atualizar: setProdutos },
       { chaves: ['bhar_clientes_v2'], atualizar: setClientesCadastrados },
       { chaves: ['bhar_vendas_v1'], atualizar: setVendas },
       { chaves: ['bhar_despesas_v1'], atualizar: setDespesas },
@@ -1632,6 +1651,11 @@ function App() {
       const dados = lerArrayCache(chaves);
       if (dados === undefined) continue;
       atualizar(dados);
+      cachesRestaurados++;
+    }
+
+    if (produtosPorId.size > 0) {
+      setProdutos(Array.from(produtosPorId.values()));
       cachesRestaurados++;
     }
 
