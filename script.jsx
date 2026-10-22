@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import Tesseract from 'tesseract.js';
 import LeitorNotaCamera from './LeitorNotaCamera.jsx';
 import { supabaseClient, obterConfigSupabase, salvarConfigSupabase, limparConfigSupabase } from './supabase.js';  
+import { carregarImagensProdutosDoCache, salvarImagensProdutosNoCache } from './imageCache.js';
 import { formatarMoeda, calcularTotal, normalizarCategoria } from './formatadores.js';
 import { criptografarSenha } from './seguranca.js';
 
@@ -746,8 +747,32 @@ function App() {
   });
 
   React.useEffect(() => {
-    localStorage.setItem('bhar_produtos_v3', JSON.stringify(produtos));
+    try {
+      localStorage.setItem('bhar_produtos_v3', JSON.stringify(produtos));
+    } catch (erro) {
+      console.warn('Não foi possível salvar todos os produtos no cache local:', erro);
+    }
   }, [produtos]);
+
+  React.useEffect(() => {
+    let cancelado = false;
+
+    carregarImagensProdutosDoCache()
+      .then((imagensCacheadas) => {
+        if (cancelado || imagensCacheadas.length === 0) return;
+        const mapaImagens = new Map(imagensCacheadas.map((item) => [item.id, item]));
+        setProdutos((atuais) => (atuais || []).map((produto) => {
+          const imagemCacheada = mapaImagens.get(String(produto.id));
+          if (!imagemCacheada || (produto.imagem && produto.imagem !== imagemCacheada.source)) return produto;
+          return { ...produto, imagem: imagemCacheada.imagem };
+        }));
+      })
+      .catch((erro) => console.warn('Não foi possível restaurar o cache de imagens:', erro));
+
+    return () => {
+      cancelado = true;
+    };
+  }, []);
 
   const [produtosExcluidos, setProdutosExcluidos] = React.useState(() => {
     try {
@@ -1850,6 +1875,8 @@ function App() {
     setStatusSincronizacao('Sincronizando');
     let imagensRecuperadas = 0;
     let erroSincronizacao = null;
+    let erroCacheImagens = null;
+    let imagensSalvasNoCache = 0;
 
     try {
       if (supabaseClient) {
@@ -1857,6 +1884,24 @@ function App() {
         if (error) throw error;
         if (prods && prods.length > 0) {
           const mapaImagens = new Map(prods.map((p) => [String(p.id), String(p.imagem || '')]));
+          const imagensNuvem = prods
+            .filter((produto) => String(produto.imagem || '').trim() !== '')
+            .map((produto) => ({ id: produto.id, imagem: String(produto.imagem).trim() }));
+
+          try {
+            const resultadoCache = await salvarImagensProdutosNoCache(imagensNuvem);
+            imagensSalvasNoCache = resultadoCache.salvas;
+            if (resultadoCache.falhas.length > 0) {
+              erroCacheImagens = new Error(
+                `${resultadoCache.falhas.length} imagem(ns) não puderam ser baixadas para o cache local.`
+              );
+              console.warn('Falha ao salvar algumas imagens no cache local:', resultadoCache.falhas);
+            }
+          } catch (erro) {
+            erroCacheImagens = erro;
+            console.error('Não foi possível salvar as imagens no cache local:', erro);
+          }
+
           setProdutos((prev) => {
             const atualizados = (prev || []).map((p) => {
               const imgNuvem = mapaImagens.get(String(p.id));
@@ -1874,6 +1919,25 @@ function App() {
     } catch (err) {
       erroSincronizacao = err;
       console.warn('Falha ao buscar imagens do Supabase, tentando resgatar do localStorage:', err);
+    }
+
+    try {
+      const imagensCacheadas = await carregarImagensProdutosDoCache();
+      if (imagensCacheadas.length > 0) {
+        const mapaImagens = new Map(imagensCacheadas.map((item) => [item.id, item]));
+        setProdutos((prev) => {
+          const atualizados = (prev || []).map((produto) => {
+            const imagemCacheada = mapaImagens.get(String(produto.id));
+            if (!imagemCacheada || (produto.imagem && produto.imagem !== imagemCacheada.source)) return produto;
+            if (produto.imagem === imagemCacheada.imagem) return produto;
+            imagensRecuperadas++;
+            return { ...produto, imagem: imagemCacheada.imagem };
+          });
+          return atualizados;
+        });
+      }
+    } catch (erro) {
+      console.warn('Não foi possível restaurar imagens do cache local:', erro);
     }
 
     try {
@@ -1916,13 +1980,19 @@ function App() {
 
     setStatusSincronizacao(erroSincronizacao
       ? 'Falha ao sincronizar imagens'
-      : `Sincronizado ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`);
+      : erroCacheImagens
+        ? 'Imagens atualizadas; falha parcial no cache'
+        : `Sincronizado ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`);
     dispararMensagem(
-      erroSincronizacao ? '❌ Falha na Sincronização de Imagens' : '🖼️ Sincronização de Imagens',
+      erroSincronizacao || erroCacheImagens ? '❌ Falha na Sincronização de Imagens' : '🖼️ Sincronização de Imagens',
       erroSincronizacao
         ? `Não foi possível atualizar as imagens do Supabase. As imagens salvas localmente foram mantidas. ${erroSincronizacao.message || ''}`.trim()
+        : erroCacheImagens
+          ? `${imagensSalvasNoCache} imagem(ns) salvas no cache. ${erroCacheImagens.message || 'Algumas imagens não foram armazenadas localmente.'}`
         : imagensRecuperadas > 0
-          ? `${imagensRecuperadas} imagem(ns) atualizada(s) do Supabase ou recuperada(s) do cache local.`
+          ? `${imagensSalvasNoCache} imagem(ns) baixadas e salvas no cache; ${imagensRecuperadas} imagem(ns) restauradas ou atualizadas no sistema.`
+          : imagensSalvasNoCache > 0
+            ? `${imagensSalvasNoCache} imagem(ns) baixadas e salvas no cache local.`
           : 'As imagens disponíveis salvas no seu navegador/nuvem foram mantidas.'
     );
   }
