@@ -6,6 +6,7 @@ import { supabaseClient, obterConfigSupabase, salvarConfigSupabase, limparConfig
 import { carregarImagensProdutosDoCache, salvarImagensProdutosNoCache } from './imageCache.js';
 import { formatarMoeda, calcularTotal, normalizarCategoria } from './formatadores.js';
 import { criptografarSenha } from './seguranca.js';
+import imagensProdutosBackup from './imagens-produtos-backup.json';
 
 import { Header } from './Header.jsx';
 import { Login } from './Login.jsx';
@@ -17,6 +18,18 @@ import { Financeiro } from './Financeiro.jsx';
 import { Crediario } from './Crediario.jsx';
 import { PDV } from './PDV.jsx';
 import { Garcom } from './Garcom.jsx';
+
+const imagensProdutosBackupPorId = new Map(
+  Object.entries(imagensProdutosBackup).map(([id, imagem]) => [String(id), imagem])
+);
+
+function aplicarImagemBackupProduto(produto) {
+  const imagemAtual = String(produto?.imagem || '').trim();
+  return {
+    ...produto,
+    imagem: imagemAtual || imagensProdutosBackupPorId.get(String(produto?.id)) || '',
+  };
+}
 
 const gerarImpressaoTermica = (conteudoHTML) => {
   let iframe = document.getElementById('iframe-impressora');
@@ -721,7 +734,7 @@ function App() {
           const produtosCarregados = JSON.parse(salvosProd);
           if (Array.isArray(produtosCarregados)) {
             console.log(`[DEBUG] carregando produtos de localStorage key=${key} count=${produtosCarregados.length}`);
-            return produtosCarregados;
+            return produtosCarregados.map(aplicarImagemBackupProduto);
           }
         }
       }
@@ -733,7 +746,7 @@ function App() {
           const produtosCarregados = JSON.parse(salvosProd);
           if (Array.isArray(produtosCarregados)) {
             console.log(`[DEBUG] carregando produtos de localStorage key=${key} count=${produtosCarregados.length}`);
-            return produtosCarregados;
+            return produtosCarregados.map(aplicarImagemBackupProduto);
           }
         }
       }
@@ -1386,7 +1399,7 @@ function App() {
             estoqueMinimo: p.estoque_minimo, dataUltimaCompra: p.data_ultima_compra, imagem: '',
             fatorConversao: p.fator_conversao || 1,
             apelidos: p.apelidos || [],
-          })).filter((p) => !produtosExcluidosSet.has(String(p.id)));
+          })).map(aplicarImagemBackupProduto).filter((p) => !produtosExcluidosSet.has(String(p.id)));
 
           setProdutos((prev) => {
             const produtosLocais = Array.isArray(prev) ? prev : [];
@@ -1404,7 +1417,7 @@ function App() {
               } else {
                 mapaMerge.set(String(pNuvem.id), {
                   ...pNuvem,
-                  imagem: pLocal.imagem || '',
+                  imagem: pLocal.imagem || pNuvem.imagem || '',
                 });
               }
             }
@@ -1498,14 +1511,14 @@ function App() {
         imagem: '',
         fatorConversao: produto.fator_conversao || 1,
         apelidos: produto.apelidos || [],
-      })));
+      })).map(aplicarImagemBackupProduto));
 
       setProdutos((atuais) => {
         const locaisValidos = filtrarProdutosExcluidos(atuais || []);
         const mapaLocais = new Map(locaisValidos.map((produto) => [String(produto.id), produto]));
         const mapa = new Map(produtosNuvem.map((produto) => {
           const produtoLocal = mapaLocais.get(String(produto.id));
-          return [String(produto.id), { ...produto, imagem: produtoLocal?.imagem || '' }];
+          return [String(produto.id), { ...produto, imagem: produtoLocal?.imagem || produto.imagem || '' }];
         }));
         for (const produto of locaisValidos) {
           if (!mapa.has(String(produto.id))) mapa.set(String(produto.id), produto);
@@ -1680,7 +1693,7 @@ function App() {
     }
 
     if (produtosPorId.size > 0) {
-      setProdutos(Array.from(produtosPorId.values()));
+      setProdutos(Array.from(produtosPorId.values()).map(aplicarImagemBackupProduto));
       cachesRestaurados++;
     }
 
