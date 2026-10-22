@@ -61,7 +61,7 @@ export function PDV({
   const [divisaoContaAberta, setDivisaoContaAberta] = React.useState(false);
   const [numeroPessoasDividir, setNumeroPessoasDividir] = React.useState(2);
   const [produtoParaAdicionarEstoque, setProdutoParaAdicionarEstoque] = React.useState(null);
-  const [quantidadeAdicionarEstoque, setQuantidadeAdicionarEstoque] = React.useState('1');
+  const [quantidadeAdicionarEstoque, setQuantidadeAdicionarEstoque] = React.useState('');
   const [salvandoEntradaEstoque, setSalvandoEntradaEstoque] = React.useState(false);
 
   React.useEffect(() => {
@@ -1142,7 +1142,7 @@ export function PDV({
                     onClick={(event) => {
                       event.stopPropagation();
                       setProdutoParaAdicionarEstoque(p);
-                      setQuantidadeAdicionarEstoque('1');
+                      setQuantidadeAdicionarEstoque('');
                     }}
                     style={{
                       position: 'absolute',
@@ -1216,10 +1216,12 @@ export function PDV({
             onClick={(event) => event.stopPropagation()}
             style={{
               position: 'fixed',
-              top: '50%',
+              top: 'max(12px, env(safe-area-inset-top))',
               left: '50%',
-              transform: 'translate(-50%, -50%)',
+              transform: 'translateX(-50%)',
               width: 'min(360px, calc(100vw - 32px))',
+              maxHeight: 'calc(100vh - 24px)',
+              overflowY: 'auto',
               background: '#ffffff',
               border: '2px solid #dc2626',
               borderRadius: '14px',
