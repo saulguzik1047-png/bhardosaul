@@ -2810,8 +2810,15 @@ function App() {
   }
 
   function imagemAutomaticaProduto(nome, category) {
-    const termo = encodeURIComponent(nome);
-    return `https://loremflickr.com/400/300/${termo}`;
+    const placeholderSvg = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+        <rect width="128" height="128" rx="16" fill="#eaf2ff"/>
+        <rect x="30" y="34" width="68" height="58" rx="8" fill="#fff" stroke="#94a3b8" stroke-width="5"/>
+        <circle cx="76" cy="51" r="7" fill="#60a5fa"/>
+        <path d="m36 83 19-20 13 13 9-9 15 16" fill="none" stroke="#64748b" stroke-linecap="round" stroke-linejoin="round" stroke-width="6"/>
+      </svg>
+    `;
+    return `data:image/svg+xml,${encodeURIComponent(placeholderSvg)}`;
   }
 
   function iniciarDivisaoItem(item) {
