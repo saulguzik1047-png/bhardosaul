@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { formatarMoeda, calcularTotal, listarCategoriasProdutos, normalizarCategoria } from './formatadores.js';
+import { ProductImage } from './ProductImage.jsx';
 
 export function PDV({
   comandaAtual,
@@ -1180,13 +1181,10 @@ export function PDV({
                 )
               )}
 
-              <img
-                src={p.imagem || imagemAutomaticaProduto(p.nome, p.category)}
+              <ProductImage
+                src={p.imagem}
+                fallbackSrc={imagemAutomaticaProduto(p.nome, p.category)}
                 alt={p.nome}
-                onError={(e) => {
-                  e.currentTarget.onerror = null;
-                  e.currentTarget.src = imagemAutomaticaProduto(p.nome, p.category);
-                }}
                 style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '8px' }}
               />
 

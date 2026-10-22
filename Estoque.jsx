@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { formatarMoeda, normalizarCategoria } from './formatadores.js';
+import { ProductImage } from './ProductImage.jsx';
 import LeitorNotaCamera from './LeitorNotaCamera.jsx';
 import { supabaseClient } from './supabase.js';
 
@@ -878,15 +879,12 @@ export const Estoque = ({
               {produtosFiltrados.map(p => (
                 <tr key={p.id} style={{ borderBottom: '0.5px solid ' + separator, fontSize: '14px' }}>
                   <td style={{ padding: '10px' }}>
-                    <img
-                      src={p.imagem || imagemAutomaticaProduto(p.nome, p.category)}
+                    <ProductImage
+                      src={p.imagem}
+                      fallbackSrc={imagemAutomaticaProduto(p.nome, p.category)}
                       alt={p.nome}
                       width="40"
                       height="40"
-                      onError={(e) => {
-                        e.currentTarget.onerror = null;
-                        e.currentTarget.src = imagemAutomaticaProduto(p.nome, p.category);
-                      }}
                       style={{ borderRadius: '10px', objectFit: 'cover' }}
                     />
                   </td>

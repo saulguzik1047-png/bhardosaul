@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { formatarMoeda, calcularTotal, listarCategoriasProdutos, normalizarCategoria } from './formatadores.js';
+import { ProductImage } from './ProductImage.jsx';
 
 export function Garcom({
   comandas,
@@ -403,7 +404,7 @@ export function Garcom({
                   fontFamily: 'inherit', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '6px',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.06)', opacity: p.estoque <= 0 ? 0.4 : 1
                 }}>
-                  <img src={p.imagem || imagemAutomaticaProduto(p.nome, p.category)} alt={p.nome} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = imagemAutomaticaProduto(p.nome, p.category); }} style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: radiusSm, background: fillBg }} />
+                  <ProductImage src={p.imagem} fallbackSrc={imagemAutomaticaProduto(p.nome, p.category)} alt={p.nome} style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: radiusSm, background: fillBg }} />
                   <strong style={{ fontSize: '14px', color: textPrimary, lineHeight: '1.25' }}>{p.nome}</strong>
                   <span style={{ fontSize: '16px', fontWeight: '700', color: iosGreen }}>{formatarMoeda(p.preco)}</span>
                   <span style={{ fontSize: '12px', color: p.estoque <= 0 ? iosRed : labelColor }}>{p.estoque <= 0 ? 'Esgotado' : `${p.estoque} disponíveis`}</span>
