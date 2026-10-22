@@ -7,7 +7,7 @@ function normalizeProduct(raw) {
   const nome = (raw.nome ?? raw.name ?? '').toString().trim();
   if (!id || !nome) return null;
 
-  return {
+  const normalized = {
     id,
     nome,
     category: raw.category ?? raw.categoria ?? 'Geral',
@@ -15,11 +15,16 @@ function normalizeProduct(raw) {
     preco_custo: Number(raw.preco_custo ?? raw.precoCusto ?? 0) || 0,
     estoque: Number(raw.estoque ?? 0) || 0,
     estoque_minimo: Number(raw.estoque_minimo ?? raw.estoqueMinimo ?? 0) || 0,
-    imagem: raw.imagem ?? '',
     fator_conversao: Number(raw.fator_conversao ?? raw.fatorConversao ?? 1) || 1,
     apelidos: Array.isArray(raw.apelidos) ? raw.apelidos : [],
     data_ultima_compra: raw.data_ultima_compra ?? raw.dataUltimaCompra ?? null,
   };
+
+  if (Object.prototype.hasOwnProperty.call(raw, 'imagem')) {
+    normalized.imagem = raw.imagem ?? '';
+  }
+
+  return normalized;
 }
 
 export default async function handler(req, res) {

@@ -1351,12 +1351,14 @@ function App() {
         const { data: clis } = (await supabaseClient?.from('clientes').select('*')) || {};
         if (clis && clis.length > 0) setClientesCadastrados(clis);
 
-        const { data: prods } = (await supabaseClient?.from('produtos').select('*')) || {};
+        const { data: prods } = (await supabaseClient?.from('produtos').select(
+          'id, category, nome, preco_custo, preco, estoque, estoque_minimo, data_ultima_compra, fator_conversao, apelidos'
+        )) || {};
         if (prods && prods.length > 0) {
           const produtosNuvem = prods.map((p) => ({
             id: p.id, category: p.category, nome: p.nome,
             precoCusto: p.preco_custo, preco: p.preco, estoque: p.estoque,
-            estoqueMinimo: p.estoque_minimo, dataUltimaCompra: p.data_ultima_compra, imagem: p.imagem,
+            estoqueMinimo: p.estoque_minimo, dataUltimaCompra: p.data_ultima_compra, imagem: '',
             fatorConversao: p.fator_conversao || 1,
             apelidos: p.apelidos || [],
           })).filter((p) => !produtosExcluidosSet.has(String(p.id)));
@@ -1375,13 +1377,9 @@ function App() {
               if (!pLocal) {
                 mapaMerge.set(String(pNuvem.id), pNuvem);
               } else {
-                const imgNuvem = String(pNuvem.imagem || '').trim();
-                const imgLocal = String(pLocal.imagem || '').trim();
-                const imgFinal = imgNuvem || imgLocal;
-
                 mapaMerge.set(String(pNuvem.id), {
                   ...pNuvem,
-                  imagem: imgFinal,
+                  imagem: pLocal.imagem || '',
                 });
               }
             }
@@ -1458,7 +1456,7 @@ function App() {
     const atualizarProdutosDaNuvem = async () => {
       const { data, error } = await supabaseClient
         .from('produtos')
-        .select('*')
+        .select('id, category, nome, preco_custo, preco, estoque, estoque_minimo, data_ultima_compra, fator_conversao, apelidos')
         .order('nome', { ascending: true });
 
       if (cancelado || error || !Array.isArray(data) || data.length === 0) return;
@@ -1472,14 +1470,18 @@ function App() {
         estoque: produto.estoque,
         estoqueMinimo: produto.estoque_minimo,
         dataUltimaCompra: produto.data_ultima_compra,
-        imagem: produto.imagem,
+        imagem: '',
         fatorConversao: produto.fator_conversao || 1,
         apelidos: produto.apelidos || [],
       })));
 
       setProdutos((atuais) => {
         const locaisValidos = filtrarProdutosExcluidos(atuais || []);
-        const mapa = new Map(produtosNuvem.map((produto) => [String(produto.id), produto]));
+        const mapaLocais = new Map(locaisValidos.map((produto) => [String(produto.id), produto]));
+        const mapa = new Map(produtosNuvem.map((produto) => {
+          const produtoLocal = mapaLocais.get(String(produto.id));
+          return [String(produto.id), { ...produto, imagem: produtoLocal?.imagem || '' }];
+        }));
         for (const produto of locaisValidos) {
           if (!mapa.has(String(produto.id))) mapa.set(String(produto.id), produto);
         }
@@ -1594,6 +1596,48 @@ function App() {
     });
   }
 
+  function restaurarDadosDoCacheLocal() {
+    const lerArrayCache = (chaves) => {
+      for (const chave of chaves) {
+        try {
+          const salvo = localStorage.getItem(chave);
+          if (!salvo) continue;
+          const dados = JSON.parse(salvo);
+          if (Array.isArray(dados)) return dados;
+          console.warn(`Cache local ignorado porque não contém uma lista: ${chave}`);
+        } catch (erro) {
+          console.warn(`Não foi possível ler o cache local ${chave}:`, erro);
+        }
+      }
+      return undefined;
+    };
+
+    const caches = [
+      { chaves: ['bhar_produtos_v3', 'bhar_produtos_v2', 'bhar_produtos_v1'], atualizar: setProdutos },
+      { chaves: ['bhar_clientes_v2'], atualizar: setClientesCadastrados },
+      { chaves: ['bhar_vendas_v1'], atualizar: setVendas },
+      { chaves: ['bhar_despesas_v1'], atualizar: setDespesas },
+      { chaves: ['bhar_crediarios_v1'], atualizar: setCrediarios },
+      { chaves: ['bhar_comandas_v1'], atualizar: setComandas },
+      { chaves: ['bhar_comandas_excluidas_v1'], atualizar: setComandasExcluidas },
+      { chaves: ['bhar_produtos_excluidos_v1'], atualizar: setProdutosExcluidos },
+      { chaves: ['bhar_produtos_excluidos_nomes_v1'], atualizar: setNomesProdutosExcluidos },
+      { chaves: ['bhar_categorias_customizadas_v1'], atualizar: setCategoriasCustomizadas },
+      { chaves: ['bhar_categorias_divisiveis_v1'], atualizar: setCategoriasDivisiveis },
+      { chaves: ['bhar_usuarios_v1'], atualizar: setUsuariosSistema },
+    ];
+    let cachesRestaurados = 0;
+
+    for (const { chaves, atualizar } of caches) {
+      const dados = lerArrayCache(chaves);
+      if (dados === undefined) continue;
+      atualizar(dados);
+      cachesRestaurados++;
+    }
+
+    return cachesRestaurados;
+  }
+
   async function sincronizarDadosNuvem({ silencioso = false } = {}) {
     setStatusSincronizacao('Sincronizando');
     if (!silencioso) {
@@ -1606,8 +1650,12 @@ function App() {
       });
     }
     try {
+      if (!supabaseClient) {
+        throw new Error('Cliente Supabase indisponível.');
+      }
+
       const { data: fiadosNuvem, error: erroFiadosNuvem } = await supabaseClient
-        ?.from('crediarios')
+        .from('crediarios')
         .select('*') || {};
       if (erroFiadosNuvem) throw erroFiadosNuvem;
 
@@ -1658,7 +1706,13 @@ function App() {
         const resp = await fetch('/api/sync-products', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ products: produtosParaSincronizar || [] })
+          body: JSON.stringify({
+            products: (produtosParaSincronizar || []).map((produto) => {
+              const produtoSemImagem = { ...produto };
+              delete produtoSemImagem.imagem;
+              return produtoSemImagem;
+            }),
+          })
         });
 
         let json = null;
@@ -1691,7 +1745,6 @@ function App() {
           preco_custo: Number(p.precoCusto || 0),
           estoque: Number(p.estoque || 0),
           estoque_minimo: Number(p.estoqueMinimo || 0),
-          imagem: p.imagem || '',
           fator_conversao: Number(p.fatorConversao || 1),
           apelidos: Array.isArray(p.apelidos) ? p.apelidos : [],
           data_ultima_compra: p.dataUltimaCompra || null,
@@ -1710,14 +1763,18 @@ function App() {
       }
 
       if (crediariosParaSincronizar.length > 0) {
-        await supabaseClient?.from('crediarios').upsert(crediariosParaSincronizar.map((c) => ({
+        const { error } = await supabaseClient.from('crediarios').upsert(crediariosParaSincronizar.map((c) => ({
           id_cred: c.idCred, data: c.data, cliente: c.cliente,
           total: c.total, status: c.status, itens_consumidos: c.itensConsumidos, pagamentos: c.pagamentos || [],
           updated_at: c.updated_at || new Date().toISOString()
         })), { onConflict: 'id_cred' });
+        if (error) throw error;
       }
 
-      const { data: vendasNuvem } = (await supabaseClient?.from('vendas').select('data, cliente, total')) || {};
+      const { data: vendasNuvem, error: erroConsultaVendas } = await supabaseClient
+        .from('vendas')
+        .select('data, cliente, total');
+      if (erroConsultaVendas) throw erroConsultaVendas;
       const vendasParaInserir = vendas.filter(vLocal => {
         const jaExiste = vendasNuvem?.some(vCloud => vCloud.data === vLocal.data && vCloud.cliente === vLocal.cliente && vCloud.total === vLocal.total);
         return !jaExiste; 
@@ -1727,18 +1784,23 @@ function App() {
         const vendasFormatadas = vendasParaInserir.map(v => ({
           data: v.data, cliente: v.cliente, total: v.total, pagamento: v.pagamento, itens_consumidos: v.itensConsumidos
         }));
-        await supabaseClient?.from('vendas').insert(vendasFormatadas);
+        const { error } = await supabaseClient.from('vendas').insert(vendasFormatadas);
+        if (error) throw error;
       }
 
-      const { data: clientesNuvem } = (await supabaseClient?.from('clientes').select('nome')) || {};
+      const { data: clientesNuvem, error: erroConsultaClientes } = await supabaseClient
+        .from('clientes')
+        .select('nome');
+      if (erroConsultaClientes) throw erroConsultaClientes;
       const clientesParaInserir = clientesCadastrados.filter(cLocal => {
         return !clientesNuvem?.some(cCloud => cCloud.nome.toLowerCase() === cLocal.nome.toLowerCase());
       });
 
       if (clientesParaInserir.length > 0) {
-        await supabaseClient?.from('clientes').insert(clientesParaInserir.map(c => ({
+        const { error } = await supabaseClient.from('clientes').insert(clientesParaInserir.map(c => ({
            nome: c.nome, sobrenome: c.sobrenome, telefone: c.telefone, foto: c.foto
         })));
+        if (error) throw error;
       }
 
       if (!silencioso) {
@@ -1747,9 +1809,15 @@ function App() {
       setStatusSincronizacao(`Sincronizado ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`);
     } catch (err) {
       console.error('Erro na sincronização:', err);
-      setStatusSincronizacao('Falha ao sincronizar');
+      const cachesRestaurados = restaurarDadosDoCacheLocal();
+      setStatusSincronizacao('Falha na nuvem — usando cache local');
       if (!silencioso) {
-        dispararMensagem('❌ Erro de Conexão', 'Não foi possível sincronizar. Verifique a internet e tente novamente.');
+        dispararMensagem(
+          '❌ Erro de Conexão',
+          `Não foi possível sincronizar com o Supabase. ${cachesRestaurados > 0
+            ? 'Os últimos dados salvos neste dispositivo foram carregados; você pode continuar trabalhando offline.'
+            : 'Não foram encontrados dados salvos neste dispositivo.'} Verifique a conexão e tente sincronizar novamente.`
+        );
       }
     }
   }
@@ -1757,18 +1825,20 @@ function App() {
   async function sincronizarImagens() {
     setStatusSincronizacao('Sincronizando');
     let imagensRecuperadas = 0;
+    let erroSincronizacao = null;
 
     try {
       if (supabaseClient) {
         const { data: prods, error } = await supabaseClient.from('produtos').select('id, imagem');
-        if (!error && prods && prods.length > 0) {
+        if (error) throw error;
+        if (prods && prods.length > 0) {
           const mapaImagens = new Map(prods.map((p) => [String(p.id), String(p.imagem || '')]));
           setProdutos((prev) => {
             const atualizados = (prev || []).map((p) => {
               const imgNuvem = mapaImagens.get(String(p.id));
-              if (imgNuvem && imgNuvem.trim() !== '' && (!p.imagem || String(p.imagem).trim() === '')) {
+              if (imgNuvem && imgNuvem.trim() !== '' && String(p.imagem || '').trim() !== imgNuvem.trim()) {
                 imagensRecuperadas++;
-                return { ...p, imagem: imgNuvem };
+                return { ...p, imagem: imgNuvem.trim() };
               }
               return p;
             });
@@ -1778,6 +1848,7 @@ function App() {
         }
       }
     } catch (err) {
+      erroSincronizacao = err;
       console.warn('Falha ao buscar imagens do Supabase, tentando resgatar do localStorage:', err);
     }
 
@@ -1819,12 +1890,16 @@ function App() {
       console.error('Erro ao resgatar imagens do localStorage:', e);
     }
 
-    setStatusSincronizacao(`Sincronizado ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`);
+    setStatusSincronizacao(erroSincronizacao
+      ? 'Falha ao sincronizar imagens'
+      : `Sincronizado ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`);
     dispararMensagem(
-      '🖼️ Sincronização de Imagens',
-      imagensRecuperadas > 0
-        ? `${imagensRecuperadas} imagem(ns) resgatada(s) do histórico local/nuvem com sucesso!`
-        : 'As imagens disponíveis salvas no seu navegador/nuvem foram mantidas.'
+      erroSincronizacao ? '❌ Falha na Sincronização de Imagens' : '🖼️ Sincronização de Imagens',
+      erroSincronizacao
+        ? `Não foi possível atualizar as imagens do Supabase. As imagens salvas localmente foram mantidas. ${erroSincronizacao.message || ''}`.trim()
+        : imagensRecuperadas > 0
+          ? `${imagensRecuperadas} imagem(ns) atualizada(s) do Supabase ou recuperada(s) do cache local.`
+          : 'As imagens disponíveis salvas no seu navegador/nuvem foram mantidas.'
     );
   }
 
