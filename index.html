@@ -110,10 +110,103 @@
 
       .topbar-menu {
         display: flex;
-        gap: 4px;
+        gap: 5px;
         align-items: center;
         z-index: 2;
         justify-content: flex-start;
+      }
+
+      .topbar-menu .topbar-nav-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        height: 34px;
+        padding: 0 10px;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        color: var(--ios-label-secondary);
+        font-size: 11px;
+        font-weight: 600;
+        gap: 6px;
+        text-transform: uppercase;
+        white-space: nowrap;
+        transition: var(--ios-transition);
+      }
+      .topbar-menu .topbar-nav-button i {
+        color: var(--ios-blue);
+        font-size: 12px;
+      }
+      .topbar-menu .topbar-nav-button:hover,
+      .topbar-menu .topbar-nav-button.active {
+        background: rgba(0, 122, 255, 0.09);
+        border-color: rgba(0, 122, 255, 0.12);
+        color: var(--ios-blue);
+      }
+      .topbar-menu .topbar-nav-button:active {
+        background: rgba(0, 122, 255, 0.15);
+        transform: scale(0.97);
+      }
+
+      .topbar-user,
+      .topbar-status,
+      .topbar-utility-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 30px;
+        padding: 0 9px;
+        border: 1px solid var(--ios-separator);
+        border-radius: 9px;
+        font-size: 10px;
+        font-weight: 600;
+        line-height: 1;
+        white-space: nowrap;
+      }
+      .topbar-user {
+        background: rgba(120, 120, 128, 0.07);
+        color: var(--ios-label-secondary);
+      }
+      .topbar-user i {
+        color: var(--ios-green);
+        font-size: 7px;
+      }
+      .topbar-user-locked i {
+        color: var(--ios-gray);
+      }
+      .topbar-status {
+        background: rgba(52, 199, 89, 0.09);
+        border-color: rgba(52, 199, 89, 0.18);
+        color: #20833a;
+      }
+      .topbar-status-pending {
+        background: rgba(0, 122, 255, 0.08);
+        border-color: rgba(0, 122, 255, 0.18);
+        color: #1769aa;
+      }
+      .topbar-status-error {
+        background: rgba(255, 59, 48, 0.08);
+        border-color: rgba(255, 59, 48, 0.18);
+        color: #c62828;
+      }
+      .topbar-utility-button {
+        background: rgba(0, 122, 255, 0.06);
+        border-color: rgba(0, 122, 255, 0.16);
+        color: var(--ios-blue);
+        cursor: pointer;
+        transition: var(--ios-transition);
+      }
+      .topbar-utility-button:hover {
+        background: rgba(0, 122, 255, 0.12);
+      }
+      .topbar-logout-button {
+        background: rgba(255, 59, 48, 0.06);
+        border-color: rgba(255, 59, 48, 0.16);
+        color: #d92d26;
+      }
+      .topbar-logout-button:hover {
+        background: rgba(255, 59, 48, 0.12);
       }
 
       .topbar button {
@@ -1835,14 +1928,21 @@
       }
 
       @media (max-width: 520px) {
-        .topbar-menu button {
-          height: 34px !important;
-          padding: 0 10px !important;
-          font-size: 12px !important;
+        .topbar-menu .topbar-nav-button {
+          height: 34px;
+          padding: 0 10px;
+          font-size: 12px;
         }
 
         .user-info span {
           font-size: 11px !important;
+        }
+
+        .topbar-user,
+        .topbar-status,
+        .topbar-utility-button {
+          min-height: 30px;
+          padding: 0 8px;
         }
 
         .btn-dialog-confirm,

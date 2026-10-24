@@ -52,74 +52,50 @@ export const Header = ({
           return (
             <button
               key={btn.id}
-              className={isActive ? 'active' : ''}
+              className={`topbar-nav-button${isActive ? ' active' : ''}`}
               onClick={() => navegarPara(btn.id)}
-              style={{
-                display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-                height: '30px', padding: '0 7px', borderRadius: '6px', fontSize: '11px', fontWeight: '600', gap: '3px',
-                cursor: 'pointer', transition: '0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-                border: 'none',
-                background: isActive ? 'rgba(0, 122, 255, 0.1)' : 'transparent',
-                color: '#007aff',
-                textTransform: 'uppercase',
-                whiteSpace: 'nowrap',
-                flexShrink: 0
-              }}
             >
-              <i className={`fas ${btn.icon}`} style={{ fontSize: '11px' }}></i> {btn.label}
+              <i className={`fas ${btn.icon}`}></i> {btn.label}
             </button>
           );
         })}
       </div>
 
       <div className="user-info" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', flexShrink: 0, flexWrap: 'nowrap' }}>
-        <span style={{ whiteSpace: 'nowrap', color: '#3c3c43', fontSize: '11px', fontWeight: '600' }}>
-          <i className="fas fa-circle" style={{ color: autenticado ? '#34c759' : '#8e8e93', fontSize: '7px' }}></i>{' '}
+        <span className={`topbar-user${autenticado ? '' : ' topbar-user-locked'}`}>
+          <i className="fas fa-circle"></i>
           {autenticado && usuarioLogado ? usuarioLogado.usuario.toUpperCase() : 'Bloqueado'}
         </span>
 
         {autenticado && statusSincronizacao && (
-          <span title={statusSincronizacao} style={{ whiteSpace: 'nowrap', fontSize: '10px', color: statusSincronizacao.startsWith('Falha') ? '#dc2626' : statusSincronizacao === 'Sincronizando' ? '#2563eb' : '#16a34a' }}>
-            <i className={`fas ${statusSincronizacao === 'Sincronizando' ? 'fa-sync-alt fa-spin' : statusSincronizacao.startsWith('Falha') ? 'fa-exclamation-circle' : 'fa-cloud-check'}`} style={{ marginRight: '2px' }}></i>
-            {statusSincronizacao}
+          <span
+            className={`topbar-status${statusSincronizacao.startsWith('Falha') ? ' topbar-status-error' : statusSincronizacao === 'Sincronizando' ? ' topbar-status-pending' : ''}`}
+            title={statusSincronizacao}
+            role="status"
+            aria-live="polite"
+          >
+            <i className={`fas ${statusSincronizacao === 'Sincronizando' ? 'fa-sync-alt fa-spin' : statusSincronizacao.startsWith('Falha') ? 'fa-exclamation-circle' : 'fa-cloud-check'}`}></i>
+            {statusSincronizacao.startsWith('Falha') ? 'Falha na nuvem · cache local' : statusSincronizacao}
           </span>
         )}
 
         {autenticado && sincronizarImagens && (
           <button
+            className="topbar-utility-button"
             onClick={sincronizarImagens}
             title="Baixar e sincronizar imagens dos produtos da nuvem"
-            style={{
-              background: 'rgba(0, 122, 255, 0.08)',
-              border: '1px solid rgba(0, 122, 255, 0.2)',
-              color: '#007aff',
-              cursor: 'pointer',
-              padding: '4px 7px',
-              borderRadius: '6px',
-              fontSize: '10px',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '3px',
-              whiteSpace: 'nowrap',
-              flexShrink: 0
-            }}
           >
-            <i className="fas fa-image" style={{ fontSize: '10px' }}></i> Imagens
+            <i className="fas fa-image"></i> Imagens
           </button>
         )}
 
         {autenticado && !isGarcom && (
           <button
+            className="topbar-utility-button topbar-logout-button"
             onClick={logoutSistema}
             title="Sair do Sistema"
-            style={{
-              background: 'rgba(255, 59, 48, 0.08)', border: 'none', color: '#ff3b30',
-              cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '600',
-              display: 'flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap', flexShrink: 0
-            }}
           >
-            Sair <i className="fas fa-sign-out-alt" style={{ fontSize: '10px' }}></i>
+            <i className="fas fa-sign-out-alt"></i> Sair
           </button>
         )}
       </div>
