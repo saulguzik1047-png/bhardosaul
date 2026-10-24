@@ -51,6 +51,15 @@ export function PDV({
   consumoFlash = false
 }) {
   const mesmoComandaId = (a, b) => String(a ?? '') === String(b ?? '');
+  const [comandasRecentesIds, setComandasRecentesIds] = React.useState([]);
+  const selecionarComanda = (id) => {
+    const idSelecionado = String(id);
+    setComandasRecentesIds((ids) => [
+      idSelecionado,
+      ...ids.filter((idRecente) => idRecente !== idSelecionado),
+    ]);
+    setComandaAtivaId(id);
+  };
   const normalizarNomeProduto = (nome) => String(nome || '')
     .replace(/\s*\(Dividido entre:.*\)$/i, '')
     .replace(/\s+/g, ' ')
@@ -177,6 +186,14 @@ export function PDV({
   const saldoRestantePagamento = totalComDesconto - totalPagoAtualmente;
   const pessoasParaDividir = Math.max(2, Number(numeroPessoasDividir) || 2);
   const valorPorPessoa = totalComDesconto > 0 ? totalComDesconto / pessoasParaDividir : 0;
+  const comandasOrdenadas = [...comandas].sort((a, b) => {
+    const indiceA = comandasRecentesIds.indexOf(String(a.id));
+    const indiceB = comandasRecentesIds.indexOf(String(b.id));
+    if (indiceA === -1 && indiceB === -1) return 0;
+    if (indiceA === -1) return 1;
+    if (indiceB === -1) return -1;
+    return indiceA - indiceB;
+  });
 
   return (
     <div className="main-container" style={{
@@ -325,7 +342,7 @@ export function PDV({
                         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
                       }}
                       onClick={() => {
-                        setComandaAtivaId(c.id);
+                        selecionarComanda(c.id);
                         setModoPagamento(false);
                         setComandaRecemPaga(null);
                         fecharTecladoComanda();
@@ -439,7 +456,7 @@ export function PDV({
         </div>
 
         <div style={{ flexGrow: 1, overflowY: 'auto', paddingRight: '4px' }}>
-          {comandas.map((c) => {
+          {comandasOrdenadas.map((c) => {
             const totalComanda = calcularTotal(c.itens);
             const isAtiva = mesmoComandaId(comandaAtivaId, c.id);
             return (
@@ -447,7 +464,7 @@ export function PDV({
                 key={c.id}
                 className={`comanda-card ${isAtiva ? 'active' : ''}`}
                 onClick={() => {
-                  setComandaAtivaId(c.id);
+                  selecionarComanda(c.id);
                   setModoPagamento(false);
                   setMostrarMultiFormas(false);
                   setComandaRecemPaga(null);
