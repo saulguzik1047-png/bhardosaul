@@ -962,6 +962,31 @@ function App() {
   const comandasComGravacaoPendenteRef = React.useRef(new Set());
   const filasGravacaoComandaRef = React.useRef(new Map());
   const pagamentoEmProcessamentoRef = React.useRef(false);
+  const [ajustesEstoquePendentes, setAjustesEstoquePendentes] = React.useState(() => {
+    try {
+      const salvos = localStorage.getItem('bhar_ajustes_estoque_pendentes_v1');
+      const ajustes = salvos ? JSON.parse(salvos) : [];
+      return Array.isArray(ajustes) ? ajustes : [];
+    } catch (erro) {
+      console.error('Não foi possível carregar os ajustes de estoque pendentes:', erro);
+      return [];
+    }
+  });
+  const ajustesEstoquePendentesRef = React.useRef(ajustesEstoquePendentes);
+  const sincronizandoAjustesEstoqueRef = React.useRef(false);
+  const persistirAjustesEstoquePendentes = (ajustes) => {
+    localStorage.setItem('bhar_ajustes_estoque_pendentes_v1', JSON.stringify(ajustes));
+    ajustesEstoquePendentesRef.current = ajustes;
+    setAjustesEstoquePendentes(ajustes);
+  };
+  const adicionarAjustesPendentesAoProduto = (produto) => {
+    const ajustePendente = ajustesEstoquePendentesRef.current
+      .filter((ajuste) => String(ajuste.produtoId) === String(produto.id))
+      .reduce((total, ajuste) => total + Number(ajuste.variacao || 0), 0);
+    return ajustePendente
+      ? { ...produto, estoque: Number(produto.estoque || 0) + ajustePendente }
+      : produto;
+  };
   const comandasRef = React.useRef(comandas);
   const normalizarComandaId = (id) => String(id ?? '');
   const mesmoComandaId = (a, b) => normalizarComandaId(a) === normalizarComandaId(b);
@@ -979,6 +1004,56 @@ function App() {
     localStorage.setItem('bhar_comandas_v1', JSON.stringify(comandas));
     comandasRef.current = comandas;
   }, [comandas]);
+
+  React.useEffect(() => {
+    if (!supabaseClient) return undefined;
+
+    const sincronizarAjustesPendentes = async () => {
+      if (sincronizandoAjustesEstoqueRef.current || navigator.onLine === false) return;
+      sincronizandoAjustesEstoqueRef.current = true;
+
+      try {
+        while (ajustesEstoquePendentesRef.current.length > 0) {
+          const ajuste = ajustesEstoquePendentesRef.current[0];
+          const { data, error } = await supabaseClient.rpc('ajustar_estoque_produto', {
+            produto_id: idProdutoParaBanco(ajuste.produtoId),
+            variacao: Number(ajuste.variacao),
+            operacao_id: ajuste.operacaoId,
+          });
+          if (error) throw error;
+
+          const estoqueConfirmado = Number(data?.[0]?.estoque);
+          if (!Number.isFinite(estoqueConfirmado)) {
+            throw new Error('O Supabase não retornou o estoque atualizado.');
+          }
+
+          const ajustesRestantes = ajustesEstoquePendentesRef.current
+            .filter((item) => item.operacaoId !== ajuste.operacaoId);
+          persistirAjustesEstoquePendentes(ajustesRestantes);
+          const variacaoPendente = ajustesRestantes
+            .filter((item) => String(item.produtoId) === String(ajuste.produtoId))
+            .reduce((total, item) => total + Number(item.variacao || 0), 0);
+          setProdutos((atuais) => atuais.map((produto) =>
+            String(produto.id) === String(ajuste.produtoId)
+              ? { ...produto, estoque: estoqueConfirmado + variacaoPendente }
+              : produto
+          ));
+        }
+      } catch (erro) {
+        console.warn('Ajustes de estoque permanecem no cache até a conexão com o Supabase voltar:', erro);
+      } finally {
+        sincronizandoAjustesEstoqueRef.current = false;
+      }
+    };
+
+    sincronizarAjustesPendentes();
+    window.addEventListener('online', sincronizarAjustesPendentes);
+    const intervalo = window.setInterval(sincronizarAjustesPendentes, 5000);
+    return () => {
+      window.removeEventListener('online', sincronizarAjustesPendentes);
+      window.clearInterval(intervalo);
+    };
+  }, [ajustesEstoquePendentes, idProdutoParaBanco]);
 
   const salvarComandaAgora = React.useCallback((comanda) => {
     if (!supabaseClient || !comanda?.id) return;
@@ -1399,7 +1474,10 @@ function App() {
             estoqueMinimo: p.estoque_minimo, dataUltimaCompra: p.data_ultima_compra, imagem: '',
             fatorConversao: p.fator_conversao || 1,
             apelidos: p.apelidos || [],
-          })).map(aplicarImagemBackupProduto).filter((p) => !produtosExcluidosSet.has(String(p.id)));
+          }))
+            .map(aplicarImagemBackupProduto)
+            .map(adicionarAjustesPendentesAoProduto)
+            .filter((p) => !produtosExcluidosSet.has(String(p.id)));
 
           setProdutos((prev) => {
             const produtosLocais = Array.isArray(prev) ? prev : [];
@@ -1511,7 +1589,7 @@ function App() {
         imagem: '',
         fatorConversao: produto.fator_conversao || 1,
         apelidos: produto.apelidos || [],
-      })).map(aplicarImagemBackupProduto));
+      })).map(aplicarImagemBackupProduto).map(adicionarAjustesPendentesAoProduto));
 
       setProdutos((atuais) => {
         const locaisValidos = filtrarProdutosExcluidos(atuais || []);
@@ -2214,31 +2292,25 @@ function App() {
     }
 
     try {
-      if (supabaseClient) {
-        const { data, error } = await supabaseClient.rpc('ajustar_estoque_produto', {
-          produto_id: idProdutoParaBanco(produtoAtual.id),
+      const ajustesPendentes = [
+        ...ajustesEstoquePendentesRef.current,
+        {
+          operacaoId: crypto.randomUUID(),
+          produtoId: produtoAtual.id,
           variacao: quantidadeValida,
-        });
-        if (error) throw error;
+        },
+      ];
+      persistirAjustesEstoquePendentes(ajustesPendentes);
+      setProdutos((prev) => prev.map((item) =>
+        String(item.id) === String(produtoAtual.id)
+          ? { ...item, estoque: Number(item.estoque || 0) + quantidadeValida }
+          : item
+      ));
 
-        const estoqueConfirmado = Number(data?.[0]?.estoque);
-        if (!Number.isFinite(estoqueConfirmado)) {
-          throw new Error('O produto não foi encontrado ou o Supabase não retornou o estoque atualizado.');
-        }
-        setProdutos((prev) => prev.map((item) =>
-          String(item.id) === String(produtoAtual.id)
-            ? { ...item, estoque: estoqueConfirmado }
-            : item
-        ));
-      } else {
-        setProdutos((prev) => prev.map((item) =>
-          String(item.id) === String(produtoAtual.id)
-            ? { ...item, estoque: Number(item.estoque || 0) + quantidadeValida }
-            : item
-        ));
-      }
-
-      dispararMensagem('Estoque atualizado', `Foram adicionadas ${quantidadeValida} unidades de "${produtoAtual.nome}".`);
+      dispararMensagem(
+        'Estoque salvo no dispositivo',
+        `Foram adicionadas ${quantidadeValida} unidades de "${produtoAtual.nome}" ao cache local. A sincronização com o Supabase será tentada automaticamente.`
+      );
       return true;
     } catch (error) {
       console.error('Não foi possível adicionar ao estoque pelo cardápio:', error);
